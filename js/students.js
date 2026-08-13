@@ -1,628 +1,489 @@
 /**
  * ==========================================================================
- * LIBMANAGE SAAS ECOSYSTEM ENGINE - STUDENT CRUD & AUTOMATIC SUBCOLLECTION UID
- * MOBILE NUMBER SUPPORT ADDED
- * DATE DISPLAY/FORM FORMAT = DD/MM/YYYY
- * FIREBASE STORAGE FORMAT = YYYY-MM-DD
+ * LIBMANAGE - STUDENT DIRECTORY MODULE
  * ==========================================================================
- */
-
-let currentActiveBranchId = "";
-let localBranchStudentsArray = [];
-let studentsUnsubscribeRef = null;
-let isStudentDirectoryInitialized = false;
-
-document.addEventListener('DOMContentLoaded', async () => {
-    if (isStudentDirectoryInitialized) return;
-    isStudentDirectoryInitialized = true;
-
-    if (localStorage.getItem('session_role') !== 'admin') {
-        window.location.href = "../index.html";
-        return;
-    }
-
-    try {
-        await loadSaaSLayoutComponent(
-            'sidebar-container',
-            '../components/sidebar.html',
-            () => {
-                if (typeof handleSidebarActivation === 'function') {
-                    handleSidebarActivation();
-                }
-            }
-        );
-
-        await loadSaaSLayoutComponent(
-            'navbar-container',
-            '../components/navbar.html',
-            () => {
-                if (typeof bindNavbarInteractions === 'function') {
-                    bindNavbarInteractions();
-                }
-            }
-        );
-
-        await loadSaaSLayoutComponent(
-            'footer-container',
-            '../components/footer.html'
-        );
-
-    } catch (error) {
-        console.error('[Layout Loader Error]:', error);
-    }
-
-    waitForFirebaseAndInitialize();
-});
-
-
-/**
- * ==========================================================================
- * FIREBASE READY WAIT ENGINE
- * ==========================================================================
- */
-
-function waitForFirebaseAndInitialize() {
-
-    let attempts = 0;
-    const maxAttempts = 20;
-
-    function checkFirebaseReady() {
-
-        attempts++;
-
-        const firebaseAvailable =
-            typeof firebase !== "undefined";
-
-        const firebaseInitialized =
-            firebaseAvailable &&
-            firebase.apps &&
-            firebase.apps.length > 0;
-
-        const firestoreReady =
-            !!window.db;
-
-        if (
-            firebaseAvailable &&
-            firebaseInitialized &&
-            firestoreReady
-        ) {
-            console.log(
-                '[Student Directory] Firebase + Firestore ready.'
-            );
-
-            initializeStudentDirectoryModule();
-            return;
-        }
-
-        if (attempts >= maxAttempts) {
-
-            console.error(
-                '[Firebase Bootstrap Timeout]: Firebase/Firestore was not ready.',
-                {
-                    firebaseExists: firebaseAvailable,
-                    firebaseApps:
-                        firebaseAvailable && firebase.apps
-                            ? firebase.apps.length
-                            : 0,
-                    dbExists: firestoreReady
-                }
-            );
-
-            alert(
-                'Database Engine Offline: Firebase could not be initialized. Please reload the page once.'
-            );
-
-            return;
-        }
-
-        setTimeout(
-            checkFirebaseReady,
-            250
-        );
-    }
-
-    checkFirebaseReady();
-}
-
-
-/**
- * ==========================================================================
- * STUDENT DIRECTORY INITIALIZATION
- * ==========================================================================
- */
-
-function initializeStudentDirectoryModule() {
-
-    currentActiveBranchId =
-        localStorage.getItem('session_library_id');
-
-    const db = window.db;
-
-    if (!currentActiveBranchId) {
-
-        alert(
-            'Session Error: Current library context is missing.'
-        );
-
-        return;
-    }
-
-    if (!db) {
-
-        alert(
-            'Database Engine Offline: Unified cloud storage reference mapping missing.'
-        );
-
-        return;
-    }
-
-    const searchInput =
-        document.getElementById('student-search-input');
-
-    const openModalBtn =
-        document.getElementById('open-add-modal-btn');
-
-    const closeModalBtn =
-        document.getElementById('close-modal-btn');
-
-    const cancelFormBtn =
-        document.getElementById('cancel-form-btn');
-
-    const registrationForm =
-        document.getElementById('student-form');
-
-    const modal =
-        document.getElementById('student-modal');
-
-
-    if (searchInput) {
-
-        searchInput.removeEventListener(
-            'input',
-            executeStudentDirectorySearchFilter
-        );
-
-        searchInput.addEventListener(
-            'input',
-            executeStudentDirectorySearchFilter
-        );
-    }
-
-
-    if (openModalBtn) {
-
-        openModalBtn.removeEventListener(
-            'click',
-            handleOpenAddStudentModal
-        );
-
-        openModalBtn.addEventListener(
-            'click',
-            handleOpenAddStudentModal
-        );
-    }
-
-
-    if (closeModalBtn) {
-
-        closeModalBtn.removeEventListener(
-            'click',
-            triggerStudentFormModalClose
-        );
-
-        closeModalBtn.addEventListener(
-            'click',
-            triggerStudentFormModalClose
-        );
-    }
-
-
-    if (cancelFormBtn) {
-
-        cancelFormBtn.removeEventListener(
-            'click',
-            triggerStudentFormModalClose
-        );
-
-        cancelFormBtn.addEventListener(
-            'click',
-            triggerStudentFormModalClose
-        );
-    }
-
-
-    if (registrationForm) {
-
-        registrationForm.removeEventListener(
-            'submit',
-            commitStudentDirectoryMutationAction
-        );
-
-        registrationForm.addEventListener(
-            'submit',
-            commitStudentDirectoryMutationAction
-        );
-    }
-
-
-    if (modal) {
-
-        modal.removeEventListener(
-            'click',
-            handleModalBackdropDismiss
-        );
-
-        modal.addEventListener(
-            'click',
-            handleModalBackdropDismiss
-        );
-    }
-
-
-    /*
-     * DATE INPUT FORMATTER
-     */
-    bindDateFormatInputs();
-
-
-    if (studentsUnsubscribeRef) {
-
-        studentsUnsubscribeRef();
-        studentsUnsubscribeRef = null;
-    }
-
-
-    /**
-     * FIRESTORE REALTIME STUDENT LISTENER
-     */
-
-    studentsUnsubscribeRef = db
-        .collection('saas_libraries')
-        .doc(currentActiveBranchId)
-        .collection('students')
-        .onSnapshot(
-
-            (snapshot) => {
-
-                localBranchStudentsArray = [];
-
-                snapshot.forEach((doc) => {
-
-                    if (doc.id === 'anchor_node') {
-                        return;
-                    }
-
-                    const data =
-                        doc.data() || {};
-
-                    localBranchStudentsArray.push({
-
-                        studentCode:
-                            data.studentCode || doc.id,
-
-                        libraryId:
-                            data.libraryId ||
-                            currentActiveBranchId,
-
-                        name:
-                            data.name || '',
-
-                        fatherName:
-                            data.fatherName || '',
-
-                        studentClass:
-                            data.studentClass || '',
-
-                        seatNumber:
-                            data.seatNumber || '',
-
-                        /*
-                         * MOBILE NUMBER
-                         */
-                        mobile:
-                            data.mobile || '',
-
-                        joiningDate:
-                            data.joiningDate || '',
-
-                        expiryDate:
-                            data.expiryDate || '',
-
-                        status:
-                            data.status || '',
-
-                        shift:
-                            data.shift || '',
-
-                        updatedAt:
-                            data.updatedAt || null
-                    });
-                });
-
-                paintStudentDirectoryTableGrid(
-                    localBranchStudentsArray
-                );
-            },
-
-            (error) => {
-
-                console.error(
-                    '[Firestore Student Subcollection Snapshot Stream Fault Exception]:',
-                    error
-                );
-
-                alert(
-                    'Unable to load students in realtime. Please check Firestore permissions or connectivity.'
-                );
-            }
-        );
-}
-
-
-/**
- * ==========================================================================
- * DATE FORMAT HELPERS
- * ==========================================================================
- */
-
-/*
- * Firebase:
- * YYYY-MM-DD
  *
- * Website:
- * DD/MM/YYYY
+ * Handles:
+ * - Student listing
+ * - Search
+ * - Add student
+ * - Edit student
+ * - Delete student
+ * - Automatic unique student login code
+ * - Library-wise Firestore isolation
+ * - Joining / expiry date
+ * - Active / expired status
+ *
+ * IMPORTANT:
+ * This module NEVER accesses the old "saas_libraries" structure.
+ * It uses dashboard.js -> LibManageDB -> libmanage_secure_v2
+ * ==========================================================================
  */
 
-function formatDisplayDate(value) {
 
-    const dateString =
-        String(value == null ? '' : value).trim();
+/* ==========================================================================
+   1. MODULE STATE
+   ========================================================================== */
 
-    if (!dateString) {
-        return '';
-    }
+let studentsRealtimeUnsubscribe = null;
 
-    const parts = dateString.split('-');
+let studentRecords = [];
 
-    if (parts.length === 3) {
+let studentEditMode = false;
 
-        const year = parts[0];
-        const month = parts[1];
-        const day = parts[2];
+let currentEditingStudentCode = null;
 
-        if (
-            year.length === 4 &&
-            month.length >= 1 &&
-            day.length >= 1
-        ) {
-            return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
-        }
-    }
 
-    return dateString;
+/* ==========================================================================
+   2. DOM HELPERS
+   ========================================================================== */
+
+function studentElement(id) {
+
+    return document.getElementById(id);
+
 }
 
 
-/*
- * Firebase YYYY-MM-DD
- * -> Form DD/MM/YYYY
- */
+/* ==========================================================================
+   3. SESSION / DATABASE CHECK
+   ========================================================================== */
 
-function formatDateForForm(value) {
+function getStudentLibraryContext() {
 
-    return formatDisplayDate(value);
-}
+    const session =
+        typeof getCurrentSession === "function"
+            ? getCurrentSession()
+            : null;
 
 
-/*
- * Form DD/MM/YYYY
- * -> Firebase YYYY-MM-DD
- */
-
-function convertFormDateToFirebase(value) {
-
-    const dateString =
-        String(value == null ? '' : value).trim();
-
-    if (!dateString) {
-        return '';
+    if (!session) {
+        return null;
     }
 
-    const parts = dateString.split('/');
-
-    if (parts.length !== 3) {
-        return '';
-    }
-
-    const day = parts[0].padStart(2, '0');
-    const month = parts[1].padStart(2, '0');
-    const year = parts[2];
 
     if (
-        year.length !== 4 ||
-        day.length !== 2 ||
-        month.length !== 2
+        session.role !== "admin" ||
+        !session.libraryId
     ) {
-        return '';
+
+        return null;
+
     }
 
-    return `${year}-${month}-${day}`;
+
+    return session;
+
 }
 
 
-/*
- * Auto DD/MM/YYYY while typing
- */
+/* ==========================================================================
+   4. STUDENT CODE GENERATOR
+   ==========================================================================
+   
+   Format:
+   
+   LIB0001
+   LIB0002
+   LIB0003
+   
+   The library ID is NOT used directly in the student code.
+   Firestore document ID remains unique inside each library.
 
-function bindDateFormatInputs() {
+   ========================================================================== */
 
-    const joiningInput =
-        document.getElementById('std-joining');
+function generateStudentCode() {
 
-    const expiryInput =
-        document.getElementById('std-expiry');
+    const prefix =
+        "STU";
 
 
-    function formatTyping(event) {
+    let highestNumber =
+        0;
 
-        let value =
-            event.target.value.replace(/\D/g, '');
 
-        if (value.length > 8) {
-            value = value.substring(0, 8);
+    studentRecords.forEach(
+        (student) => {
+
+            const code =
+                String(
+                    student.studentCode || ""
+                ).toUpperCase();
+
+
+            const match =
+                code.match(
+                    /^STU(\d+)$/
+                );
+
+
+            if (match) {
+
+                const number =
+                    parseInt(
+                        match[1],
+                        10
+                    );
+
+
+                if (
+                    !Number.isNaN(number) &&
+                    number > highestNumber
+                ) {
+
+                    highestNumber =
+                        number;
+
+                }
+
+            }
+
         }
-
-        if (value.length > 4) {
-
-            value =
-                value.substring(0, 2) +
-                '/' +
-                value.substring(2, 4) +
-                '/' +
-                value.substring(4);
-
-        } else if (value.length > 2) {
-
-            value =
-                value.substring(0, 2) +
-                '/' +
-                value.substring(2);
-
-        }
-
-        event.target.value = value;
-    }
+    );
 
 
-    if (joiningInput) {
+    return (
+        prefix +
+        String(
+            highestNumber + 1
+        ).padStart(
+            4,
+            "0"
+        )
+    );
 
-        joiningInput.removeEventListener(
-            'input',
-            formatTyping
-        );
-
-        joiningInput.addEventListener(
-            'input',
-            formatTyping
-        );
-    }
-
-
-    if (expiryInput) {
-
-        expiryInput.removeEventListener(
-            'input',
-            formatTyping
-        );
-
-        expiryInput.addEventListener(
-            'input',
-            formatTyping
-        );
-    }
 }
 
 
-/**
- * ==========================================================================
- * OPEN STUDENT MODAL
- * ==========================================================================
- */
+/* ==========================================================================
+   5. DATE VALIDATION
+   ========================================================================== */
 
-function handleOpenAddStudentModal() {
+function isValidDateFormat(
+    value
+) {
 
-    triggerStudentFormModalOpen(false);
-}
+    const date =
+        String(
+            value || ""
+        ).trim();
 
-
-/**
- * ==========================================================================
- * MODAL BACKDROP
- * ==========================================================================
- */
-
-function handleModalBackdropDismiss(event) {
 
     if (
-        event.target &&
-        event.target.id === 'student-modal'
+        !/^\d{2}\/\d{2}\/\d{4}$/.test(
+            date
+        )
     ) {
 
-        triggerStudentFormModalClose();
+        return false;
+
     }
+
+
+    const parts =
+        date.split(
+            "/"
+        );
+
+
+    const day =
+        parseInt(
+            parts[0],
+            10
+        );
+
+
+    const month =
+        parseInt(
+            parts[1],
+            10
+        );
+
+
+    const year =
+        parseInt(
+            parts[2],
+            10
+        );
+
+
+    if (
+        month < 1 ||
+        month > 12 ||
+        day < 1
+    ) {
+
+        return false;
+
+    }
+
+
+    const testDate =
+        new Date(
+            year,
+            month - 1,
+            day
+        );
+
+
+    return (
+        testDate.getFullYear() === year &&
+        testDate.getMonth() === month - 1 &&
+        testDate.getDate() === day
+    );
+
 }
 
 
-/**
- * ==========================================================================
- * HTML ESCAPE
- * ==========================================================================
- */
+/* ==========================================================================
+   6. DATE CONVERSION
+   ========================================================================== */
 
-function escapeHtml(value) {
+function parseIndianDate(
+    value
+) {
+
+    if (
+        !isValidDateFormat(
+            value
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    const parts =
+        value.split(
+            "/"
+        );
+
+
+    const day =
+        parseInt(
+            parts[0],
+            10
+        );
+
+
+    const month =
+        parseInt(
+            parts[1],
+            10
+        );
+
+
+    const year =
+        parseInt(
+            parts[2],
+            10
+        );
+
+
+    return new Date(
+        year,
+        month - 1,
+        day
+    );
+
+}
+
+
+/* ==========================================================================
+   7. DATE FORMATTER
+   ========================================================================== */
+
+function formatDateValue(
+    value
+) {
+
+    if (!value) {
+        return "";
+    }
+
+
+    if (
+        typeof value.toDate ===
+        "function"
+    ) {
+
+        value =
+            value.toDate();
+
+    }
+
+
+    if (
+        value instanceof Date &&
+        !Number.isNaN(
+            value.getTime()
+        )
+    ) {
+
+        const day =
+            String(
+                value.getDate()
+            ).padStart(
+                2,
+                "0"
+            );
+
+
+        const month =
+            String(
+                value.getMonth() + 1
+            ).padStart(
+                2,
+                "0"
+            );
+
+
+        const year =
+            value.getFullYear();
+
+
+        return (
+            day +
+            "/" +
+            month +
+            "/" +
+            year
+        );
+
+    }
+
 
     return String(
-        value == null ? '' : value
-    )
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#x27;');
+        value
+    );
+
 }
 
 
-/**
- * ==========================================================================
- * SEARCH NORMALIZATION
- * ==========================================================================
- */
+/* ==========================================================================
+   8. ESCAPE HTML
+   ========================================================================== */
 
-function normalizeSearchText(value) {
+function escapeStudentHtml(
+    value
+) {
 
     return String(
-        value == null ? '' : value
+        value ?? ""
     )
-        .trim()
-        .toLowerCase();
+    .replace(
+        /&/g,
+        "&amp;"
+    )
+    .replace(
+        /</g,
+        "&lt;"
+    )
+    .replace(
+        />/g,
+        "&gt;"
+    )
+    .replace(
+        /"/g,
+        "&quot;"
+    )
+    .replace(
+        /'/g,
+        "&#39;"
+    );
+
 }
 
 
-/**
- * ==========================================================================
- * UPPERCASE NORMALIZATION
- * ==========================================================================
- */
+/* ==========================================================================
+   9. AUTO STATUS
+   ========================================================================== */
 
-function safeUpper(value) {
+function calculateStudentStatus(
+    expiryDate
+) {
 
-    return String(
-        value == null ? '' : value
+    const expiry =
+        parseIndianDate(
+            expiryDate
+        );
+
+
+    if (!expiry) {
+
+        return "Active";
+
+    }
+
+
+    expiry.setHours(
+        23,
+        59,
+        59,
+        999
+    );
+
+
+    const now =
+        new Date();
+
+
+    return (
+        expiry.getTime() >=
+        now.getTime()
     )
-        .trim()
-        .toUpperCase();
+        ? "Active"
+        : "Expired";
+
 }
 
 
-/**
- * ==========================================================================
- * PAINT STUDENT TABLE
- * ==========================================================================
- */
+/* ==========================================================================
+   10. LOAD STUDENTS
+   ========================================================================== */
 
-function paintStudentDirectoryTableGrid(dataset) {
+function initializeStudentsModule() {
 
     const tableBody =
-        document.getElementById(
-            'students-table-rows'
+        studentElement(
+            "students-table-rows"
         );
 
-    if (!tableBody) return;
+
+    if (!tableBody) {
+
+        return;
+
+    }
+
+
+    const session =
+        getStudentLibraryContext();
+
+
+    if (!session) {
+
+        tableBody.innerHTML = `
+            <tr>
+                <td
+                    colspan="9"
+                    class="table-empty"
+                    style="text-align:center;padding:2rem;"
+                >
+                    Session expired. Please login again.
+                </td>
+            </tr>
+        `;
+
+        return;
+
+    }
 
 
     if (
-        !Array.isArray(dataset) ||
-        dataset.length === 0
+        !window.LibManageDB ||
+        !window.db
     ) {
 
         tableBody.innerHTML = `
@@ -630,180 +491,351 @@ function paintStudentDirectoryTableGrid(dataset) {
                 <td
                     colspan="9"
                     class="table-empty"
-                    style="
-                        text-align:center;
-                        padding:2rem;
-                        font-style:italic;
-                        color:var(--text-muted);
-                    "
+                    style="text-align:center;padding:2rem;"
                 >
-                    No student records registered under this library branch.
+                    Database is not available.
                 </td>
             </tr>
         `;
 
         return;
+
     }
 
 
-    tableBody.innerHTML =
-        dataset.map((student) => {
+    const studentsCollection =
+        window.LibManageDB.students(
+            session.libraryId
+        );
 
-            const studentCode =
-                escapeHtml(
-                    student.studentCode || ''
+
+    if (
+        typeof studentsRealtimeUnsubscribe ===
+        "function"
+    ) {
+
+        studentsRealtimeUnsubscribe();
+
+    }
+
+
+    studentsRealtimeUnsubscribe =
+        studentsCollection.onSnapshot(
+
+            (snapshot) => {
+
+                studentRecords =
+                    snapshot.docs.map(
+                        (doc) => {
+
+                            return {
+
+                                firestoreId:
+                                    doc.id,
+
+                                ...doc.data()
+
+                            };
+
+                        }
+                    );
+
+
+                studentRecords.sort(
+                    (a, b) => {
+
+                        const aName =
+                            String(
+                                a.studentName ||
+                                ""
+                            ).toLowerCase();
+
+
+                        const bName =
+                            String(
+                                b.studentName ||
+                                ""
+                            ).toLowerCase();
+
+
+                        return aName.localeCompare(
+                            bName
+                        );
+
+                    }
                 );
 
-            const seatNumber =
-                escapeHtml(
-                    safeUpper(
-                        student.seatNumber || ''
-                    )
+
+                renderStudentTable();
+
+            },
+
+
+            (error) => {
+
+                console.error(
+                    "[Students] Realtime listener error:",
+                    error
                 );
 
-            const name =
-                escapeHtml(
-                    student.name || ''
+
+                tableBody.innerHTML = `
+                    <tr>
+                        <td
+                            colspan="9"
+                            class="table-empty"
+                            style="text-align:center;padding:2rem;"
+                        >
+                            Unable to load student records.
+                        </td>
+                    </tr>
+                `;
+
+            }
+
+        );
+
+}
+
+
+/* ==========================================================================
+   11. RENDER TABLE
+   ========================================================================== */
+
+function renderStudentTable() {
+
+    const tableBody =
+        studentElement(
+            "students-table-rows"
+        );
+
+
+    if (!tableBody) {
+        return;
+    }
+
+
+    const searchInput =
+        studentElement(
+            "student-search-input"
+        );
+
+
+    const searchValue =
+        String(
+            searchInput?.value ||
+            ""
+        )
+        .trim()
+        .toLowerCase();
+
+
+    const filteredStudents =
+        studentRecords.filter(
+            (student) => {
+
+                if (!searchValue) {
+                    return true;
+                }
+
+
+                const searchableText = [
+
+                    student.studentCode,
+
+                    student.seatNumber,
+
+                    student.studentName,
+
+                    student.fatherName,
+
+                    student.className,
+
+                    student.mobileNumber,
+
+                    student.shift,
+
+                    student.status,
+
+                    student.joiningDate,
+
+                    student.expiryDate
+
+                ]
+                .join(" ")
+                .toLowerCase();
+
+
+                return searchableText.includes(
+                    searchValue
                 );
 
-            const fatherName =
-                escapeHtml(
-                    student.fatherName || ''
-                );
+            }
+        );
 
-            const studentClass =
-                escapeHtml(
-                    student.studentClass || ''
-                );
 
-            /*
-             * DATE DISPLAY ONLY
-             */
-            const joiningDate =
-                escapeHtml(
-                    formatDisplayDate(
-                        student.joiningDate || ''
-                    )
-                );
+    if (
+        !filteredStudents.length
+    ) {
 
-            const expiryDate =
-                escapeHtml(
-                    formatDisplayDate(
-                        student.expiryDate || ''
-                    )
-                );
+        tableBody.innerHTML = `
+            <tr>
+                <td
+                    colspan="9"
+                    class="table-empty"
+                    style="text-align:center;padding:2rem;"
+                >
+                    ${
+                        searchValue
+                            ? "No matching student records found."
+                            : "No student records available."
+                    }
+                </td>
+            </tr>
+        `;
+
+        return;
+
+    }
+
+
+    let html =
+        "";
+
+
+    filteredStudents.forEach(
+        (student) => {
 
             const status =
-                escapeHtml(
-                    student.status || ''
+                student.status ||
+                calculateStudentStatus(
+                    student.expiryDate
                 );
 
-            const safeStudentCodeAttr =
-                encodeURIComponent(
-                    student.studentCode || ''
-                );
 
-            const tagStatusHueClass =
+            const statusClass =
                 String(
-                    student.status || ''
-                ).toLowerCase() === 'active'
-                    ? 'active'
-                    : 'expired';
+                    status
+                ).toLowerCase() ===
+                "expired"
+                    ? "expired"
+                    : "active";
 
 
-            return `
+            html += `
                 <tr>
 
-                    <td>
-                        <code
-                            style="
-                                font-weight:700;
-                                color:var(--primary-color);
-                                font-size:0.9rem;
-                            "
+                    <td class="cell-strong">
+                        ${escapeStudentHtml(
+                            student.studentCode ||
+                            "-"
+                        )}
+                    </td>
+
+
+                    <td class="cell-strong">
+                        ${escapeStudentHtml(
+                            student.seatNumber ||
+                            "-"
+                        )}
+                    </td>
+
+
+                    <td class="cell-name">
+
+                        <button
+                            type="button"
+                            class="student-row-link"
+                            data-student-view="${escapeStudentHtml(
+                                student.studentCode ||
+                                ""
+                            )}"
                         >
-                            ${studentCode || 'N/A'}
-                        </code>
+                            ${escapeStudentHtml(
+                                student.studentName ||
+                                "-"
+                            )}
+                        </button>
+
                     </td>
 
-                    <td>
-                        <strong>
-                            ${seatNumber || 'N/A'}
-                        </strong>
-                    </td>
 
                     <td>
-                        <strong>
-                            ${name || 'N/A'}
-                        </strong>
+                        ${escapeStudentHtml(
+                            student.fatherName ||
+                            "-"
+                        )}
                     </td>
 
-                    <td>
-                        ${fatherName || 'N/A'}
-                    </td>
 
                     <td>
+                        ${escapeStudentHtml(
+                            student.className ||
+                            "-"
+                        )}
+                    </td>
+
+
+                    <td>
+                        ${escapeStudentHtml(
+                            formatDateValue(
+                                student.joiningDate
+                            ) ||
+                            "-"
+                        )}
+                    </td>
+
+
+                    <td>
+                        ${escapeStudentHtml(
+                            formatDateValue(
+                                student.expiryDate
+                            ) ||
+                            "-"
+                        )}
+                    </td>
+
+
+                    <td>
+
                         <span
-                            style="
-                                background:rgba(0,0,0,0.03);
-                                padding:0.2rem 0.4rem;
-                                border-radius:4px;
-                                font-weight:500;
-                            "
+                            class="status-tag ${statusClass}"
                         >
-                            ${studentClass || 'N/A'}
+                            ${escapeStudentHtml(
+                                status
+                            )}
                         </span>
+
                     </td>
 
-                    <td>
-                        ${joiningDate || 'N/A'}
-                    </td>
-
-                    <td>
-                        ${expiryDate || 'N/A'}
-                    </td>
-
-                    <td>
-                        <span
-                            class="status-tag ${tagStatusHueClass}"
-                        >
-                            ${status || 'N/A'}
-                        </span>
-                    </td>
 
                     <td>
 
                         <div class="actions-cell-wrapper">
 
                             <button
+                                type="button"
                                 class="action-icon-btn edit-btn"
-                                data-student-code="${safeStudentCodeAttr}"
-                                onclick="
-                                    routeProfileToEditPipeline(
-                                        decodeURIComponent(
-                                            this.dataset.studentCode
-                                        )
-                                    )
-                                "
-                                title="Modify Profile Options"
+                                title="Edit Student"
+                                data-student-edit="${escapeStudentHtml(
+                                    student.studentCode ||
+                                    ""
+                                )}"
                             >
-                                ✏️
+                                Edit
                             </button>
 
 
                             <button
+                                type="button"
                                 class="action-icon-btn delete-btn"
-                                data-student-code="${safeStudentCodeAttr}"
-                                onclick="
-                                    routeProfileToDeletePipeline(
-                                        decodeURIComponent(
-                                            this.dataset.studentCode
-                                        )
-                                    )
-                                "
-                                title="Purge Record completely"
+                                title="Delete Student"
+                                data-student-delete="${escapeStudentHtml(
+                                    student.studentCode ||
+                                    ""
+                                )}"
                             >
-                                🗑️
+                                Delete
                             </button>
 
                         </div>
@@ -813,815 +845,884 @@ function paintStudentDirectoryTableGrid(dataset) {
                 </tr>
             `;
 
-        }).join('');
+        }
+    );
+
+
+    tableBody.innerHTML =
+        html;
+
 }
 
 
-/**
- * ==========================================================================
- * STUDENT MODAL OPEN
- * ==========================================================================
- */
+/* ==========================================================================
+   12. RESET FORM
+   ========================================================================== */
 
-function triggerStudentFormModalOpen(
-    isEditMode = false
-) {
-
-    const modal =
-        document.getElementById(
-            'student-modal'
-        );
-
-    const titleNode =
-        document.getElementById(
-            'modal-title-context'
-        );
-
-    const displayCodeBlock =
-        document.getElementById(
-            'modal-code-display-block'
-        );
-
-    const previewCodeNode =
-        document.getElementById(
-            'modal-student-code-preview'
-        );
+function resetStudentForm() {
 
     const form =
-        document.getElementById(
-            'student-form'
-        );
-
-    const editIndexNode =
-        document.getElementById(
-            'form-edit-index'
-        );
-
-    const studentCodeNode =
-        document.getElementById(
-            'form-student-code'
-        );
-
-    const shiftNode =
-        document.getElementById(
-            'std-shift'
+        studentElement(
+            "student-form"
         );
 
 
-    if (!modal || !form) {
+    if (form) {
+        form.reset();
+    }
+
+
+    const editIndex =
+        studentElement(
+            "form-edit-index"
+        );
+
+
+    const studentCode =
+        studentElement(
+            "form-student-code"
+        );
+
+
+    if (editIndex) {
+        editIndex.value = "";
+    }
+
+
+    if (studentCode) {
+        studentCode.value = "";
+    }
+
+
+    const codeBlock =
+        studentElement(
+            "modal-code-display-block"
+        );
+
+
+    const codePreview =
+        studentElement(
+            "modal-student-code-preview"
+        );
+
+
+    if (codeBlock) {
+
+        codeBlock.classList.add(
+            "hide-element"
+        );
+
+    }
+
+
+    if (codePreview) {
+
+        codePreview.textContent =
+            "";
+
+    }
+
+
+    studentEditMode =
+        false;
+
+
+    currentEditingStudentCode =
+        null;
+
+}
+
+
+/* ==========================================================================
+   13. OPEN ADD MODAL
+   ========================================================================== */
+
+function openAddStudentModal() {
+
+    const modal =
+        studentElement(
+            "student-modal"
+        );
+
+
+    if (!modal) {
         return;
     }
 
 
-    if (!isEditMode) {
-
-        form.reset();
-
-        if (editIndexNode) {
-            editIndexNode.value = '';
-        }
-
-        if (studentCodeNode) {
-            studentCodeNode.value = '';
-        }
-
-        if (shiftNode) {
-            shiftNode.value = '';
-        }
-
-        if (titleNode) {
-            titleNode.innerText =
-                'Register New Library Member';
-        }
-
-        if (displayCodeBlock) {
-            displayCodeBlock.classList.add(
-                'hide-element'
-            );
-        }
-
-        if (previewCodeNode) {
-            previewCodeNode.innerText = '';
-        }
-
-    } else {
-
-        if (titleNode) {
-            titleNode.innerText =
-                'Modify Member Registration Profile';
-        }
-
-        if (displayCodeBlock) {
-            displayCodeBlock.classList.remove(
-                'hide-element'
-            );
-        }
-    }
+    resetStudentForm();
 
 
-    modal.classList.add('active');
-}
-
-
-/**
- * ==========================================================================
- * CLOSE MODAL
- * ==========================================================================
- */
-
-function triggerStudentFormModalClose() {
-
-    const modal =
-        document.getElementById(
-            'student-modal'
+    const title =
+        studentElement(
+            "modal-title-context"
         );
 
-    if (modal) {
-        modal.classList.remove('active');
+
+    if (title) {
+
+        title.textContent =
+            "Register New Library Member";
+
     }
+
+
+    const code =
+        generateStudentCode();
+
+
+    const codeHidden =
+        studentElement(
+            "form-student-code"
+        );
+
+
+    const codePreview =
+        studentElement(
+            "modal-student-code-preview"
+        );
+
+
+    const codeBlock =
+        studentElement(
+            "modal-code-display-block"
+        );
+
+
+    if (codeHidden) {
+
+        codeHidden.value =
+            code;
+
+    }
+
+
+    if (codePreview) {
+
+        codePreview.textContent =
+            code;
+
+    }
+
+
+    if (codeBlock) {
+
+        codeBlock.classList.remove(
+            "hide-element"
+        );
+
+    }
+
+
+    const joiningInput =
+        studentElement(
+            "std-joining"
+        );
+
+
+    if (joiningInput) {
+
+        const now =
+            new Date();
+
+
+        joiningInput.value =
+            String(
+                now.getDate()
+            ).padStart(
+                2,
+                "0"
+            ) +
+            "/" +
+            String(
+                now.getMonth() + 1
+            ).padStart(
+                2,
+                "0"
+            ) +
+            "/" +
+            now.getFullYear();
+
+    }
+
+
+    modal.classList.add(
+        "active"
+    );
+
 }
 
 
-/**
- * ==========================================================================
- * SAVE / UPDATE STUDENT
- * ==========================================================================
- */
+/* ==========================================================================
+   14. OPEN EDIT MODAL
+   ========================================================================== */
 
-async function commitStudentDirectoryMutationAction(
+function openEditStudentModal(
+    studentCode
+) {
+
+    const student =
+        studentRecords.find(
+            (item) =>
+                String(
+                    item.studentCode
+                ).toUpperCase() ===
+                String(
+                    studentCode
+                ).toUpperCase()
+        );
+
+
+    if (!student) {
+
+        alert(
+            "Student record not found."
+        );
+
+        return;
+
+    }
+
+
+    const modal =
+        studentElement(
+            "student-modal"
+        );
+
+
+    if (!modal) {
+        return;
+    }
+
+
+    resetStudentForm();
+
+
+    studentEditMode =
+        true;
+
+
+    currentEditingStudentCode =
+        student.studentCode;
+
+
+    const title =
+        studentElement(
+            "modal-title-context"
+        );
+
+
+    if (title) {
+
+        title.textContent =
+            "Edit Library Member";
+
+    }
+
+
+    studentElement(
+        "form-student-code"
+    ).value =
+        student.studentCode || "";
+
+
+    studentElement(
+        "std-name"
+    ).value =
+        student.studentName || "";
+
+
+    studentElement(
+        "std-father"
+    ).value =
+        student.fatherName || "";
+
+
+    studentElement(
+        "std-class"
+    ).value =
+        student.className || "";
+
+
+    studentElement(
+        "std-seat"
+    ).value =
+        student.seatNumber || "";
+
+
+    studentElement(
+        "std-mobile"
+    ).value =
+        student.mobileNumber || "";
+
+
+    studentElement(
+        "std-shift"
+    ).value =
+        student.shift || "";
+
+
+    studentElement(
+        "std-status"
+    ).value =
+        student.status ||
+        calculateStudentStatus(
+            student.expiryDate
+        );
+
+
+    studentElement(
+        "std-joining"
+    ).value =
+        formatDateValue(
+            student.joiningDate
+        );
+
+
+    studentElement(
+        "std-expiry"
+    ).value =
+        formatDateValue(
+            student.expiryDate
+        );
+
+
+    const codePreview =
+        studentElement(
+            "modal-student-code-preview"
+        );
+
+
+    const codeBlock =
+        studentElement(
+            "modal-code-display-block"
+        );
+
+
+    if (codePreview) {
+
+        codePreview.textContent =
+            student.studentCode || "";
+
+    }
+
+
+    if (codeBlock) {
+
+        codeBlock.classList.remove(
+            "hide-element"
+        );
+
+    }
+
+
+    modal.classList.add(
+        "active"
+    );
+
+}
+
+
+/* ==========================================================================
+   15. CLOSE MODAL
+   ========================================================================== */
+
+function closeStudentModal() {
+
+    const modal =
+        studentElement(
+            "student-modal"
+        );
+
+
+    if (modal) {
+
+        modal.classList.remove(
+            "active"
+        );
+
+    }
+
+
+    resetStudentForm();
+
+}
+
+
+/* ==========================================================================
+   16. VALIDATE FORM
+   ========================================================================== */
+
+function validateStudentForm() {
+
+    const name =
+        studentElement(
+            "std-name"
+        ).value.trim();
+
+
+    const father =
+        studentElement(
+            "std-father"
+        ).value.trim();
+
+
+    const className =
+        studentElement(
+            "std-class"
+        ).value.trim();
+
+
+    const seat =
+        studentElement(
+            "std-seat"
+        ).value.trim();
+
+
+    const mobile =
+        studentElement(
+            "std-mobile"
+        ).value.trim();
+
+
+    const shift =
+        studentElement(
+            "std-shift"
+        ).value;
+
+
+    const status =
+        studentElement(
+            "std-status"
+        ).value;
+
+
+    const joining =
+        studentElement(
+            "std-joining"
+        ).value.trim();
+
+
+    const expiry =
+        studentElement(
+            "std-expiry"
+        ).value.trim();
+
+
+    if (
+        !name ||
+        !father ||
+        !className ||
+        !seat ||
+        !mobile ||
+        !shift ||
+        !status ||
+        !joining ||
+        !expiry
+    ) {
+
+        return {
+            valid: false,
+            message:
+                "Please fill all required fields."
+        };
+
+    }
+
+
+    if (
+        !/^\d{10}$/.test(
+            mobile
+        )
+    ) {
+
+        return {
+            valid: false,
+            message:
+                "Please enter a valid 10-digit mobile number."
+        };
+
+    }
+
+
+    if (
+        !isValidDateFormat(
+            joining
+        )
+    ) {
+
+        return {
+            valid: false,
+            message:
+                "Joining Date must be in DD/MM/YYYY format."
+        };
+
+    }
+
+
+    if (
+        !isValidDateFormat(
+            expiry
+        )
+    ) {
+
+        return {
+            valid: false,
+            message:
+                "Expiry Date must be in DD/MM/YYYY format."
+        };
+
+    }
+
+
+    const joiningDate =
+        parseIndianDate(
+            joining
+        );
+
+
+    const expiryDate =
+        parseIndianDate(
+            expiry
+        );
+
+
+    if (
+        expiryDate <
+        joiningDate
+    ) {
+
+        return {
+            valid: false,
+            message:
+                "Expiry Date cannot be before Joining Date."
+        };
+
+    }
+
+
+    return {
+
+        valid: true,
+
+        data: {
+
+            studentName:
+                name,
+
+            fatherName:
+                father,
+
+            className:
+                className,
+
+            seatNumber:
+                seat,
+
+            mobileNumber:
+                mobile,
+
+            shift:
+                shift,
+
+            status:
+                status,
+
+            joiningDate:
+                joining,
+
+            expiryDate:
+                expiry
+
+        }
+
+    };
+
+}
+
+
+/* ==========================================================================
+   17. SAVE STUDENT
+   ========================================================================== */
+
+async function saveStudent(
     event
 ) {
 
     event.preventDefault();
 
 
-    const db =
-        window.db;
+    const validation =
+        validateStudentForm();
 
 
-    if (!db) {
+    if (!validation.valid) {
 
         alert(
-            'Database Engine Offline: Cloud transactions cannot process without active global mappings.'
+            validation.message
         );
 
         return;
+
     }
 
 
-    if (!currentActiveBranchId) {
+    const session =
+        getStudentLibraryContext();
+
+
+    if (!session) {
 
         alert(
-            'Session Error: Current library context is missing.'
+            "Session expired. Please login again."
         );
 
         return;
+
     }
 
 
-    const editIndexRawValue =
-        document.getElementById(
-            'form-edit-index'
-        )
-            ? document.getElementById(
-                'form-edit-index'
-            ).value
-            : '';
+    const code =
+        studentElement(
+            "form-student-code"
+        ).value.trim().toUpperCase();
 
 
-    const existingStudentCode =
-        document.getElementById(
-            'form-student-code'
-        )
-            ? document.getElementById(
-                'form-student-code'
-            ).value.trim()
-            : '';
-
-
-    const name =
-        (
-            document.getElementById(
-                'std-name'
-            )?.value || ''
-        ).trim();
-
-
-    const fatherName =
-        (
-            document.getElementById(
-                'std-father'
-            )?.value || ''
-        ).trim();
-
-
-    const studentClass =
-        (
-            document.getElementById(
-                'std-class'
-            )?.value || ''
-        ).trim();
-
-
-    const seatNumber =
-        safeUpper(
-            document.getElementById(
-                'std-seat'
-            )?.value || ''
-        );
-
-
-    /*
-     * MOBILE NUMBER
-     */
-    const mobile =
-        (
-            document.getElementById(
-                'std-mobile'
-            )?.value || ''
-        ).trim();
-
-
-    /*
-     * FORM DATE = DD/MM/YYYY
-     * FIREBASE DATE = YYYY-MM-DD
-     */
-    const joiningDateForm =
-        (
-            document.getElementById(
-                'std-joining'
-            )?.value || ''
-        ).trim();
-
-
-    const expiryDateForm =
-        (
-            document.getElementById(
-                'std-expiry'
-            )?.value || ''
-        ).trim();
-
-
-    const joiningDate =
-        convertFormDateToFirebase(
-            joiningDateForm
-        );
-
-
-    const expiryDate =
-        convertFormDateToFirebase(
-            expiryDateForm
-        );
-
-
-    const status =
-        (
-            document.getElementById(
-                'std-status'
-            )?.value || ''
-        ).trim();
-
-
-    const shift =
-        (
-            document.getElementById(
-                'std-shift'
-            )?.value || ''
-        ).trim();
-
-
-    if (!shift) {
+    if (!code) {
 
         alert(
-            'Validation Error: Please select a shift.'
+            "Student Login Code is missing."
         );
 
         return;
+
     }
 
 
-    if (
-        !name ||
-        !fatherName ||
-        !studentClass ||
-        !seatNumber ||
-        !mobile ||
-        !joiningDate ||
-        !expiryDate ||
-        !status
-    ) {
-
-        alert(
-            'Validation Error: Please fill all required student fields.'
-        );
-
-        return;
-    }
-
-
-    const isSeatOccupiedConflict =
-        localBranchStudentsArray.some(
-            (std) => {
-
-                if (!std) {
-                    return false;
-                }
-
-                if (
-                    existingStudentCode !== '' &&
-                    std.studentCode === existingStudentCode
-                ) {
-                    return false;
-                }
-
-                return (
-                    safeUpper(
-                        std.seatNumber
-                    ) === seatNumber
-                );
-            }
+    const saveButton =
+        document.querySelector(
+            '#student-form button[type="submit"]'
         );
 
 
-    if (isSeatOccupiedConflict) {
+    if (saveButton) {
 
-        alert(
-            `Validation Conflict: Seat "${seatNumber}" is currently assigned to another record within this library.`
-        );
+        saveButton.disabled =
+            true;
 
-        return;
+        saveButton.textContent =
+            studentEditMode
+                ? "Updating..."
+                : "Saving...";
+
     }
-
-
-    let finalStudentUniqueTokenCode =
-        existingStudentCode;
-
-
-    /**
-     * NEW STUDENT CODE GENERATION
-     */
-
-    if (editIndexRawValue === '') {
-
-        const shortLibraryKeySegment =
-            String(
-                currentActiveBranchId
-            )
-                .replace('LIB-', '')
-                .substring(0, 4);
-
-
-        let generatedCode = '';
-
-        let collisionDetected = true;
-
-        let safetyCounter = 0;
-
-
-        while (
-            collisionDetected &&
-            safetyCounter < 25
-        ) {
-
-            const randomEntropyString =
-                Math.floor(
-                    100 +
-                    Math.random() * 900
-                );
-
-
-            generatedCode =
-                `${shortLibraryKeySegment}-${seatNumber}-${randomEntropyString}`
-                    .toUpperCase();
-
-
-            collisionDetected =
-                localBranchStudentsArray.some(
-                    (std) =>
-                        std &&
-                        std.studentCode === generatedCode
-                );
-
-
-            safetyCounter++;
-        }
-
-
-        if (collisionDetected) {
-
-            alert(
-                'Unique Code Generation Error: Unable to generate a unique student code right now. Please try again.'
-            );
-
-            return;
-        }
-
-
-        finalStudentUniqueTokenCode =
-            generatedCode;
-    }
-
-
-    /**
-     * FIRESTORE PAYLOAD
-     */
-
-    const payloadStudentModel = {
-
-        studentCode:
-            finalStudentUniqueTokenCode,
-
-        libraryId:
-            currentActiveBranchId,
-
-        name:
-            name,
-
-        fatherName:
-            fatherName,
-
-        studentClass:
-            studentClass,
-
-        seatNumber:
-            seatNumber,
-
-        /*
-         * MOBILE NUMBER SAVED IN FIRESTORE
-         */
-        mobile:
-            mobile,
-
-        /*
-         * FIREBASE FORMAT
-         * YYYY-MM-DD
-         */
-        joiningDate:
-            joiningDate,
-
-        expiryDate:
-            expiryDate,
-
-        status:
-            status,
-
-        shift:
-            shift,
-
-        updatedAt:
-            firebase.firestore.FieldValue.serverTimestamp()
-    };
 
 
     try {
 
-        await db
-            .collection(
-                'saas_libraries'
-            )
-            .doc(
-                currentActiveBranchId
-            )
-            .collection(
-                'students'
-            )
-            .doc(
-                finalStudentUniqueTokenCode
-            )
-            .set(
-                payloadStudentModel
+        const reference =
+            window.LibManageDB.student(
+                session.libraryId,
+                code
             );
 
 
-        triggerStudentFormModalClose();
+        const data =
+            validation.data;
+
+
+        /*
+         * Seat duplicate protection
+         */
+
+        const duplicateSeat =
+            studentRecords.some(
+                (student) => {
+
+                    const sameSeat =
+                        String(
+                            student.seatNumber ||
+                            ""
+                        ).trim().toLowerCase() ===
+                        String(
+                            data.seatNumber
+                        ).trim().toLowerCase();
+
+
+                    const differentStudent =
+                        String(
+                            student.studentCode ||
+                            ""
+                        ).toUpperCase() !==
+                        String(
+                            code
+                        ).toUpperCase();
+
+
+                    return (
+                        sameSeat &&
+                        differentStudent
+                    );
+
+                }
+            );
+
+
+        if (duplicateSeat) {
+
+            throw new Error(
+                "This seat number is already assigned to another student."
+            );
+
+        }
+
+
+        if (studentEditMode) {
+
+            await reference.update({
+
+                ...data,
+
+                updatedAt:
+                    firebase.firestore
+                        .FieldValue
+                        .serverTimestamp()
+
+            });
+
+
+            alert(
+                "Student updated successfully."
+            );
+
+        } else {
+
+            const existing =
+                await reference.get();
+
+
+            if (existing.exists) {
+
+                throw new Error(
+                    "Generated Student Code already exists. Please try again."
+                );
+
+            }
+
+
+            await reference.set({
+
+                studentCode:
+                    code,
+
+                ...data,
+
+                createdAt:
+                    firebase.firestore
+                        .FieldValue
+                        .serverTimestamp(),
+
+                updatedAt:
+                    firebase.firestore
+                        .FieldValue
+                        .serverTimestamp(),
+
+                createdBy:
+                    session.libraryId
+
+            });
+
+
+            alert(
+                "Student registered successfully."
+            );
+
+        }
+
+
+        closeStudentModal();
 
 
     } catch (error) {
 
         console.error(
-            '[Firestore Student Document Mutation Write Fault Error Exception]:',
+            "[Students] Save error:",
             error
         );
 
 
         alert(
-            `Cloud write operations failure exception caught inside registry transaction channels: ${error.message}`
+            error.message ||
+            "Unable to save student."
         );
+
+
+    } finally {
+
+        if (saveButton) {
+
+            saveButton.disabled =
+                false;
+
+            saveButton.textContent =
+                "Save Student";
+
+        }
+
     }
+
 }
 
 
-/**
- * ==========================================================================
- * SEARCH
- * ==========================================================================
- */
+/* ==========================================================================
+   18. DELETE STUDENT
+   ========================================================================== */
 
-function executeStudentDirectorySearchFilter() {
-
-    const searchInput =
-        document.getElementById(
-            'student-search-input'
-        );
-
-
-    const rawKeyword =
-        searchInput
-            ? searchInput.value
-            : '';
-
-
-    const keyword =
-        normalizeSearchText(
-            rawKeyword
-        );
-
-
-    if (!keyword) {
-
-        paintStudentDirectoryTableGrid(
-            localBranchStudentsArray
-        );
-
-        return;
-    }
-
-
-    const filteredArray =
-        localBranchStudentsArray.filter(
-            (student) => {
-
-                const searchableString =
-                    normalizeSearchText(
-
-                        [
-                            student.studentCode,
-                            student.name,
-                            student.fatherName,
-                            student.studentClass,
-                            student.seatNumber,
-
-                            /*
-                             * MOBILE SEARCH
-                             */
-                            student.mobile,
-
-                            student.joiningDate,
-                            student.expiryDate,
-                            student.status,
-                            student.shift
-
-                        ].join(' ')
-                    );
-
-
-                return searchableString.includes(
-                    keyword
-                );
-            }
-        );
-
-
-    paintStudentDirectoryTableGrid(
-        filteredArray
-    );
-}
-
-
-/**
- * ==========================================================================
- * EDIT STUDENT
- * ==========================================================================
- */
-
-async function routeProfileToEditPipeline(
+async function deleteStudent(
     studentCode
 ) {
 
-    const existingStudent =
-        localBranchStudentsArray.find(
+    const session =
+        getStudentLibraryContext();
+
+
+    if (!session) {
+
+        alert(
+            "Session expired. Please login again."
+        );
+
+        return;
+
+    }
+
+
+    const student =
+        studentRecords.find(
             (item) =>
-                item.studentCode === studentCode
+                String(
+                    item.studentCode
+                ).toUpperCase() ===
+                String(
+                    studentCode
+                ).toUpperCase()
         );
 
 
-    if (!existingStudent) {
+    if (!student) {
 
         alert(
-            'Unable to locate the selected student profile.'
+            "Student record not found."
         );
 
         return;
-    }
 
-
-    const editIndexNode =
-        document.getElementById(
-            'form-edit-index'
-        );
-
-
-    const studentCodeNode =
-        document.getElementById(
-            'form-student-code'
-        );
-
-
-    const previewCodeNode =
-        document.getElementById(
-            'modal-student-code-preview'
-        );
-
-
-    if (editIndexNode) {
-
-        editIndexNode.value =
-            'EDIT_MODE_ACTIVE';
-    }
-
-
-    if (studentCodeNode) {
-
-        studentCodeNode.value =
-            existingStudent.studentCode || '';
-    }
-
-
-    if (previewCodeNode) {
-
-        previewCodeNode.innerText =
-            existingStudent.studentCode || '';
-    }
-
-
-    const nameNode =
-        document.getElementById(
-            'std-name'
-        );
-
-
-    const fatherNode =
-        document.getElementById(
-            'std-father'
-        );
-
-
-    const classNode =
-        document.getElementById(
-            'std-class'
-        );
-
-
-    const seatNode =
-        document.getElementById(
-            'std-seat'
-        );
-
-
-    const mobileNode =
-        document.getElementById(
-            'std-mobile'
-        );
-
-
-    const joiningNode =
-        document.getElementById(
-            'std-joining'
-        );
-
-
-    const expiryNode =
-        document.getElementById(
-            'std-expiry'
-        );
-
-
-    const statusNode =
-        document.getElementById(
-            'std-status'
-        );
-
-
-    const shiftNode =
-        document.getElementById(
-            'std-shift'
-        );
-
-
-    if (nameNode) {
-
-        nameNode.value =
-            existingStudent.name || '';
-    }
-
-
-    if (fatherNode) {
-
-        fatherNode.value =
-            existingStudent.fatherName || '';
-    }
-
-
-    if (classNode) {
-
-        classNode.value =
-            existingStudent.studentClass || '';
-    }
-
-
-    if (seatNode) {
-
-        seatNode.value =
-            existingStudent.seatNumber || '';
-    }
-
-
-    /*
-     * MOBILE NUMBER RESTORED DURING EDIT
-     */
-    if (mobileNode) {
-
-        mobileNode.value =
-            existingStudent.mobile || '';
-    }
-
-
-    /*
-     * DATE RESTORED IN DD/MM/YYYY FORMAT
-     */
-    if (joiningNode) {
-
-        joiningNode.value =
-            formatDateForForm(
-                existingStudent.joiningDate || ''
-            );
-    }
-
-
-    if (expiryNode) {
-
-        expiryNode.value =
-            formatDateForForm(
-                existingStudent.expiryDate || ''
-            );
-    }
-
-
-    if (statusNode) {
-
-        statusNode.value =
-            existingStudent.status || '';
-    }
-
-
-    if (shiftNode) {
-
-        shiftNode.value =
-            existingStudent.shift || '';
-    }
-
-
-    triggerStudentFormModalOpen(true);
-}
-
-
-/**
- * ==========================================================================
- * DELETE STUDENT
- * ==========================================================================
- */
-
-async function routeProfileToDeletePipeline(
-    studentCode
-) {
-
-    const db =
-        window.db;
-
-
-    if (!db) {
-
-        alert(
-            'Database Engine Offline: Cloud delete execution unavailable.'
-        );
-
-        return;
-    }
-
-
-    if (!currentActiveBranchId) {
-
-        alert(
-            'Session Error: Current library context is missing.'
-        );
-
-        return;
     }
 
 
     const confirmed =
-        confirm(
-            `Are you sure you want to delete student "${studentCode}" permanently?`
+        window.confirm(
+            `Delete student "${student.studentName || studentCode}"?\n\nThis action cannot be undone.`
         );
 
 
@@ -1632,45 +1733,388 @@ async function routeProfileToDeletePipeline(
 
     try {
 
-        await db
-            .collection(
-                'saas_libraries'
-            )
-            .doc(
-                currentActiveBranchId
-            )
-            .collection(
-                'students'
-            )
-            .doc(
-                studentCode
-            )
-            .delete();
+        await window.LibManageDB.student(
+            session.libraryId,
+            studentCode
+        ).delete();
+
+
+        alert(
+            "Student deleted successfully."
+        );
 
 
     } catch (error) {
 
         console.error(
-            '[Firestore Student Record Delete Fault Exception]:',
+            "[Students] Delete error:",
             error
         );
 
 
         alert(
-            `Delete operation failed: ${error.message}`
+            "Unable to delete student."
         );
+
     }
+
 }
 
 
-/**
- * ==========================================================================
- * GLOBAL WINDOW BINDINGS
- * ==========================================================================
- */
+/* ==========================================================================
+   19. STUDENT VIEW
+   ========================================================================== */
 
-window.routeProfileToEditPipeline =
-    routeProfileToEditPipeline;
+function viewStudent(
+    studentCode
+) {
 
-window.routeProfileToDeletePipeline =
-    routeProfileToDeletePipeline;
+    const student =
+        studentRecords.find(
+            (item) =>
+                String(
+                    item.studentCode
+                ).toUpperCase() ===
+                String(
+                    studentCode
+                ).toUpperCase()
+        );
+
+
+    if (!student) {
+        return;
+    }
+
+
+    /*
+     * For now the student name remains clickable
+     * without changing the existing page structure.
+     *
+     * Detailed profile functionality can be added later
+     * without changing Firestore structure.
+     */
+
+    alert(
+        "Student: " +
+        (
+            student.studentName ||
+            "-"
+        ) +
+        "\nLogin Code: " +
+        (
+            student.studentCode ||
+            "-"
+        ) +
+        "\nSeat: " +
+        (
+            student.seatNumber ||
+            "-"
+        )
+    );
+
+}
+
+
+/* ==========================================================================
+   20. EVENT DELEGATION
+   ========================================================================== */
+
+function bindStudentTableActions() {
+
+    const tableBody =
+        studentElement(
+            "students-table-rows"
+        );
+
+
+    if (!tableBody) {
+        return;
+    }
+
+
+    tableBody.addEventListener(
+        "click",
+        (event) => {
+
+            const editButton =
+                event.target.closest(
+                    "[data-student-edit]"
+                );
+
+
+            if (editButton) {
+
+                openEditStudentModal(
+                    editButton.getAttribute(
+                        "data-student-edit"
+                    )
+                );
+
+                return;
+
+            }
+
+
+            const deleteButton =
+                event.target.closest(
+                    "[data-student-delete]"
+                );
+
+
+            if (deleteButton) {
+
+                deleteStudent(
+                    deleteButton.getAttribute(
+                        "data-student-delete"
+                    )
+                );
+
+                return;
+
+            }
+
+
+            const viewButton =
+                event.target.closest(
+                    "[data-student-view]"
+                );
+
+
+            if (viewButton) {
+
+                viewStudent(
+                    viewButton.getAttribute(
+                        "data-student-view"
+                    )
+                );
+
+            }
+
+        }
+    );
+
+}
+
+
+/* ==========================================================================
+   21. MODAL EVENTS
+   ========================================================================== */
+
+function bindStudentModalEvents() {
+
+    const openButton =
+        studentElement(
+            "open-add-modal-btn"
+        );
+
+
+    const closeButton =
+        studentElement(
+            "close-modal-btn"
+        );
+
+
+    const cancelButton =
+        studentElement(
+            "cancel-form-btn"
+        );
+
+
+    const form =
+        studentElement(
+            "student-form"
+        );
+
+
+    const modal =
+        studentElement(
+            "student-modal"
+        );
+
+
+    if (openButton) {
+
+        openButton.addEventListener(
+            "click",
+            openAddStudentModal
+        );
+
+    }
+
+
+    if (closeButton) {
+
+        closeButton.addEventListener(
+            "click",
+            closeStudentModal
+        );
+
+    }
+
+
+    if (cancelButton) {
+
+        cancelButton.addEventListener(
+            "click",
+            closeStudentModal
+        );
+
+    }
+
+
+    if (form) {
+
+        form.addEventListener(
+            "submit",
+            saveStudent
+        );
+
+    }
+
+
+    if (modal) {
+
+        modal.addEventListener(
+            "click",
+            (event) => {
+
+                if (
+                    event.target ===
+                    modal
+                ) {
+
+                    closeStudentModal();
+
+                }
+
+            }
+        );
+
+    }
+
+
+    document.addEventListener(
+        "keydown",
+        (event) => {
+
+            if (
+                event.key === "Escape" &&
+                modal &&
+                modal.classList.contains(
+                    "active"
+                )
+            ) {
+
+                closeStudentModal();
+
+            }
+
+        }
+    );
+
+}
+
+
+/* ==========================================================================
+   22. SEARCH
+   ========================================================================== */
+
+function bindStudentSearch() {
+
+    const input =
+        studentElement(
+            "student-search-input"
+        );
+
+
+    if (!input) {
+        return;
+    }
+
+
+    input.addEventListener(
+        "input",
+        () => {
+
+            renderStudentTable();
+
+        }
+    );
+
+}
+
+
+/* ==========================================================================
+   23. INITIALIZE
+   ========================================================================== */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        if (
+            !studentElement(
+                "students-table-rows"
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        if (
+            typeof requireAdminSession ===
+            "function"
+        ) {
+
+            if (
+                !requireAdminSession()
+            ) {
+
+                return;
+
+            }
+
+        }
+
+
+        initializeStudentsModule();
+
+        bindStudentTableActions();
+
+        bindStudentModalEvents();
+
+        bindStudentSearch();
+
+    }
+);
+
+
+/* ==========================================================================
+   24. GLOBAL MODULE API
+   ========================================================================== */
+
+window.LibManageStudents = {
+
+    reload:
+        initializeStudentsModule,
+
+    render:
+        renderStudentTable,
+
+    openAdd:
+        openAddStudentModal,
+
+    openEdit:
+        openEditStudentModal,
+
+    closeModal:
+        closeStudentModal
+
+};
+
+
+console.log(
+    "[LibManage] Students module loaded successfully."
+);
