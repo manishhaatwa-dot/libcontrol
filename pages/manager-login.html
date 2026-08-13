@@ -1,170 +1,304 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Owner Access - LibManage SaaS</title>
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>LibControl - Master Owner Access</title>
+
 
     <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- CSS -->
-    <link rel="stylesheet" href="../css/style.css">
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+
+    <!-- Global CSS -->
+
+    <link
+        rel="stylesheet"
+        href="../css/style.css"
+    >
+
 </head>
+
+
 <body>
+
+
 <script>
-    if (localStorage.getItem("session_role") === "manager") {
-        window.location.href = "manager-dashboard.html";
+
+    /*
+     * UI convenience only.
+     *
+     * Real manager authorization will NOT depend on
+     * localStorage. Firebase Authentication + server-side
+     * authorization + Firestore Security Rules will be
+     * the actual security boundary.
+     */
+
+    if (
+        localStorage.getItem("libcontrol_manager_session") === "true"
+    ) {
+
+        window.location.replace(
+            "manager-dashboard.html"
+        );
+
     }
+
 </script>
-<div class="gateway-container" style="margin:15vh auto;">
+
+
+<div
+    class="gateway-container"
+    style="margin:15vh auto;"
+>
+
+
+    <!-- =====================================================
+         HEADER
+         ===================================================== -->
 
     <header class="gateway-header">
-        <h1>?? Owner Control Room</h1>
-        <p>SaaS Network Master Entry Terminal</p>
+
+        <h1>
+            LibControl
+        </h1>
+
+        <p>
+            Master Owner Control Room
+        </p>
+
     </header>
+
+
+    <!-- =====================================================
+         LOGIN CARD
+         ===================================================== -->
 
     <div class="gateway-card glass">
 
+
         <div class="auth-panel active">
 
-            <h2>Secure Master Login</h2>
+
+            <h2>
+                Secure Master Login
+            </h2>
+
 
             <p class="panel-subtitle">
-                Provide your assigned Gmail ID and passcode credentials.
+
+                Authorized system owner credentials are required
+                to access the LibControl master console.
+
             </p>
 
-            <form id="manager-standalone-login-form">
+
+            <form
+                id="manager-standalone-login-form"
+                autocomplete="on"
+            >
+
+
+                <!-- =================================================
+                     EMAIL
+                     ================================================= -->
 
                 <div class="form-group">
-                    <label>Manager Gmail Address</label>
+
+                    <label for="manager-email-input">
+                        Manager Email Address
+                    </label>
+
+
                     <input
                         type="email"
                         id="manager-email-input"
-                        placeholder="manager@gmail.com"
-                        required>
+                        name="email"
+                        placeholder="manager@example.com"
+                        autocomplete="username"
+                        spellcheck="false"
+                        required
+                    >
+
                 </div>
 
+
+                <!-- =================================================
+                     PASSWORD
+                     ================================================= -->
+
                 <div class="form-group">
-                    <label>Master Password</label>
+
+                    <label for="manager-password-input">
+                        Master Password
+                    </label>
+
+
                     <input
                         type="password"
                         id="manager-password-input"
-                        placeholder="••••••••"
-                        required>
+                        name="password"
+                        placeholder="Enter master password"
+                        autocomplete="current-password"
+                        minlength="8"
+                        required
+                    >
+
                 </div>
+
+
+                <!-- =================================================
+                     LOGIN BUTTON
+                     ================================================= -->
 
                 <button
                     type="submit"
-                    class="btn-gateway-submit btn-manager-override">
+                    class="btn-gateway-submit btn-manager-override"
+                    id="manager-login-submit"
+                >
                     Execute Authorization
                 </button>
 
+
             </form>
+
+
+            <!-- =================================================
+                 LOGIN STATUS
+                 ================================================= -->
+
+            <div
+                id="manager-login-status"
+                class="gateway-login-status"
+                aria-live="polite"
+                style="
+                    display:none;
+                    margin-top:1rem;
+                    padding:0.75rem;
+                    border-radius:8px;
+                    font-size:0.85rem;
+                    text-align:center;
+                "
+            ></div>
+
 
         </div>
 
+
     </div>
+
+
+    <!-- =====================================================
+         SECURITY INFORMATION
+         ===================================================== -->
+
+    <div
+        class="gateway-security-note"
+        style="
+            text-align:center;
+            margin-top:1rem;
+        "
+    >
+
+        <span
+            style="
+                display:block;
+                font-weight:600;
+            "
+        >
+            Protected System
+        </span>
+
+
+        <small
+            style="
+                color:var(--text-muted);
+            "
+        >
+            Access is restricted to authorized LibControl
+            master accounts.
+        </small>
+
+    </div>
+
 
 </div>
 
-<!-- Firebase SDK -->
+
+<!-- =========================================================
+     FOOTER
+     ========================================================= -->
+
+<footer class="footer-panel">
+
+    <p>
+
+        &copy; 2026 LibControl Ecosystem.
+        All Rights Reserved.
+        |
+        Powered by
+
+        <a
+            href="https://opnora.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="footer-brand-link"
+        >
+            Opnora
+        </a>
+
+    </p>
+
+</footer>
+
+
+<!-- =========================================================
+     FIREBASE SDK
+     ========================================================= -->
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-<!-- Shared Firebase Core -->
+
+<!-- =========================================================
+     LIBCONTROL CORE
+     ========================================================= -->
+
 <script src="../js/dashboard.js"></script>
 
-<script>
 
-document
-    .getElementById("manager-standalone-login-form")
-    .addEventListener("submit", async (e) => {
+<!-- =========================================================
+     MANAGER AUTH LOGIC
+     ========================================================= -->
 
-        e.preventDefault();
+<script src="../js/manager-login.js"></script>
 
-        const email =
-            document
-                .getElementById("manager-email-input")
-                .value
-                .trim()
-                .toLowerCase();
 
-        const password =
-            document
-                .getElementById("manager-password-input")
-                .value;
-
-        if (!email || !password) {
-            alert("Please enter Email and Password.");
-            return;
-        }
-
-        try {
-
-            const userCredential =
-                await firebase
-                    .auth()
-                    .signInWithEmailAndPassword(
-                        email,
-                        password
-                    );
-
-            const user =
-                userCredential.user;
-
-            /*
-             * Only the dedicated Manager Firebase Auth account
-             * is allowed to enter the Manager Console.
-             */
-
-            if (
-                user.email.toLowerCase() !==
-                "mp36797@gmail.com"
-            ) {
-
-                await firebase
-                    .auth()
-                    .signOut();
-
-                alert(
-                    "Access Denied: This account is not authorized as Manager."
-                );
-
-                return;
-            }
-
-            /*
-             * Manager session
-             */
-
-            localStorage.setItem(
-                "session_role",
-                "manager"
-            );
-
-            window.location.href =
-                "manager-dashboard.html";
-
-        } catch (error) {
-
-            console.error(
-                "Manager Firebase Auth Login Error:",
-                error
-            );
-
-            alert(
-                "Login Failed: " +
-                error.message
-            );
-
-        }
-
-    });
-
-</script>
 </body>
+
 </html>
