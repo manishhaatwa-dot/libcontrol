@@ -12,7 +12,11 @@
 
     <title>LibControl - Library Management System</title>
 
-    <!-- Google Fonts -->
+
+    <!-- =====================================================
+         GOOGLE FONTS
+         ===================================================== -->
+
     <link
         rel="preconnect"
         href="https://fonts.googleapis.com"
@@ -29,7 +33,11 @@
         rel="stylesheet"
     >
 
-    <!-- LibControl Base CSS -->
+
+    <!-- =====================================================
+         LIBCONTROL BASE CSS
+         ===================================================== -->
+
     <link
         rel="stylesheet"
         href="css/style.css"
@@ -39,6 +47,7 @@
 
 
 <body>
+
 
     <!-- =====================================================
          LIBCONTROL UNIVERSAL GATEWAY
@@ -110,13 +119,17 @@
                     Student Portal
                 </h2>
 
+
                 <p class="panel-subtitle">
                     Enter your library identity and unique
                     student login code to access your portal.
                 </p>
 
 
-                <form id="student-login-form">
+                <form
+                    id="student-login-form"
+                    autocomplete="on"
+                >
 
 
                     <div class="form-group">
@@ -124,6 +137,7 @@
                         <label for="student-library-id">
                             Library ID
                         </label>
+
 
                         <input
                             type="text"
@@ -143,6 +157,7 @@
                         <label for="student-uid">
                             Unique Student Code
                         </label>
+
 
                         <input
                             type="text"
@@ -183,14 +198,22 @@
                     Admin Console
                 </h2>
 
+
                 <p class="panel-subtitle">
                     Securely manage students, seats,
                     attendance and library operations.
                 </p>
 
 
-                <form id="admin-login-form">
+                <form
+                    id="admin-login-form"
+                    autocomplete="on"
+                >
 
+
+                    <!-- -------------------------------------
+                         LIBRARY ID
+                         ------------------------------------- -->
 
                     <div class="form-group">
 
@@ -198,11 +221,12 @@
                             Library ID
                         </label>
 
+
                         <input
                             type="text"
                             id="admin-library-id"
                             placeholder="e.g. LIB-4DNL12"
-                            autocomplete="username"
+                            autocomplete="organization"
                             autocapitalize="characters"
                             spellcheck="false"
                             required
@@ -211,29 +235,131 @@
                     </div>
 
 
+                    <!-- -------------------------------------
+                         ADMIN EMAIL
+                         ------------------------------------- -->
+
                     <div class="form-group">
 
-                        <label for="admin-password">
-                            Password
+                        <label for="admin-email">
+                            Admin Email
                         </label>
 
+
                         <input
-                            type="password"
-                            id="admin-password"
-                            placeholder="Enter your password"
-                            autocomplete="current-password"
+                            type="email"
+                            id="admin-email"
+                            placeholder="admin@example.com"
+                            autocomplete="username"
+                            spellcheck="false"
                             required
                         >
 
                     </div>
 
 
+                    <!-- -------------------------------------
+                         PASSWORD
+                         ------------------------------------- -->
+
+                    <div class="form-group">
+
+                        <label for="admin-password">
+                            Password
+                        </label>
+
+
+                        <input
+                            type="password"
+                            id="admin-password"
+                            placeholder="Enter your password"
+                            autocomplete="current-password"
+                            minlength="8"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- -------------------------------------
+                         LOGIN ERROR / STATUS
+                         ------------------------------------- -->
+
+                    <div
+                        id="admin-login-message"
+                        style="
+                            display:none;
+                            margin-bottom:1rem;
+                            padding:0.75rem;
+                            border-radius:8px;
+                            font-size:0.85rem;
+                            font-weight:600;
+                        "
+                        aria-live="polite"
+                    ></div>
+
+
+                    <!-- -------------------------------------
+                         LOGIN BUTTON
+                         ------------------------------------- -->
+
                     <button
                         type="submit"
                         class="btn-gateway-submit"
+                        id="admin-login-submit"
                     >
                         Secure Login
                     </button>
+
+
+                    <!-- -------------------------------------
+                         PASSWORD / VERIFICATION ACTIONS
+                         ------------------------------------- -->
+
+                    <div
+                        style="
+                            display:flex;
+                            flex-wrap:wrap;
+                            justify-content:center;
+                            gap:12px;
+                            margin-top:1rem;
+                        "
+                    >
+
+                        <button
+                            type="button"
+                            id="admin-forgot-password-btn"
+                            style="
+                                border:none;
+                                background:none;
+                                padding:0;
+                                cursor:pointer;
+                                font:inherit;
+                                color:inherit;
+                                text-decoration:underline;
+                            "
+                        >
+                            Forgot Password?
+                        </button>
+
+
+                        <button
+                            type="button"
+                            id="admin-resend-verification-btn"
+                            style="
+                                border:none;
+                                background:none;
+                                padding:0;
+                                cursor:pointer;
+                                font:inherit;
+                                color:inherit;
+                                text-decoration:underline;
+                            "
+                        >
+                            Resend Verification Email
+                        </button>
+
+                    </div>
 
 
                 </form>
@@ -257,9 +383,11 @@
                 Secure Library Access
             </span>
 
+
             <small>
-                Your access is restricted to your authorized
-                library account.
+                Admin authentication is protected by
+                Firebase Authentication and tenant-based
+                library authorization.
             </small>
 
         </div>
@@ -275,10 +403,13 @@
     <footer class="footer-panel">
 
         <p>
+
             &copy; 2026 LibControl Ecosystem.
             All Rights Reserved.
             |
+
             Powered by
+
             <a
                 href="https://opnora.com"
                 target="_blank"
@@ -287,6 +418,7 @@
             >
                 Opnora
             </a>
+
         </p>
 
     </footer>
@@ -294,20 +426,6 @@
 
     <!-- =====================================================
          FIREBASE SDK
-         =====================================================
-
-         Firebase Authentication + Firestore are loaded here.
-
-         IMPORTANT:
-         This is a completely separate LibControl implementation.
-         No LibManage collection is referenced from this file.
-
-         Actual authorization will be enforced through:
-         Firebase Authentication
-         +
-         Firestore Security Rules
-         +
-         server-side privileged operations where required.
          ===================================================== -->
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -318,7 +436,7 @@
 
 
     <!-- =====================================================
-         LIBCONTROL CORE
+         LIBCONTROL SHARED CORE
          ===================================================== -->
 
     <script src="js/dashboard.js"></script>
@@ -336,54 +454,327 @@
 
 
             const tabStudent =
-                document.getElementById("tab-student");
+                document.getElementById(
+                    "tab-student"
+                );
+
 
             const tabAdmin =
-                document.getElementById("tab-admin");
+                document.getElementById(
+                    "tab-admin"
+                );
+
 
             const panelStudent =
-                document.getElementById("panel-student");
+                document.getElementById(
+                    "panel-student"
+                );
+
 
             const panelAdmin =
-                document.getElementById("panel-admin");
+                document.getElementById(
+                    "panel-admin"
+                );
 
 
             function activateStudentPanel() {
 
-                tabStudent.classList.add("active");
+                if (tabStudent) {
 
-                tabAdmin.classList.remove("active");
+                    tabStudent.classList.add(
+                        "active"
+                    );
 
-                panelStudent.classList.add("active");
+                }
 
-                panelAdmin.classList.remove("active");
+
+                if (tabAdmin) {
+
+                    tabAdmin.classList.remove(
+                        "active"
+                    );
+
+                }
+
+
+                if (panelStudent) {
+
+                    panelStudent.classList.add(
+                        "active"
+                    );
+
+                }
+
+
+                if (panelAdmin) {
+
+                    panelAdmin.classList.remove(
+                        "active"
+                    );
+
+                }
 
             }
 
 
             function activateAdminPanel() {
 
-                tabAdmin.classList.add("active");
+                if (tabAdmin) {
 
-                tabStudent.classList.remove("active");
+                    tabAdmin.classList.add(
+                        "active"
+                    );
 
-                panelAdmin.classList.add("active");
+                }
 
-                panelStudent.classList.remove("active");
+
+                if (tabStudent) {
+
+                    tabStudent.classList.remove(
+                        "active"
+                    );
+
+                }
+
+
+                if (panelAdmin) {
+
+                    panelAdmin.classList.add(
+                        "active"
+                    );
+
+                }
+
+
+                if (panelStudent) {
+
+                    panelStudent.classList.remove(
+                        "active"
+                    );
+
+                }
 
             }
 
 
-            tabStudent.addEventListener(
-                "click",
-                activateStudentPanel
-            );
+            if (tabStudent) {
+
+                tabStudent.addEventListener(
+                    "click",
+                    activateStudentPanel
+                );
+
+            }
 
 
-            tabAdmin.addEventListener(
-                "click",
-                activateAdminPanel
-            );
+            if (tabAdmin) {
+
+                tabAdmin.addEventListener(
+                    "click",
+                    activateAdminPanel
+                );
+
+            }
+
+
+        })();
+
+    </script>
+
+
+    <!-- =====================================================
+         ADMIN LOGIN UI HELPERS
+         ===================================================== -->
+
+    <script>
+
+        (function () {
+
+            "use strict";
+
+
+            const forgotButton =
+                document.getElementById(
+                    "admin-forgot-password-btn"
+                );
+
+
+            const resendButton =
+                document.getElementById(
+                    "admin-resend-verification-btn"
+                );
+
+
+            const emailInput =
+                document.getElementById(
+                    "admin-email"
+                );
+
+
+            const messageBox =
+                document.getElementById(
+                    "admin-login-message"
+                );
+
+
+            function showMessage(
+                message,
+                type = "info"
+            ) {
+
+                if (!messageBox) {
+
+                    return;
+
+                }
+
+
+                messageBox.textContent =
+                    message;
+
+
+                messageBox.style.display =
+                    "block";
+
+
+                if (type === "error") {
+
+                    messageBox.style.background =
+                        "#fee2e2";
+
+                    messageBox.style.color =
+                        "#991b1b";
+
+                }
+                else if (type === "success") {
+
+                    messageBox.style.background =
+                        "#dcfce7";
+
+                    messageBox.style.color =
+                        "#166534";
+
+                }
+                else {
+
+                    messageBox.style.background =
+                        "#e0f2fe";
+
+                    messageBox.style.color =
+                        "#075985";
+
+                }
+
+            }
+
+
+            if (forgotButton) {
+
+                forgotButton.addEventListener(
+                    "click",
+                    async function () {
+
+                        const email =
+                            emailInput
+                                ? emailInput.value
+                                    .trim()
+                                : "";
+
+
+                        if (!email) {
+
+                            showMessage(
+                                "Enter your Admin Email first.",
+                                "error"
+                            );
+
+                            if (emailInput) {
+
+                                emailInput.focus();
+
+                            }
+
+                            return;
+
+                        }
+
+
+                        try {
+
+                            const result =
+                                await sendAdminPasswordReset(
+                                    email
+                                );
+
+
+                            showMessage(
+                                result.message,
+                                result.success
+                                    ? "success"
+                                    : "error"
+                            );
+
+                        }
+                        catch (error) {
+
+                            console.error(
+                                "[LibControl] Password reset UI error:",
+                                error
+                            );
+
+
+                            showMessage(
+                                "Unable to send password reset email.",
+                                "error"
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+
+
+            if (resendButton) {
+
+                resendButton.addEventListener(
+                    "click",
+                    async function () {
+
+                        try {
+
+                            const result =
+                                await resendAdminVerificationEmail();
+
+
+                            showMessage(
+                                result.message,
+                                result.success
+                                    ? "success"
+                                    : "error"
+                            );
+
+                        }
+                        catch (error) {
+
+                            console.error(
+                                "[LibControl] Verification resend UI error:",
+                                error
+                            );
+
+
+                            showMessage(
+                                "Unable to resend verification email.",
+                                "error"
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
 
 
         })();
