@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Owner Access - LibManage SaaS</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<script>
+    if (localStorage.getItem("session_role") === "manager") {
+        window.location.href = "manager-dashboard.html";
+    }
+</script>
+<div class="gateway-container" style="margin:15vh auto;">
+
+    <header class="gateway-header">
+        <h1>?? Owner Control Room</h1>
+        <p>SaaS Network Master Entry Terminal</p>
+    </header>
+
+    <div class="gateway-card glass">
+
+        <div class="auth-panel active">
+
+            <h2>Secure Master Login</h2>
+
+            <p class="panel-subtitle">
+                Provide your assigned Gmail ID and passcode credentials.
+            </p>
+
+            <form id="manager-standalone-login-form">
+
+                <div class="form-group">
+                    <label>Manager Gmail Address</label>
+                    <input
+                        type="email"
+                        id="manager-email-input"
+                        placeholder="manager@gmail.com"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label>Master Password</label>
+                    <input
+                        type="password"
+                        id="manager-password-input"
+                        placeholder="••••••••"
+                        required>
+                </div>
+
+                <button
+                    type="submit"
+                    class="btn-gateway-submit btn-manager-override">
+                    Execute Authorization
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+<!-- Shared Firebase Core -->
+<script src="../js/dashboard.js"></script>
+
+<script>
+
+document
+    .getElementById("manager-standalone-login-form")
+    .addEventListener("submit", async (e) => {
+
+        e.preventDefault();
+
+        const email =
+            document
+                .getElementById("manager-email-input")
+                .value
+                .trim()
+                .toLowerCase();
+
+        const password =
+            document
+                .getElementById("manager-password-input")
+                .value;
+
+        if (!email || !password) {
+            alert("Please enter Email and Password.");
+            return;
+        }
+
+        try {
+
+            const userCredential =
+                await firebase
+                    .auth()
+                    .signInWithEmailAndPassword(
+                        email,
+                        password
+                    );
+
+            const user =
+                userCredential.user;
+
+            /*
+             * Only the dedicated Manager Firebase Auth account
+             * is allowed to enter the Manager Console.
+             */
+
+            if (
+                user.email.toLowerCase() !==
+                "mp36797@gmail.com"
+            ) {
+
+                await firebase
+                    .auth()
+                    .signOut();
+
+                alert(
+                    "Access Denied: This account is not authorized as Manager."
+                );
+
+                return;
+            }
+
+            /*
+             * Manager session
+             */
+
+            localStorage.setItem(
+                "session_role",
+                "manager"
+            );
+
+            window.location.href =
+                "manager-dashboard.html";
+
+        } catch (error) {
+
+            console.error(
+                "Manager Firebase Auth Login Error:",
+                error
+            );
+
+            alert(
+                "Login Failed: " +
+                error.message
+            );
+
+        }
+
+    });
+
+</script>
+</body>
+</html>

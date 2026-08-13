@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Owner Control Room - LibManage SaaS</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Global Base Styles -->
+    <link rel="stylesheet" href="../css/style.css">
+
+    <!-- Manager Panel Styles -->
+    <link rel="stylesheet" href="../css/manager.css">
+</head>
+<body>
+
+<div class="manager-layout-wrapper">
+
+    <!-- Top Operations Ribbon -->
+    <header class="manager-top-navbar glass">
+        <div class="mgr-nav-left">
+            <span class="mgr-brand-logo">??</span>
+            <div>
+                <h1>SaaS Master Command Center</h1>
+                <p>System Owner: Network Supervisor Terminal</p>
+            </div>
+        </div>
+
+        <button class="btn-mgr-logout" id="mgr-logout-btn">
+            Exit Control Room
+        </button>
+    </header>
+
+    <main class="manager-content-body">
+
+        <!-- Global Metrics -->
+        <div class="mgr-metrics-grid">
+
+            <div class="mgr-metric-card glass">
+                <h3>Total Registered Branches</h3>
+                <p id="total-branches-count">0</p>
+            </div>
+
+            <div class="mgr-metric-card glass">
+                <h3>Active Terminal Nodes</h3>
+                <p id="active-branches-count" class="text-green">0</p>
+            </div>
+
+            <div class="mgr-metric-card glass">
+                <h3>Suspended Branches (Cash Hold)</h3>
+                <p id="disabled-branches-count" class="text-red">0</p>
+            </div>
+
+        </div>
+
+        <div class="mgr-split-grid">
+
+            <!-- Left -->
+            <div class="panel-card glass mgr-panel-padded">
+
+                <h2>Deploy New Library Branch</h2>
+
+                <p class="panel-subtitle">
+                    Manually bootstrap a new network node instantly with custom seat capacity.
+                </p>
+
+                <form id="create-library-form" class="mgr-creation-form">
+
+                    <div class="form-group">
+                        <label for="lib-name">Library Name *</label>
+                        <input type="text" id="lib-name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lib-email">Admin Login Email *</label>
+                        <input type="email" id="lib-email" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lib-pass">Console Password *</label>
+                        <input type="text" id="lib-pass" value="password123" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lib-seats">Manual Seat Capacity *</label>
+                        <input type="number" id="lib-seats" value="30" min="5" max="500" required>
+                    </div>
+<div class="form-group">
+    <label for="lib-mobile">Library Mobile Number</label>
+    <input
+        type="tel"
+        id="lib-mobile"
+        placeholder="e.g. 9876543210"
+        inputmode="numeric"
+        maxlength="10"
+    >
+</div>
+
+<div class="form-group">
+    <label for="lib-joining-date">Joining Date</label>
+    <input
+        type="date"
+        id="lib-joining-date"
+    >
+</div>
+
+<div class="form-group">
+    <label for="lib-expiry-date">Expiry Date</label>
+    <input
+        type="date"
+        id="lib-expiry-date"
+    >
+</div>
+                    <button type="submit" class="btn-mgr-submit">
+                        Initialize Network Node
+                    </button>
+
+                </form>
+
+            </div>
+
+            <!-- Right -->
+            <div class="panel-card glass mgr-panel-padded">
+
+                <h2>Ecosystem Network Registry</h2>
+
+                <p class="panel-subtitle">
+                    Approve, Enable or Disable library branches.
+                </p>
+<div class="mgr-library-search-wrapper">
+
+    <input
+        type="search"
+        id="library-search-input"
+        class="mgr-library-search-input"
+        placeholder="Search Library Name, Library ID or Admin Email..."
+        autocomplete="off"
+    >
+
+</div>
+                <div class="mgr-table-scroll-wrapper">
+
+                    <table class="mgr-data-table">
+
+                        <thead>
+                        <tr>
+                            <th>ID / Name</th>
+                            <th>Admin Email</th>
+                            <th>Strength</th>
+                            <th>Status</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                        </thead>
+
+                        <tbody id="network-libraries-rows">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+<!-- =========================================================
+     LIBRARY DETAILS / EDIT MODAL
+     ========================================================= -->
+
+<div
+    id="library-modal-overlay"
+    class="mgr-modal-overlay"
+    aria-hidden="true"
+>
+
+    <div
+        class="mgr-library-modal glass"
+        role="dialog"
+        aria-modal="true"
+    >
+
+        <div class="mgr-library-modal-header">
+
+            <div>
+                <h2 id="library-modal-title">
+                    Library Details
+                </h2>
+
+                <p id="library-modal-subtitle">
+                    View and manage library information.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                id="library-modal-close"
+                class="mgr-modal-close"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="mgr-library-modal-body">
+
+            <div class="form-group">
+                <label for="edit-library-id">
+                    Library ID
+                </label>
+
+                <input
+                    type="text"
+                    id="edit-library-id"
+                    readonly
+                >
+            </div>
+
+
+            <div class="form-group">
+                <label for="edit-library-name">
+                    Library Name
+                </label>
+
+                <input
+                    type="text"
+                    id="edit-library-name"
+                >
+            </div>
+
+
+            <div class="form-group">
+                <label for="edit-library-email">
+                    Admin Email
+                </label>
+
+                <input
+                    type="email"
+                    id="edit-library-email"
+                >
+            </div>
+
+
+            <div class="form-group">
+                <label for="edit-library-mobile">
+                    Mobile Number
+                </label>
+
+                <input
+                    type="tel"
+                    id="edit-library-mobile"
+                    inputmode="numeric"
+                    maxlength="10"
+                >
+            </div>
+
+
+            <div class="form-group">
+                <label for="edit-library-seats">
+                    Seat Capacity
+                </label>
+
+                <input
+                    type="number"
+                    id="edit-library-seats"
+                    min="5"
+                    max="500"
+                >
+            </div>
+
+
+            <div class="form-group">
+                <label for="edit-library-joining">
+                    Joining Date
+                </label>
+
+                <input
+                    type="date"
+                    id="edit-library-joining"
+                >
+            </div>
+
+
+            <div class="form-group">
+                <label for="edit-library-expiry">
+                    Expiry Date
+                </label>
+
+                <input
+                    type="date"
+                    id="edit-library-expiry"
+                >
+            </div>
+
+
+            <div class="form-group">
+                <label for="edit-library-password">
+                    New Admin Password
+                </label>
+
+                <input
+                    type="text"
+                    id="edit-library-password"
+                    placeholder="Leave blank to keep current password"
+                    autocomplete="new-password"
+                >
+            </div>
+
+        </div>
+
+
+        <div class="mgr-library-modal-footer">
+
+            <button
+                type="button"
+                id="library-modal-cancel"
+                class="btn-ops-toggle"
+            >
+                Cancel
+            </button>
+
+            <button
+                type="button"
+                id="library-modal-save"
+                class="btn-mgr-submit"
+            >
+                Save Changes
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+<!-- Shared Firebase Core -->
+<script src="../js/dashboard.js"></script>
+
+<!-- Manager Logic -->
+<script src="../js/manager.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Terminal - Operations Board</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://googleapis.com">
+    <link rel="preconnect" href="https://gstatic.com" crossorigin>
+    <link href="https://googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Global Style -->
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Operations Management Custom Style -->
+    <link rel="stylesheet" href="../css/timetable.css">
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Dynamic Sidebar Injection Wrapper -->
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <!-- Dynamic Navbar Injection Wrapper -->
+            <div id="navbar-container"></div>
+
+            <main class="content-body">
+                <!-- Core Module Heading Split -->
+                <div class="operations-header">
+                    <div class="header-titles">
+                        <h1>Schedules & Central Bulletins</h1>
+                        <p>Configure library batch shifts, publish targeted student notices, and coordinate branch academic holiday lists.</p>
+                    </div>
+                </div>
+
+                <!-- Triple Columns Layout Splitting Systems Grid -->
+                <div class="operations-grid">
+                    
+                    <!-- COLUMN A: BATCH TIMETABLE SLOTS SCHEDULING -->
+                    <div class="panel-card glass ops-panel">
+                        <div class="panel-title-bar">
+                            <h2>Shift Batches</h2>
+                            <button class="ops-header-action" id="edit-timetable-btn">?? Edit Hours</button>
+                        </div>
+                        
+                        <div class="timetable-list" id="timetable-slots-view">
+                            <!-- Dynamic batch listings elements paint here -->
+                        </div>
+
+                        <!-- In-place inline edit form wrapper element layer hidden initially -->
+                        <form id="timetable-editor-form" class="inline-ops-form hide-element">
+                            <div class="form-group">
+                                <label for="time-morning-slot">Morning Shift Batch</label>
+                                <input type="text" id="time-morning-slot" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="time-afternoon-slot">Afternoon Shift Batch</label>
+                                <input type="text" id="time-afternoon-slot" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="time-evening-slot">Evening Shift Batch</label>
+                                <input type="text" id="time-evening-slot" required>
+                            </div>
+                            <div class="form-actions-row">
+                                <button type="button" class="btn-ops-cancel" id="cancel-timetable-btn">Cancel</button>
+                                <button type="submit" class="btn-ops-save">Save Slots</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- COLUMN B: LIVE CENTRAL BULLETIN NOTICE BOARD -->
+                    <div class="panel-card glass ops-panel">
+                        <div class="panel-title-bar">
+                            <h2>Notice Bulletins</h2>
+                            <button class="ops-header-action action-btn-add" id="add-notice-btn">? Publish</button>
+                        </div>
+
+                        <div class="bulletin-list-container" id="notices-canvas-list">
+                            <!-- notices data list injects dynamically -->
+                        </div>
+
+                        <!-- Inline Form context box layout for adding notices dynamically -->
+                        <form id="notice-creator-form" class="inline-ops-form hide-element">
+                            <div class="form-group">
+                                <label for="notice-select-type">Notice Category Type</label>
+                                <select id="notice-select-type">
+                                    <option value="Holiday">Holiday Announcement</option>
+                                    <option value="Timing Changed">Timing Modification</option>
+                                    <option value="Library Closed">Emergency Library Closure</option>
+                                    <option value="General Announcement">General Public Info</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="notice-input-desc">Bulletin Text Detail</label>
+                                <textarea id="notice-input-desc" placeholder="Enter concise notification message..." required rows="3"></textarea>
+                            </div>
+                            <div class="form-actions-row">
+                                <button type="button" class="btn-ops-cancel" id="cancel-notice-btn">Cancel</button>
+                                <button type="submit" class="btn-ops-save">Post Board</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- COLUMN C: ACADEMIC CALENDAR HOLIDAY TRACKING LOGS -->
+                    <div class="panel-card glass ops-panel">
+                        <div class="panel-title-bar">
+                            <h2>Holiday Registry</h2>
+                            <button class="ops-header-action action-btn-add" id="add-holiday-btn">? Log Date</button>
+                        </div>
+
+                        <div class="bulletin-list-container" id="holidays-canvas-list">
+                            <!-- holidays elements print here directly via js engine -->
+                        </div>
+
+                        <!-- Inline Form context box layout for logging holidays dynamically -->
+                        <form id="holiday-creator-form" class="inline-ops-form hide-element">
+                            <div class="form-group">
+                                <label for="holiday-input-title">Holiday Label Name</label>
+                                <input type="text" id="holiday-input-title" placeholder="e.g., Festival Break, Sunday" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="holiday-input-date">Target Date</label>
+                                <input type="date" id="holiday-input-date" required>
+                            </div>
+                            <div class="form-actions-row">
+                                <button type="button" class="btn-ops-cancel" id="cancel-holiday-btn">Cancel</button>
+                                <button type="submit" class="btn-ops-save">Register Day</button>
+                            </div>
+                        </form>
+                    </div>
+
+                </div>
+            </main>
+
+            <!-- Dynamic Footer Injection Wrapper -->
+            <div id="footer-container"></div>
+        </div>
+    </div>
+
+    <!-- System core controller script integration bindings mapping layers -->
+    <script src="../js/dashboard.js"></script>
+    <script src="../js/timetable.js"></script>
+</body>
+</html>

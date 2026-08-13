@@ -1,0 +1,292 @@
+/* ==========================================================================
+   SaaS OWNER MASTER COMMAND MODULE SPECIFIC STYLES
+   ========================================================================== */
+
+.manager-layout-wrapper {
+    max-width: 1500px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.manager-top-navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 2rem;
+    margin-bottom: 2rem;
+}
+
+.mgr-nav-left {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+.mgr-brand-logo { font-size: 2.25rem; }
+.mgr-nav-left h1 { font-size: 1.4rem; font-weight: 700; color: var(--text-main); }
+.mgr-nav-left p { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.btn-mgr-logout {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 0.5rem 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+.btn-mgr-logout:hover {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+/* Operational Metrics Grid */
+.mgr-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+.mgr-metric-card {
+    padding: 1.5rem;
+    text-align: center;
+}
+.mgr-metric-card h3 { font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+.mgr-metric-card p { font-size: 2rem; font-weight: 700; color: var(--text-main); }
+
+.text-green { color: #10b981 !important; }
+.text-red { color: #ef4444 !important; }
+
+/* Structural Split System Sections layout layout grids blueprint rules */
+.mgr-split-grid {
+    display: grid;
+    grid-template-columns: 0.8fr 1.2fr;
+    gap: 2rem;
+    align-items: flex-start;
+}
+.mgr-panel-padded { padding: 2rem 1.5rem; min-height: 520px; }
+.mgr-panel-padded h2 { font-size: 1.2rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; }
+
+.mgr-creation-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 1.5rem;
+}
+.btn-mgr-submit {
+    width: 100%;
+    background: #0f172a;
+    color: #ffffff;
+    border: none;
+    padding: 0.85rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    margin-top: 0.75rem;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+}
+.btn-mgr-submit:hover { background: #000000; transform: translateY(-1px); }
+
+/* Master Registry Dashboard Table Configuration maps */
+.mgr-table-scroll-wrapper { overflow-x: auto; width: 100%; margin-top: 1rem; }
+.mgr-data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
+.mgr-data-table th { padding: 0.85rem 0.75rem; color: var(--text-muted); font-weight: 600; border-bottom: 2px solid rgba(0, 0, 0, 0.05); background: rgba(0,0,0,0.01); }
+.mgr-data-table td { padding: 0.85rem 0.75rem; border-bottom: 1px solid rgba(0, 0, 0, 0.04); vertical-align: middle; color: var(--text-main); }
+
+.lib-meta-cell strong { font-size: 0.9rem; color: var(--text-main); display: block; }
+.lib-meta-cell span { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+
+.mgr-badge { display: inline-block; padding: 0.2rem 0.5rem; font-size: 0.75rem; font-weight: 700; border-radius: 4px; text-transform: uppercase; }
+.mgr-badge.status-approved { background: rgba(16, 185, 129, 0.1); color: #059669; }
+.mgr-badge.status-pending { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+.mgr-badge.status-active { background: #d1fae5; color: #065f46; }
+.mgr-badge.status-disabled { background: #fee2e2; color: #991b1b; }
+
+.text-right { text-align: right; }
+.mgr-actions-row { display: flex; justify-content: flex-end; gap: 0.4rem; }
+
+/* Control State Buttons */
+.btn-ops-toggle { border: none; padding: 0.35rem 0.65rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: var(--transition-smooth); box-shadow: var(--shadow-sm); }
+.btn-ops-toggle.btn-enable { background: #10b981; color: #ffffff; }
+.btn-ops-toggle.btn-enable:hover { background: #059669; }
+.btn-ops-toggle.btn-disable { background: #f59e0b; color: #ffffff; }
+.btn-ops-toggle.btn-disable:hover { background: #d97706; }
+.btn-ops-toggle.btn-approve { background: var(--primary-color); color: #ffffff; }
+.btn-ops-toggle.btn-approve:hover { background: var(--primary-hover); }
+.btn-ops-toggle.btn-delete { background: none; box-shadow: none; font-size: 0.9rem; padding: 0.2rem; }
+.btn-ops-toggle.btn-delete:hover { transform: scale(1.15); }
+
+@media (max-width: 1024px) {
+    .mgr-split-grid { grid-template-columns: 1fr; }
+}
+
+/* =========================================================
+   LIBRARY SEARCH
+   ========================================================= */
+
+.mgr-library-search-wrapper {
+    width: 100%;
+    margin: 1rem 0;
+}
+
+.mgr-library-search-input {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    color: var(--text-main);
+    font-size: 0.9rem;
+    outline: none;
+    transition: var(--transition-smooth);
+}
+
+.mgr-library-search-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+
+/* =========================================================
+   CLICKABLE LIBRARY NAME
+   ========================================================= */
+
+.mgr-library-name-link {
+    cursor: pointer;
+    color: var(--primary-color);
+}
+
+.mgr-library-name-link:hover {
+    text-decoration: underline;
+}
+
+
+/* =========================================================
+   LIBRARY MODAL
+   ========================================================= */
+
+.mgr-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+}
+
+.mgr-modal-overlay.active {
+    display: flex;
+}
+
+.mgr-library-modal {
+    width: 100%;
+    max-width: 650px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.mgr-library-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.mgr-library-modal-header h2 {
+    margin: 0 0 0.35rem;
+    color: var(--text-main);
+}
+
+.mgr-library-modal-header p {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.mgr-modal-close {
+    border: none;
+    background: transparent;
+    font-size: 1.8rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.mgr-library-modal-body {
+    padding: 1.5rem;
+}
+
+.mgr-library-modal-body .form-group {
+    margin-bottom: 1rem;
+}
+
+.mgr-library-modal-body input {
+    width: 100%;
+}
+
+.mgr-library-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.mgr-library-modal-footer .btn-mgr-submit {
+    width: auto;
+    min-width: 150px;
+    margin-top: 0;
+}
+
+.mgr-library-modal-footer .btn-ops-toggle {
+    min-width: 90px;
+}
+
+
+/* =========================================================
+   EDIT BUTTON
+   ========================================================= */
+
+.btn-ops-toggle.btn-edit {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.btn-ops-toggle.btn-edit:hover {
+    background: #1d4ed8;
+}
+
+
+@media (max-width: 600px) {
+
+    .mgr-library-modal {
+        max-height: 94vh;
+    }
+
+    .mgr-library-modal-header,
+    .mgr-library-modal-body,
+    .mgr-library-modal-footer {
+        padding: 1rem;
+    }
+
+    .mgr-library-modal-footer {
+        flex-direction: column;
+    }
+
+    .mgr-library-modal-footer button {
+        width: 100%;
+    }
+
+}

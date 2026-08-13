@@ -1,0 +1,245 @@
+/* ==========================================================================
+   MULTI-TENANT SEAT GRID CANVASES SPECIFIC STYLES
+   ========================================================================== */
+
+.seats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    gap: 1.5rem;
+}
+
+/* Legend Info Displays */
+.legend-panel { display: flex; gap: 1.25rem; padding: 0.6rem 1.25rem; border-radius: 50px; }
+.legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 600; color: var(--text-main); }
+.legend-box { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+
+/* Palette Maps Config Variables overrides colors rules channels */
+.legend-box.available, .seat-unit.available { background: #10b981; color: #ffffff; }
+.legend-box.occupied, .seat-unit.occupied { background: var(--primary-color); color: #ffffff; }
+.legend-box.expired, .seat-unit.expired { background: #ef4444; color: #ffffff; }
+
+/* Structural Seat Layout Blueprint Grid Canvas rules layers */
+.matrix-container {
+    padding: 2.5rem 1.5rem;
+    min-height: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.seat-grid-canvas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+    gap: 1.25rem 1.5rem;
+    width: 100%;
+    max-width: 1100px;
+    justify-content: center;
+}
+
+/* Unit Blocks Interactivity Cards definitions */
+.seat-unit {
+    height: 68px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.05rem;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-smooth);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 0.25rem;
+    text-align: center;
+}
+.seat-unit:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: var(--shadow-lg);
+}
+
+.seat-occupant-lbl {
+    font-size: 0.65rem;
+    font-weight: 500;
+    opacity: 0.9;
+    max-width: 80px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0.2rem;
+}
+
+/* Modals sub section containers routes switches toggle views states codes overrides */
+.inspector-section { display: none; }
+.inspector-section.active { display: block; }
+
+.detail-data-block {
+    margin-bottom: 1rem;
+    background: #ffffff;
+    padding: 0.65rem 0.85rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+.data-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 0.15rem; }
+.data-value { font-size: 1rem; font-weight: 600; color: var(--text-main); }
+
+.inspector-actions { margin-top: 1.5rem; border-top: 1px solid rgba(0, 0, 0, 0.05); padding-top: 1rem; }
+.btn-action-primary {
+    width: 100%;
+    background: var(--primary-color);
+    color: #ffffff;
+    border: none;
+    padding: 0.8rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    box-shadow: 0 4px 10px rgba(37, 99, 234, 0.15);
+}
+.btn-action-primary:hover { background: var(--primary-hover); }
+
+.form-tip-note { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4; }
+
+/* Force fix for Configure Capacity modal */
+#capacityModal {
+    background: rgba(255, 255, 255, 0.20) !important;
+}
+
+#capacityModal .seat-modal-dialog,
+#capacityModal .seat-modal-header,
+#capacityModal .seat-modal-body,
+#capacityModal .seat-modal-footer,
+#capacityModal form {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #111111 !important;
+}
+
+#capacityModal .seat-modal-title,
+#capacityModal label,
+#capacityModal .form-tip-note,
+#capacityModal .data-label,
+#capacityModal .data-value,
+#capacityModal p,
+#capacityModal span,
+#capacityModal div {
+    color: #111111 !important;
+}
+
+/* ULTRA FORCE YELLOW FOR ACTUAL INPUT AREA + POSSIBLE WRAPPERS */
+#capacityModal input,
+#capacityModal input[type="number"],
+#capacityModal input[type="text"],
+#capacityModal select,
+#capacityModal textarea,
+#capacityModal .form-control,
+#capacityModal .input-field,
+#capacityModal .input-box,
+#capacityModal .capacity-input,
+#capacityModal .capacity-field,
+#capacityModal .field-input {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    background: #fef08a !important;
+    background-color: #fef08a !important;
+    color: #111111 !important;
+    border: 1px solid #ca8a04 !important;
+    box-shadow: inset 0 0 0 1000px #fef08a !important;
+    -webkit-box-shadow: inset 0 0 0 1000px #fef08a !important;
+    -webkit-text-fill-color: #111111 !important;
+    outline: none !important;
+    opacity: 1 !important;
+}
+
+/* In case wrapper contains actual input */
+#capacityModal .form-control input,
+#capacityModal .input-field input,
+#capacityModal .input-box input,
+#capacityModal .capacity-input input,
+#capacityModal .capacity-field input,
+#capacityModal .field-input input {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    background: #fef08a !important;
+    background-color: #fef08a !important;
+    color: #111111 !important;
+    border: 1px solid #ca8a04 !important;
+    box-shadow: inset 0 0 0 1000px #fef08a !important;
+    -webkit-box-shadow: inset 0 0 0 1000px #fef08a !important;
+    -webkit-text-fill-color: #111111 !important;
+    outline: none !important;
+    opacity: 1 !important;
+}
+
+#capacityModal input:focus,
+#capacityModal input[type="number"]:focus,
+#capacityModal input[type="text"]:focus,
+#capacityModal select:focus,
+#capacityModal textarea:focus,
+#capacityModal .form-control input:focus,
+#capacityModal .input-field input:focus,
+#capacityModal .input-box input:focus,
+#capacityModal .capacity-input input:focus,
+#capacityModal .capacity-field input:focus,
+#capacityModal .field-input input:focus {
+    background: #fde047 !important;
+    background-color: #fde047 !important;
+    color: #111111 !important;
+    border: 1px solid #a16207 !important;
+    box-shadow: inset 0 0 0 1000px #fde047 !important;
+    -webkit-box-shadow: inset 0 0 0 1000px #fde047 !important;
+    -webkit-text-fill-color: #111111 !important;
+    outline: none !important;
+}
+
+#capacityModal input::placeholder,
+#capacityModal textarea::placeholder {
+    color: #713f12 !important;
+    opacity: 1 !important;
+}
+
+#capacityModal input:-webkit-autofill,
+#capacityModal input:-webkit-autofill:hover,
+#capacityModal input:-webkit-autofill:focus,
+#capacityModal textarea:-webkit-autofill,
+#capacityModal select:-webkit-autofill {
+    -webkit-text-fill-color: #111111 !important;
+    border: 1px solid #ca8a04 !important;
+    -webkit-box-shadow: inset 0 0 0 1000px #fef08a !important;
+    box-shadow: inset 0 0 0 1000px #fef08a !important;
+    transition: background-color 99999s ease-in-out 0s !important;
+}
+
+#capacityModal select option {
+    background: #ffffff !important;
+    color: #111111 !important;
+}
+
+#capacityModal .seat-modal-close,
+#capacityModal button:not(.btn-action-primary) {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #111111 !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    box-shadow: none !important;
+}
+
+#capacityModal .btn-action-primary,
+#capacityModal .seat-btn.primary,
+#capacityModal #saveCapacityBtn {
+    color: #ffffff !important;
+}
+
+@media (max-width: 768px) {
+    .seats-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+    .legend-panel { width: 100%; justify-content: space-between; }
+    .matrix-container { padding: 1.5rem 0.25rem; }
+    .seat-grid-canvas { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 0.85rem; }
+    .seat-unit { height: 60px; font-size: 0.95rem; }
+}

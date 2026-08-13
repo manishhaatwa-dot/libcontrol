@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Student Dashboard - Library</title>
+
+    <!-- Global CSS -->
+    <link
+        rel="stylesheet"
+        href="../css/style.css"
+    >
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, Arial, sans-serif;
+            background: var(--background-color, #f5f7fb);
+        }
+
+        .student-dashboard {
+            width: 100%;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .student-topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 24px;
+        }
+
+        .student-brand h1 {
+            margin: 0;
+            font-size: 1.7rem;
+        }
+
+        .student-brand p {
+            margin: 5px 0 0;
+            color: var(--text-muted, #777);
+        }
+
+        .student-exit-btn {
+            border: none;
+            padding: 11px 18px;
+            border-radius: 9px;
+            cursor: pointer;
+            font-weight: 600;
+            background: #111827;
+            color: white;
+        }
+
+        .student-exit-btn:hover {
+            opacity: 0.9;
+        }
+
+        .student-id-bar {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .student-id-box {
+            padding: 15px 18px;
+            border-radius: 12px;
+            background: white;
+            border: 1px solid rgba(0,0,0,0.07);
+        }
+
+        .student-id-box span {
+            display: block;
+            font-size: 0.78rem;
+            color: #777;
+            margin-bottom: 5px;
+        }
+
+        .student-id-box strong {
+            font-size: 0.95rem;
+        }
+
+        .student-info-card {
+            background: white;
+            border-radius: 15px;
+            padding: 22px;
+            margin-bottom: 22px;
+            border: 1px solid rgba(0,0,0,0.07);
+        }
+
+        .student-info-card h2 {
+            margin: 0 0 18px;
+            font-size: 1.25rem;
+        }
+
+        .student-info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+
+        .info-item {
+            padding: 13px;
+            border-radius: 10px;
+            background: #f8f9fb;
+        }
+
+        .info-item span {
+            display: block;
+            font-size: 0.76rem;
+            color: #777;
+            margin-bottom: 5px;
+        }
+
+        .info-item strong {
+            display: block;
+            word-break: break-word;
+        }
+
+        .dashboard-columns {
+            display: grid;
+            grid-template-columns: 1.35fr 1fr;
+            gap: 22px;
+            align-items: start;
+        }
+
+        .dashboard-card {
+            background: white;
+            border-radius: 15px;
+            padding: 22px;
+            border: 1px solid rgba(0,0,0,0.07);
+        }
+
+        .dashboard-card h2 {
+            margin: 0 0 18px;
+            font-size: 1.2rem;
+        }
+
+        .attendance-summary {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .attendance-summary-box {
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            background: #f8f9fb;
+        }
+
+        .attendance-summary-box span {
+            display: block;
+            font-size: 0.8rem;
+            color: #777;
+            margin-bottom: 6px;
+        }
+
+        .attendance-summary-box strong {
+            font-size: 1.6rem;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .calendar-header button {
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            padding: 7px 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .calendar-month-title {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .calendar-weekdays,
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+
+        .calendar-weekdays div {
+            text-align: center;
+            font-size: 0.72rem;
+            color: #777;
+            padding: 6px 0;
+            font-weight: 600;
+        }
+
+        .calendar-day {
+            min-height: 55px;
+            border-radius: 9px;
+            border: 1px solid #eee;
+            background: #fafafa;
+            padding: 7px;
+            position: relative;
+        }
+
+        .calendar-day.empty {
+            background: transparent;
+            border: none;
+        }
+
+        .calendar-day-number {
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .calendar-status {
+            display: block;
+            margin-top: 6px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-align: center;
+            border-radius: 5px;
+            padding: 3px 2px;
+        }
+
+        .calendar-status.present {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .calendar-status.absent {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+.attendance-day.present {
+    background: #22c55e;
+    color: #ffffff;
+    border-color: #16a34a;
+}
+
+.attendance-day.absent {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #dc2626;
+}
+        .calendar-day.today {
+            border: 2px solid #111827;
+        }
+
+        .notice-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .notice-item {
+            padding: 15px;
+            border-radius: 11px;
+            background: #f8f9fb;
+            border-left: 4px solid #111827;
+        }
+
+        .notice-item h3 {
+            margin: 0 0 6px;
+            font-size: 0.98rem;
+        }
+
+        .notice-item p {
+            margin: 0;
+            color: #555;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+
+        .notice-date {
+            display: block;
+            margin-top: 9px;
+            color: #888;
+            font-size: 0.72rem;
+        }
+
+        .empty-message {
+            text-align: center;
+            padding: 25px 10px;
+            color: #777;
+        }
+
+        .loading-message {
+            color: #777;
+            text-align: center;
+            padding: 20px;
+        }
+
+        @media (max-width: 900px) {
+
+            .dashboard-columns {
+                grid-template-columns: 1fr;
+            }
+
+            .student-info-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+        }
+
+        @media (max-width: 600px) {
+
+            .student-dashboard {
+                padding: 14px;
+            }
+
+            .student-topbar {
+                align-items: flex-start;
+            }
+
+            .student-brand h1 {
+                font-size: 1.35rem;
+            }
+
+            .student-id-bar {
+                grid-template-columns: 1fr;
+            }
+
+            .student-info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard-card,
+            .student-info-card {
+                padding: 16px;
+            }
+
+            .calendar-day {
+                min-height: 48px;
+                padding: 5px;
+            }
+
+            .calendar-status {
+                font-size: 0.55rem;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="student-dashboard">
+
+    <!-- =====================================================
+         TOP BAR
+         ===================================================== -->
+
+    <div class="student-topbar">
+
+        <div class="student-brand">
+
+            <h1>Student Dashboard</h1>
+
+            <p>
+                Your Library Membership Portal
+            </p>
+
+        </div>
+
+        <button
+            type="button"
+            class="student-exit-btn"
+            id="student-exit-btn"
+        >
+            Exit Portal
+        </button>
+
+    </div>
+
+
+    <!-- =====================================================
+         LOGIN IDs
+         ===================================================== -->
+
+    <div class="student-id-bar">
+
+        <div class="student-id-box">
+
+            <span>
+                Library ID
+            </span>
+
+            <strong id="student-library-id-display">
+                Loading...
+            </strong>
+
+        </div>
+
+
+        <div class="student-id-box">
+
+            <span>
+                Student Login ID
+            </span>
+
+            <strong id="student-code-display">
+                Loading...
+            </strong>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         STUDENT PROFILE
+         ===================================================== -->
+
+    <div class="student-info-card">
+
+        <h2>
+            Student Details
+        </h2>
+
+        <div class="student-info-grid">
+
+            <div class="info-item">
+                <span>Student Name</span>
+                <strong id="student-name">Loading...</strong>
+            </div>
+
+            <div class="info-item">
+                <span>Father's Name</span>
+                <strong id="student-father">Loading...</strong>
+            </div>
+
+            <div class="info-item">
+                <span>Mobile Number</span>
+                <strong id="student-mobile">Loading...</strong>
+            </div>
+
+            <div class="info-item">
+                <span>Class</span>
+                <strong id="student-class">Loading...</strong>
+            </div>
+
+            <div class="info-item">
+                <span>Seat Number</span>
+                <strong id="student-seat">Loading...</strong>
+            </div>
+
+            <div class="info-item">
+                <span>Shift</span>
+                <strong id="student-shift">Loading...</strong>
+            </div>
+
+            <div class="info-item">
+                <span>Joining Date</span>
+                <strong id="student-joining">Loading...</strong>
+            </div>
+
+            <div class="info-item">
+                <span>Expiry Date</span>
+                <strong id="student-expiry">Loading...</strong>
+            </div>
+
+            <div class="info-item">
+                <span>Status</span>
+                <strong id="student-status">Loading...</strong>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         DASHBOARD COLUMNS
+         ===================================================== -->
+
+    <div class="dashboard-columns">
+
+
+        <!-- =================================================
+             ATTENDANCE
+             ================================================= -->
+
+        <div class="dashboard-card">
+
+            <h2>
+                Attendance History
+            </h2>
+
+            <div class="attendance-summary">
+
+                <div class="attendance-summary-box">
+
+                    <span>
+                        Total Present
+                    </span>
+
+                    <strong id="total-present">
+                        0
+                    </strong>
+
+                </div>
+
+                <div class="attendance-summary-box">
+
+                    <span>
+                        Total Absent
+                    </span>
+
+                    <strong id="total-absent">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="calendar-header">
+
+                <button
+                    type="button"
+                    id="previous-month-btn"
+                >
+                    ‹
+                </button>
+
+                <div
+                    class="calendar-month-title"
+                    id="calendar-month-title"
+                >
+                    Loading...
+                </div>
+
+                <button
+                    type="button"
+                    id="next-month-btn"
+                >
+                    ›
+                </button>
+
+            </div>
+
+
+            <div class="calendar-weekdays">
+
+                <div>Sun</div>
+                <div>Mon</div>
+                <div>Tue</div>
+                <div>Wed</div>
+                <div>Thu</div>
+                <div>Fri</div>
+                <div>Sat</div>
+
+            </div>
+
+
+            <div
+                class="calendar-grid"
+                id="attendance-calendar"
+            >
+                <div class="loading-message">
+                    Loading attendance...
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- =================================================
+             NOTICES
+             ================================================= -->
+
+        <div class="dashboard-card">
+
+            <h2>
+                Library Notices
+            </h2>
+
+            <div
+                class="notice-list"
+                id="student-notice-list"
+            >
+
+                <div class="loading-message">
+                    Loading notices...
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     FIREBASE SDK
+     ========================================================= -->
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+
+<!-- =========================================================
+     CORE ENGINE
+     This provides Firebase config + window.db
+     ========================================================= -->
+
+<script src="../js/dashboard.js"></script>
+
+
+<!-- =========================================================
+     STUDENT DASHBOARD JS
+     ========================================================= -->
+
+<script src="../js/student-dashboard.js"></script>
+
+</body>
+
+</html>

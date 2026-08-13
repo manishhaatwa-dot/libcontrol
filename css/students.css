@@ -1,0 +1,166 @@
+/* ==========================================================================
+   MULTI-TENANT STUDENT RECORDS MANAGEMENT SYSTEM STYLES
+   ========================================================================== */
+
+.students-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    gap: 1.5rem;
+}
+
+.header-titles h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+.header-titles p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.add-student-trigger {
+    background: var(--primary-color);
+    color: #ffffff;
+    border: none;
+    padding: 0.7rem 1.25rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 12px rgba(37, 99, 234, 0.15);
+    transition: var(--transition-smooth);
+}
+.add-student-trigger:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+/* Utilities Filter Bar Controls Layout */
+.search-filter-panel {
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+}
+.search-box {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-sm);
+    width: 100%;
+    max-width: 450px;
+    gap: 0.6rem;
+}
+.search-box input {
+    border: none;
+    background: none;
+    outline: none;
+    width: 100%;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    font-family: inherit;
+}
+
+/* Data Table Elements Grid Formatting Rules */
+.students-table-card {
+    padding: 1rem;
+}
+.table-scroll-container {
+    overflow-x: auto;
+    width: 100%;
+}
+.students-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.85rem;
+}
+.students-data-table th {
+    padding: 1rem 0.75rem;
+    background: rgba(0, 0, 0, 0.01);
+    color: var(--text-muted);
+    font-weight: 600;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+}
+.students-data-table td {
+    padding: 0.9rem 0.75rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    color: var(--text-main);
+    vertical-align: middle;
+}
+
+.status-tag {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.status-tag.active { background: rgba(16, 185, 129, 0.1); color: #059669; }
+.status-tag.expired { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
+
+.actions-header { text-align: right; }
+.actions-cell-wrapper { display: flex; justify-content: flex-end; gap: 0.4rem; }
+
+.action-icon-btn {
+    border: 1px solid rgba(0,0,0,0.05);
+    background: #ffffff;
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-smooth);
+    font-size: 0.85rem;
+    box-shadow: var(--shadow-sm);
+}
+.action-icon-btn.edit-btn:hover { background: rgba(37, 99, 234, 0.08); color: var(--primary-color); }
+.action-icon-btn.delete-btn:hover { background: rgba(239, 68, 68, 0.08); color: #dc2626; }
+
+/* Modal Panels Layers Override Configurations rules */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
+.modal-window { width: 100%; max-width: 580px; padding: 2rem; transform: scale(0.95); transition: transform 0.3s ease; }
+.modal-overlay.active .modal-window { transform: scale(1); }
+
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(0, 0, 0, 0.05); padding-bottom: 0.75rem; }
+.close-modal-btn { background: none; border: none; font-size: 1.15rem; cursor: pointer; color: var(--text-muted); }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+.form-group.full-width { grid-column: span 2; }
+.form-actions { display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid rgba(0, 0, 0, 0.05); padding-top: 1rem; }
+
+.btn-cancel { background: #f1f5f9; border: none; padding: 0.55rem 1.25rem; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--text-muted); }
+.btn-submit { background: var(--primary-color); color: #ffffff; border: none; padding: 0.55rem 1.5rem; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; font-size: 0.85rem; box-shadow: 0 3px 8px rgba(37, 99, 234, 0.15); }
+
+@media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.full-width { grid-column: span 1; }
+    .students-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+    .add-student-trigger { width: 100%; justify-content: center; }
+}
