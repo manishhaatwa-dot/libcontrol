@@ -1,195 +1,1458 @@
 /* ==========================================================================
-   ENTERPRISE MULTI-TENANT DESIGN SYSTEM & RESET
+   LIBMANAGE - NEW APP GLOBAL DESIGN SYSTEM
+   ==========================================================================
+   IMPORTANT:
+   This CSS belongs only to the NEW LibManage application.
+   It does not modify or depend on the old LibManage CSS.
    ========================================================================== */
+
+
+/* ==========================================================================
+   1. ROOT VARIABLES
+   ========================================================================== */
+
 :root {
+
     --primary-color: #2563eb;
     --primary-hover: #1d4ed8;
+
     --secondary-color: #4f46e5;
     --accent-color: #06b6d4;
-    --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+
+    --success-color: #16a34a;
+    --danger-color: #dc2626;
+    --warning-color: #d97706;
+
+    --background-color: #f5f7fb;
+
+    --bg-gradient:
+        linear-gradient(
+            135deg,
+            #f1f5f9 0%,
+            #e2e8f0 100%
+        );
+
     --sidebar-bg: #ffffff;
+
     --text-main: #0f172a;
     --text-muted: #64748b;
-    --glass-bg: rgba(255, 255, 255, 0.75);
-    --glass-border: rgba(255, 255, 255, 0.5);
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.08);
+    --text-light: #94a3b8;
+
+    --white: #ffffff;
+
+    --border-color: #e5e7eb;
+
+    --glass-bg:
+        rgba(255, 255, 255, 0.78);
+
+    --glass-border:
+        rgba(255, 255, 255, 0.65);
+
+    --shadow-sm:
+        0 2px 4px rgba(0, 0, 0, 0.05);
+
+    --shadow-md:
+        0 10px 15px -3px rgba(0, 0, 0, 0.04),
+        0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+    --shadow-lg:
+        0 20px 25px -5px rgba(0, 0, 0, 0.08);
+
+    --shadow-xl:
+        0 25px 50px -12px rgba(0, 0, 0, 0.15);
+
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --radius-xl: 20px;
+
+    --transition-smooth:
+        all 0.3s cubic-bezier(
+            0.4,
+            0,
+            0.2,
+            1
+        );
+
+    --font-family:
+        'Inter',
+        Arial,
+        sans-serif;
+
 }
 
+
+/* ==========================================================================
+   2. GLOBAL RESET
+   ========================================================================== */
+
 * {
+
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+
 }
+
+
+html {
+
+    width: 100%;
+    min-height: 100%;
+
+    scroll-behavior: smooth;
+
+}
+
 
 body {
-    font-family: 'Inter', sans-serif;
-    background: var(--bg-gradient);
-    color: var(--text-main);
-    min-height: 100vh;
-    overflow-x: hidden;
-    line-height: 1.5;
-}
 
-/* ==========================================================================
-   GLASSMORPHISM ARCHITECTURE MIXIN
-   ========================================================================== */
-.glass {
-    background: var(--glass-bg);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
-    transition: var(--transition-smooth);
-}
-.glass:hover {
-    box-shadow: var(--shadow-lg);
-    border-color: rgba(255, 255, 255, 0.7);
-}
-
-/* ==========================================================================
-   UNIVERSAL ROUTER / GATEWAY UI STYLES
-   ========================================================================== */
-.gateway-container {
-    max-width: 480px;
     width: 100%;
-    margin: 8vh auto;
-    padding: 0 1.5rem;
-    display: flex;
-    flex-direction: column;
+    min-height: 100vh;
+
+    font-family: var(--font-family);
+
+    background:
+        var(--bg-gradient);
+
+    color: var(--text-main);
+
+    line-height: 1.5;
+
+    overflow-x: hidden;
+
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+
 }
+
+
+button,
+input,
+select,
+textarea {
+
+    font-family: inherit;
+
+}
+
+
+button {
+
+    cursor: pointer;
+
+}
+
+
+button:disabled {
+
+    cursor: not-allowed;
+    opacity: 0.65;
+
+}
+
+
+a {
+
+    color: inherit;
+    text-decoration: none;
+
+}
+
+
+img {
+
+    max-width: 100%;
+    display: block;
+
+}
+
+
+/* ==========================================================================
+   3. ACCESSIBILITY
+   ========================================================================== */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+
+    outline:
+        3px solid
+        rgba(37, 99, 235, 0.25);
+
+    outline-offset: 2px;
+
+}
+
+
+/* ==========================================================================
+   4. GLASS SYSTEM
+   ========================================================================== */
+
+.glass {
+
+    background:
+        var(--glass-bg);
+
+    backdrop-filter:
+        blur(14px);
+
+    -webkit-backdrop-filter:
+        blur(14px);
+
+    border:
+        1px solid
+        var(--glass-border);
+
+    border-radius:
+        var(--radius-md);
+
+    box-shadow:
+        var(--shadow-md);
+
+    transition:
+        var(--transition-smooth);
+
+}
+
+
+.glass:hover {
+
+    box-shadow:
+        var(--shadow-lg);
+
+    border-color:
+        rgba(255, 255, 255, 0.85);
+
+}
+
+
+/* ==========================================================================
+   5. UNIVERSAL GATEWAY
+   ========================================================================== */
+
+.gateway-container {
+
+    width: 100%;
+    max-width: 480px;
+
+    margin:
+        8vh auto 0;
+
+    padding:
+        0 1.5rem;
+
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+}
+
 
 .gateway-header {
-    text-align: center;
-    margin-bottom: 2rem;
+
+    text-align:
+        center;
+
+    margin-bottom:
+        2rem;
+
 }
+
+
 .gateway-header h1 {
-    font-size: 2.25rem;
-    font-weight: 700;
-    color: var(--text-main);
-    cursor: default;
-    user-select: none;
+
+    font-size:
+        2.25rem;
+
+    line-height:
+        1.2;
+
+    font-weight:
+        700;
+
+    color:
+        var(--text-main);
+
+    user-select:
+        none;
+
 }
+
+
 .gateway-header p {
-    color: var(--text-muted);
-    font-size: 0.95rem;
-    margin-top: 0.25rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+
+    margin-top:
+        0.35rem;
+
+    color:
+        var(--text-muted);
+
+    font-size:
+        0.95rem;
+
+    font-weight:
+        500;
+
+    text-transform:
+        uppercase;
+
+    letter-spacing:
+        1px;
+
 }
 
-.gateway-tabs {
-    display: flex;
-    background: rgba(0, 0, 0, 0.05);
-    padding: 0.35rem;
-    border-radius: var(--radius-md);
-    margin-bottom: 1.5rem;
-}
-.gateway-tab-btn {
-    flex: 1;
-    background: none;
-    border: none;
-    padding: 0.65rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    cursor: pointer;
-    border-radius: var(--radius-sm);
-    transition: var(--transition-smooth);
-}
-.gateway-tab-btn.active {
-    background: #ffffff;
-    color: var(--primary-color);
-    box-shadow: var(--shadow-sm);
-}
-
-.gateway-card {
-    padding: 2.5rem 2rem;
-}
-
-.auth-panel {
-    display: none;
-}
-.auth-panel.active {
-    display: block;
-    animation: fadeInGateway 0.3s ease-in-out;
-}
-
-.auth-panel h2 {
-    font-size: 1.35rem;
-    font-weight: 700;
-    margin-bottom: 0.35rem;
-}
-.panel-subtitle {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin-bottom: 1.75rem;
-    line-height: 1.4;
-}
 
 /* ==========================================================================
-   INPUTS & SELECTION SYSTEM COMPONENTS
+   6. GATEWAY TABS
    ========================================================================== */
+
+.gateway-tabs {
+
+    display:
+        flex;
+
+    gap:
+        0.25rem;
+
+    background:
+        rgba(15, 23, 42, 0.06);
+
+    padding:
+        0.35rem;
+
+    border-radius:
+        var(--radius-md);
+
+    margin-bottom:
+        1.5rem;
+
+}
+
+
+.gateway-tab-btn {
+
+    flex:
+        1;
+
+    border:
+        none;
+
+    background:
+        transparent;
+
+    color:
+        var(--text-muted);
+
+    padding:
+        0.7rem;
+
+    border-radius:
+        var(--radius-sm);
+
+    font-size:
+        0.95rem;
+
+    font-weight:
+        600;
+
+    transition:
+        var(--transition-smooth);
+
+}
+
+
+.gateway-tab-btn:hover {
+
+    color:
+        var(--primary-color);
+
+}
+
+
+.gateway-tab-btn.active {
+
+    background:
+        var(--white);
+
+    color:
+        var(--primary-color);
+
+    box-shadow:
+        var(--shadow-sm);
+
+}
+
+
+/* ==========================================================================
+   7. GATEWAY CARD
+   ========================================================================== */
+
+.gateway-card {
+
+    padding:
+        2.5rem 2rem;
+
+}
+
+
+.auth-panel {
+
+    display:
+        none;
+
+}
+
+
+.auth-panel.active {
+
+    display:
+        block;
+
+    animation:
+        fadeInGateway
+        0.3s
+        ease-in-out;
+
+}
+
+
+.auth-panel h2 {
+
+    font-size:
+        1.35rem;
+
+    font-weight:
+        700;
+
+    margin-bottom:
+        0.35rem;
+
+    color:
+        var(--text-main);
+
+}
+
+
+.panel-subtitle {
+
+    font-size:
+        0.85rem;
+
+    color:
+        var(--text-muted);
+
+    margin-bottom:
+        1.75rem;
+
+    line-height:
+        1.5;
+
+}
+
+
+/* ==========================================================================
+   8. GLOBAL FORM SYSTEM
+   ========================================================================== */
+
 .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    margin-bottom: 1.25rem;
+
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+    gap:
+        0.4rem;
+
+    margin-bottom:
+        1.25rem;
+
 }
+
+
 .form-group label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-main);
+
+    font-size:
+        0.85rem;
+
+    font-weight:
+        600;
+
+    color:
+        var(--text-main);
+
 }
-.form-group input, .form-group select {
-    padding: 0.75rem;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    background: #ffffff;
-    border-radius: var(--radius-sm);
-    outline: none;
-    font-family: inherit;
-    font-size: 0.95rem;
-    transition: var(--transition-smooth);
+
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+
+    width:
+        100%;
+
+    min-height:
+        44px;
+
+    padding:
+        0.75rem;
+
+    border:
+        1px solid
+        rgba(0, 0, 0, 0.10);
+
+    background:
+        #ffffff;
+
+    color:
+        var(--text-main);
+
+    border-radius:
+        var(--radius-sm);
+
+    outline:
+        none;
+
+    font-size:
+        0.95rem;
+
+    transition:
+        var(--transition-smooth);
+
 }
-.form-group input:focus, .form-group select:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(37, 99, 234, 0.15);
+
+
+.form-group textarea {
+
+    min-height:
+        110px;
+
+    resize:
+        vertical;
+
 }
+
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+
+    color:
+        #94a3b8;
+
+}
+
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+
+    border-color:
+        var(--primary-color);
+
+    box-shadow:
+        0 0 0 3px
+        rgba(37, 99, 235, 0.15);
+
+}
+
+
+/* ==========================================================================
+   9. GATEWAY SUBMIT BUTTON
+   ========================================================================== */
 
 .btn-gateway-submit {
-    width: 100%;
-    background: var(--primary-color);
-    color: #ffffff;
-    border: none;
-    padding: 0.85rem;
-    font-size: 1rem;
-    font-weight: 600;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    margin-top: 0.5rem;
-    box-shadow: 0 4px 12px rgba(37, 99, 234, 0.2);
-    transition: var(--transition-smooth);
-}
-.btn-gateway-submit:hover {
-    background: var(--primary-hover);
-    transform: translateY(-1px);
-}
-.btn-manager-override {
-    background: #0f172a;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
-}
-.btn-manager-override:hover {
-    background: #000000;
+
+    width:
+        100%;
+
+    min-height:
+        46px;
+
+    background:
+        var(--primary-color);
+
+    color:
+        #ffffff;
+
+    border:
+        none;
+
+    padding:
+        0.85rem;
+
+    font-size:
+        1rem;
+
+    font-weight:
+        600;
+
+    border-radius:
+        var(--radius-sm);
+
+    cursor:
+        pointer;
+
+    margin-top:
+        0.5rem;
+
+    box-shadow:
+        0 4px 12px
+        rgba(37, 99, 235, 0.20);
+
+    transition:
+        var(--transition-smooth);
+
 }
 
+
+.btn-gateway-submit:hover {
+
+    background:
+        var(--primary-hover);
+
+    transform:
+        translateY(-1px);
+
+}
+
+
+.btn-manager-override {
+
+    background:
+        #0f172a;
+
+    box-shadow:
+        0 4px 12px
+        rgba(15, 23, 42, 0.20);
+
+}
+
+
+.btn-manager-override:hover {
+
+    background:
+        #000000;
+
+}
+
+
+/* ==========================================================================
+   10. UNIVERSAL BUTTONS
+   ========================================================================== */
+
+.primary-btn {
+
+    background:
+        var(--primary-color);
+
+    color:
+        #ffffff;
+
+    border:
+        none;
+
+    padding:
+        0.65rem 1.25rem;
+
+    border-radius:
+        var(--radius-sm);
+
+    font-size:
+        0.9rem;
+
+    font-weight:
+        600;
+
+    transition:
+        var(--transition-smooth);
+
+}
+
+
+.primary-btn:hover {
+
+    background:
+        var(--primary-hover);
+
+    transform:
+        translateY(-1px);
+
+}
+
+
+.secondary-btn {
+
+    background:
+        #f1f5f9;
+
+    color:
+        #475569;
+
+    border:
+        1px solid
+        #e2e8f0;
+
+    padding:
+        0.65rem 1.25rem;
+
+    border-radius:
+        var(--radius-sm);
+
+    font-size:
+        0.9rem;
+
+    font-weight:
+        600;
+
+    transition:
+        var(--transition-smooth);
+
+}
+
+
+.secondary-btn:hover {
+
+    background:
+        #e2e8f0;
+
+}
+
+
+/* ==========================================================================
+   11. STATUS SYSTEM
+   ========================================================================== */
+
+.status-tag {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    padding:
+        0.25rem 0.6rem;
+
+    border-radius:
+        999px;
+
+    font-size:
+        0.72rem;
+
+    font-weight:
+        700;
+
+}
+
+
+.status-tag.active {
+
+    background:
+        rgba(16, 185, 129, 0.12);
+
+    color:
+        #047857;
+
+}
+
+
+.status-tag.expired {
+
+    background:
+        rgba(239, 68, 68, 0.12);
+
+    color:
+        #dc2626;
+
+}
+
+
+.status-tag.pending {
+
+    background:
+        rgba(245, 158, 11, 0.12);
+
+    color:
+        #b45309;
+
+}
+
+
+.status-tag.inactive {
+
+    background:
+        rgba(100, 116, 139, 0.12);
+
+    color:
+        #475569;
+
+}
+
+
+/* ==========================================================================
+   12. COMMON EMPTY / LOADING STATES
+   ========================================================================== */
+
+.loading-message,
+.empty-message,
+.empty-state-text,
+.table-empty {
+
+    text-align:
+        center;
+
+    color:
+        var(--text-muted);
+
+    padding:
+        2rem 1rem;
+
+}
+
+
+.loading-message {
+
+    font-weight:
+        500;
+
+}
+
+
+.table-empty,
+.empty-state-text {
+
+    font-style:
+        italic;
+
+}
+
+
+/* ==========================================================================
+   13. FOOTER
+   ========================================================================== */
+
+.footer-panel {
+
+    width:
+        100%;
+
+    padding:
+        1.25rem;
+
+    text-align:
+        center;
+
+    color:
+        var(--text-muted);
+
+    font-size:
+        0.82rem;
+
+}
+
+
+.footer-panel p {
+
+    margin:
+        0;
+
+}
+
+
+.footer-brand-link {
+
+    color:
+        var(--primary-color);
+
+    font-weight:
+        700;
+
+}
+
+
+.footer-brand-link:hover {
+
+    text-decoration:
+        underline;
+
+}
+
+
+/* ==========================================================================
+   14. MODAL BASE
+   ========================================================================== */
+
+.modal-overlay {
+
+    position:
+        fixed;
+
+    inset:
+        0;
+
+    width:
+        100%;
+
+    height:
+        100%;
+
+    background:
+        rgba(15, 23, 42, 0.45);
+
+    backdrop-filter:
+        blur(4px);
+
+    -webkit-backdrop-filter:
+        blur(4px);
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    padding:
+        1rem;
+
+    z-index:
+        5000;
+
+    opacity:
+        0;
+
+    pointer-events:
+        none;
+
+    transition:
+        opacity 0.25s ease;
+
+}
+
+
+.modal-overlay.active {
+
+    opacity:
+        1;
+
+    pointer-events:
+        auto;
+
+}
+
+
+.modal-window {
+
+    width:
+        100%;
+
+    max-width:
+        580px;
+
+    max-height:
+        92vh;
+
+    overflow-y:
+        auto;
+
+    padding:
+        2rem;
+
+    background:
+        #ffffff;
+
+    border-radius:
+        var(--radius-lg);
+
+    box-shadow:
+        var(--shadow-xl);
+
+    transform:
+        scale(0.96);
+
+    transition:
+        transform 0.25s ease;
+
+}
+
+
+.modal-overlay.active .modal-window {
+
+    transform:
+        scale(1);
+
+}
+
+
+.modal-header {
+
+    display:
+        flex;
+
+    justify-content:
+        space-between;
+
+    align-items:
+        center;
+
+    gap:
+        1rem;
+
+    margin-bottom:
+        1.5rem;
+
+    padding-bottom:
+        0.75rem;
+
+    border-bottom:
+        1px solid
+        #e5e7eb;
+
+}
+
+
+.modal-header h2 {
+
+    font-size:
+        1.2rem;
+
+    font-weight:
+        800;
+
+    color:
+        var(--text-main);
+
+}
+
+
+.close-modal-btn {
+
+    width:
+        36px;
+
+    height:
+        36px;
+
+    border:
+        none;
+
+    background:
+        #f1f5f9;
+
+    color:
+        #475569;
+
+    border-radius:
+        50%;
+
+    font-size:
+        1.2rem;
+
+    cursor:
+        pointer;
+
+    transition:
+        var(--transition-smooth);
+
+}
+
+
+.close-modal-btn:hover {
+
+    background:
+        #e2e8f0;
+
+    transform:
+        scale(1.04);
+
+}
+
+
+/* ==========================================================================
+   15. FORM GRID
+   ========================================================================== */
+
+.form-grid {
+
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap:
+        1rem;
+
+    margin-bottom:
+        1.25rem;
+
+}
+
+
+.form-group.full-width {
+
+    grid-column:
+        1 / -1;
+
+}
+
+
+.form-actions {
+
+    display:
+        flex;
+
+    justify-content:
+        flex-end;
+
+    align-items:
+        center;
+
+    gap:
+        0.75rem;
+
+    border-top:
+        1px solid
+        #e5e7eb;
+
+    padding-top:
+        1rem;
+
+}
+
+
+/* ==========================================================================
+   16. SEARCH
+   ========================================================================== */
+
+.search-filter-panel {
+
+    width:
+        100%;
+
+}
+
+
+.search-box {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    width:
+        100%;
+
+}
+
+
+.search-box input {
+
+    width:
+        100%;
+
+}
+
+
+/* ==========================================================================
+   17. HIDDEN UTILITIES
+   ========================================================================== */
+
+.hide-element {
+
+    display:
+        none !important;
+
+}
+
+
+.hidden {
+
+    display:
+        none !important;
+
+}
+
+
+/* ==========================================================================
+   18. ANIMATIONS
+   ========================================================================== */
+
 @keyframes fadeInGateway {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+
+    from {
+
+        opacity:
+            0;
+
+        transform:
+            translateY(8px);
+
+    }
+
+    to {
+
+        opacity:
+            1;
+
+        transform:
+            translateY(0);
+
+    }
+
+}
+
+
+@keyframes fadeIn {
+
+    from {
+
+        opacity:
+            0;
+
+    }
+
+    to {
+
+        opacity:
+            1;
+
+    }
+
+}
+
+
+/* ==========================================================================
+   19. SCROLLBAR
+   ========================================================================== */
+
+::-webkit-scrollbar {
+
+    width:
+        8px;
+
+    height:
+        8px;
+
+}
+
+
+::-webkit-scrollbar-track {
+
+    background:
+        #f8fafc;
+
+}
+
+
+::-webkit-scrollbar-thumb {
+
+    background:
+        #cbd5e1;
+
+    border-radius:
+        20px;
+
+}
+
+
+::-webkit-scrollbar-thumb:hover {
+
+    background:
+        #94a3b8;
+
+}
+
+
+/* ==========================================================================
+   20. RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 768px) {
+
+    .gateway-container {
+
+        margin-top:
+            5vh;
+
+        padding:
+            0 1rem;
+
+    }
+
+
+    .gateway-header h1 {
+
+        font-size:
+            1.85rem;
+
+    }
+
+
+    .gateway-card {
+
+        padding:
+            1.75rem 1.25rem;
+
+    }
+
+
+    .form-grid {
+
+        grid-template-columns:
+            1fr;
+
+    }
+
+
+    .form-group.full-width {
+
+        grid-column:
+            auto;
+
+    }
+
+
+    .modal-window {
+
+        padding:
+            1.25rem;
+
+        max-height:
+            94vh;
+
+    }
+
+
+    .form-actions {
+
+        flex-direction:
+            column-reverse;
+
+        align-items:
+            stretch;
+
+    }
+
+
+    .form-actions button {
+
+        width:
+            100%;
+
+    }
+
+}
+
+
+@media (max-width: 480px) {
+
+    .gateway-container {
+
+        padding:
+            0 0.75rem;
+
+    }
+
+
+    .gateway-header {
+
+        margin-bottom:
+            1.5rem;
+
+    }
+
+
+    .gateway-header h1 {
+
+        font-size:
+            1.65rem;
+
+    }
+
+
+    .gateway-header p {
+
+        font-size:
+            0.78rem;
+
+    }
+
+
+    .gateway-card {
+
+        padding:
+            1.4rem 1rem;
+
+    }
+
+
+    .gateway-tabs {
+
+        margin-bottom:
+            1rem;
+
+    }
+
+
+    .gateway-tab-btn {
+
+        font-size:
+            0.85rem;
+
+    }
+
+}
+
+
+/* ==========================================================================
+   21. FINAL GLOBAL SAFETY
+   ========================================================================== */
+
+body {
+
+    overflow-x:
+        hidden;
+
+}
+
+
+table {
+
+    max-width:
+        100%;
+
+}
+
+
+input,
+select,
+textarea {
+
+    max-width:
+        100%;
+
+}
+
+
+::selection {
+
+    background:
+        rgba(37, 99, 235, 0.18);
+
+    color:
+        var(--text-main);
+
 }
