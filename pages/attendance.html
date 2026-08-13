@@ -1,195 +1,426 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Library Terminal - Attendance</title>
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>LibControl - Attendance</title>
+
 
     <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
 
     <!-- Global CSS -->
-    <link rel="stylesheet" href="../css/style.css">
+
+    <link
+        rel="stylesheet"
+        href="../css/style.css"
+    >
+
+
+    <!-- Layout CSS -->
+
+    <link
+        rel="stylesheet"
+        href="../css/layout.css"
+    >
+
 
     <!-- Attendance CSS -->
-    <link rel="stylesheet" href="../css/attendance.css">
+
+    <link
+        rel="stylesheet"
+        href="../css/attendance.css"
+    >
+
 </head>
+
 
 <body>
 
+
 <div class="app-container">
 
-    <!-- Sidebar -->
+
+    <!-- =====================================================
+         SIDEBAR
+         ===================================================== -->
+
     <div id="sidebar-container"></div>
+
 
     <div class="main-content">
 
-        <!-- Navbar -->
+
+        <!-- =================================================
+             NAVBAR
+             ================================================= -->
+
         <div id="navbar-container"></div>
+
 
         <main class="content-body">
 
-            <!-- Page Header -->
+
+            <!-- =================================================
+                 PAGE HEADER
+                 ================================================= -->
+
             <div class="students-header">
 
+
                 <div class="header-titles">
-                    <h1>Attendance Register</h1>
+
+                    <h1>
+                        Attendance Register
+                    </h1>
+
 
                     <p>
                         Mark daily attendance for all registered
                         library students.
                     </p>
+
                 </div>
+
 
                 <button
                     class="add-student-trigger"
                     id="save-attendance-btn"
-                    type="button">
-
+                    type="button"
+                >
                     Save Attendance
-
                 </button>
+
 
             </div>
 
-            <!-- Top Control Panel -->
+
+            <!-- =================================================
+                 SEARCH + FILTER PANEL
+                 ================================================= -->
+
             <div class="search-filter-panel glass">
 
+
                 <div class="search-box">
+
                     <input
                         type="text"
                         id="attendance-search-input"
-                        placeholder="Search by Student Name, Code or Seat...">
+                        placeholder="Search by Student Name, Code or Seat..."
+                        autocomplete="off"
+                    >
+
                 </div>
+
 
                 <div class="filter-actions">
 
+
+                    <!-- Attendance Date -->
+
                     <div class="form-group">
+
                         <label for="attendance-date">
                             Attendance Date
                         </label>
 
+
                         <input
                             type="date"
-                            id="attendance-date">
+                            id="attendance-date"
+                        >
+
                     </div>
 
+
+                    <!-- Shift -->
+
                     <div class="form-group">
+
                         <label for="attendance-shift">
                             Shift
                         </label>
 
+
                         <select id="attendance-shift">
-                            <option value="Morning">Morning</option>
-                            <option value="Afternoon">Afternoon</option>
-                            <option value="Evening">Evening</option>
-                            <option value="Full Day">Full Day</option>
+
+                            <option value="Morning">
+                                Morning
+                            </option>
+
+                            <option value="Afternoon">
+                                Afternoon
+                            </option>
+
+                            <option value="Evening">
+                                Evening
+                            </option>
+
+                            <option value="Full Day">
+                                Full Day
+                            </option>
+
                         </select>
+
                     </div>
+
 
                 </div>
 
+
             </div>
 
-            <!-- Attendance Table -->
+
+            <!-- =================================================
+                 ATTENDANCE TABLE
+                 ================================================= -->
+
             <div class="students-table-card glass">
+
 
                 <div class="table-scroll-container">
 
+
                     <table class="students-data-table">
 
+
                         <thead>
+
                             <tr>
-                                <th>Student Code</th>
-                                <th>Seat</th>
-                                <th>Student Name</th>
-                                <th>Present</th>
-                                <th>Absent</th>
+
+                                <th>
+                                    Student Code
+                                </th>
+
+                                <th>
+                                    Seat
+                                </th>
+
+                                <th>
+                                    Student Name
+                                </th>
+
+                                <th>
+                                    Present
+                                </th>
+
+                                <th>
+                                    Absent
+                                </th>
+
                             </tr>
+
                         </thead>
 
+
                         <tbody id="attendance-table-body">
-                            <!-- Dynamic Attendance Rows -->
+
+
+                            <tr>
+
+                                <td
+                                    colspan="5"
+                                    class="attendance-empty-state"
+                                >
+                                    Loading attendance records...
+                                </td>
+
+                            </tr>
+
+
                         </tbody>
+
 
                     </table>
 
+
                 </div>
+
 
             </div>
 
+
         </main>
 
-        <!-- Footer -->
+
+        <!-- =================================================
+             FOOTER
+             ================================================= -->
+
         <div id="footer-container"></div>
+
 
     </div>
 
 </div>
 
-<!-- Attendance History Modal -->
+
+<!-- =========================================================
+     ATTENDANCE HISTORY MODAL
+     ========================================================= -->
+
 <div
     class="modal-overlay"
-    id="attendance-history-modal">
+    id="attendance-history-modal"
+    aria-hidden="true"
+>
 
-    <div class="modal-window glass attendance-history-window">
+
+    <div
+        class="modal-window glass attendance-history-window"
+    >
+
+
+        <!-- =================================================
+             MODAL HEADER
+             ================================================= -->
 
         <div class="modal-header">
 
+
             <div>
-                <h2>Attendance Details</h2>
+
+                <h2>
+                    Attendance Details
+                </h2>
+
+
                 <p class="attendance-modal-subtext">
                     Student summary and saved attendance history
                 </p>
+
             </div>
+
 
             <button
                 class="close-modal-btn"
                 id="close-attendance-history-modal"
-                type="button">
-
+                type="button"
+                aria-label="Close"
+            >
                 ×
-
             </button>
 
+
         </div>
+
+
+        <!-- =================================================
+             MODAL CONTENT
+             ================================================= -->
 
         <div class="modal-form attendance-history-layout">
 
+
+            <!-- Student Summary -->
+
             <div
                 class="attendance-stats-grid"
-                id="attendance-history-summary">
+                id="attendance-history-summary"
+            >
             </div>
+
+
+            <!-- History Table -->
 
             <div class="attendance-history-table-card">
-                <table class="students-data-table attendance-history-table">
+
+
+                <table
+                    class="students-data-table attendance-history-table"
+                >
+
+
                     <thead>
+
                         <tr>
-                            <th>Date</th>
-                            <th>Shift</th>
-                            <th>Status</th>
+
+                            <th>
+                                Date
+                            </th>
+
+                            <th>
+                                Shift
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
                         </tr>
+
                     </thead>
-                    <tbody id="attendance-history-body"></tbody>
+
+
+                    <tbody
+                        id="attendance-history-body"
+                    >
+                    </tbody>
+
+
                 </table>
+
+
             </div>
 
+
         </div>
+
 
     </div>
 
 </div>
 
-<!-- Shared Core -->
+
+<!-- =========================================================
+     FIREBASE
+     ========================================================= -->
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+
+<!-- =========================================================
+     LIBCONTROL CORE
+     ========================================================= -->
 
 <script src="../js/dashboard.js"></script>
 
-<!-- Attendance -->
+
+<!-- =========================================================
+     ATTENDANCE LOGIC
+     ========================================================= -->
+
 <script src="../js/attendance.js"></script>
 
+
 </body>
+
 </html>
