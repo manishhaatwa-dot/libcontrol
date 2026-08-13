@@ -1,70 +1,129 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Library Terminal - Students</title>
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>LibControl - Students</title>
+
 
     <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet"
     >
 
+
     <!-- Global CSS -->
-    <link rel="stylesheet" href="../css/style.css">
+
+    <link
+        rel="stylesheet"
+        href="../css/style.css"
+    >
+
 
     <!-- Students CSS -->
-    <link rel="stylesheet" href="../css/students.css">
+
+    <link
+        rel="stylesheet"
+        href="../css/students.css"
+    >
+
 </head>
+
 
 <body>
 
+
 <div class="app-container">
 
-    <!-- Sidebar -->
+
+    <!-- =====================================================
+         SIDEBAR
+         ===================================================== -->
+
     <div id="sidebar-container"></div>
+
 
     <div class="main-content">
 
-        <!-- Navbar -->
+
+        <!-- =================================================
+             NAVBAR
+             ================================================= -->
+
         <div id="navbar-container"></div>
+
+
+        <!-- =================================================
+             MAIN CONTENT
+             ================================================= -->
 
         <main class="content-body">
 
-            <!-- Page Header -->
+
+            <!-- =================================================
+                 PAGE HEADER
+                 ================================================= -->
+
             <div class="students-header">
+
 
                 <div class="header-titles">
 
-                    <h1>Student Directory</h1>
+                    <h1>
+                        Student Directory
+                    </h1>
 
                     <p>
-                        Manage registered students for the current library branch.
-                        Every student receives an automatically generated unique login code.
+                        Manage registered students for the current
+                        library branch. Every student receives an
+                        automatically generated unique login code.
                     </p>
 
                 </div>
 
+
                 <!-- Add Student -->
+
                 <button
                     class="add-student-trigger"
                     id="open-add-modal-btn"
-                    type="button">
+                    type="button"
+                >
 
                     + Add Student
 
                 </button>
 
+
             </div>
 
 
-            <!-- Search Panel -->
+            <!-- =================================================
+                 SEARCH
+                 ================================================= -->
+
             <div class="search-filter-panel glass">
+
 
                 <div class="search-box">
 
@@ -77,59 +136,113 @@
 
                 </div>
 
+
             </div>
 
 
-            <!-- Student Directory Table -->
+            <!-- =================================================
+                 STUDENT TABLE
+                 ================================================= -->
+
             <div class="students-table-card glass">
+
 
                 <div class="table-scroll-container">
 
+
                     <table class="students-data-table">
+
 
                         <thead>
 
                             <tr>
-                                <th>Unique Login Code</th>
-                                <th>Seat No</th>
-                                <th>Student Name</th>
-                                <th>Father's Name</th>
-                                <th>Class</th>
-                                <th>Joining Date</th>
-                                <th>Expiry Date</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+
+                                <th>
+                                    Unique Login Code
+                                </th>
+
+                                <th>
+                                    Seat No
+                                </th>
+
+                                <th>
+                                    Student Name
+                                </th>
+
+                                <th>
+                                    Father's Name
+                                </th>
+
+                                <th>
+                                    Class
+                                </th>
+
+                                <th>
+                                    Joining Date
+                                </th>
+
+                                <th>
+                                    Expiry Date
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                                <th class="actions-header">
+                                    Actions
+                                </th>
+
                             </tr>
 
                         </thead>
 
+
                         <tbody id="students-table-rows">
 
+
                             <tr>
+
                                 <td
                                     colspan="9"
                                     class="table-empty"
-                                    style="text-align:center; padding:2rem;">
+                                    style="
+                                        text-align:center;
+                                        padding:2rem;
+                                    "
+                                >
 
                                     Loading student records...
 
                                 </td>
+
                             </tr>
+
 
                         </tbody>
 
+
                     </table>
+
 
                 </div>
 
+
             </div>
+
 
         </main>
 
-        <!-- Footer -->
+
+        <!-- =================================================
+             FOOTER
+             ================================================= -->
+
         <div id="footer-container"></div>
 
+
     </div>
+
 
 </div>
 
@@ -140,53 +253,91 @@
 
 <div
     class="modal-overlay"
-    id="student-modal">
+    id="student-modal"
+    aria-hidden="true"
+>
 
-    <div class="modal-window glass">
+
+    <div
+        class="modal-window glass"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title-context"
+    >
+
+
+        <!-- =================================================
+             MODAL HEADER
+             ================================================= -->
 
         <div class="modal-header">
 
+
             <div>
+
                 <h2 id="modal-title-context">
                     Register New Library Member
                 </h2>
+
             </div>
+
 
             <button
                 class="close-modal-btn"
                 id="close-modal-btn"
                 type="button"
-                aria-label="Close">
+                aria-label="Close"
+            >
 
                 ×
 
             </button>
 
+
         </div>
 
 
-        <!-- Generated Student Code -->
+        <!-- =================================================
+             GENERATED STUDENT CODE
+             ================================================= -->
+
         <div
             id="modal-code-display-block"
-            class="hide-element modal-code-box">
+            class="hide-element modal-code-box"
+        >
 
-            <span>Student Login Code</span>
+            <span>
+                Student Login Code
+            </span>
 
-            <strong id="modal-student-code-preview"></strong>
+
+            <strong
+                id="modal-student-code-preview"
+            ></strong>
+
 
         </div>
 
 
-        <!-- Student Form -->
+        <!-- =================================================
+             STUDENT FORM
+             ================================================= -->
+
         <form
             id="student-form"
-            class="modal-form">
+            class="modal-form"
+            autocomplete="off"
+        >
+
+
+            <!-- Internal edit information -->
 
             <input
                 type="hidden"
                 id="form-edit-index"
                 value=""
             >
+
 
             <input
                 type="hidden"
@@ -197,7 +348,11 @@
 
             <div class="form-grid">
 
-                <!-- Student Name -->
+
+                <!-- =================================================
+                     STUDENT NAME
+                     ================================================= -->
+
                 <div class="form-group">
 
                     <label for="std-name">
@@ -208,13 +363,17 @@
                         type="text"
                         id="std-name"
                         placeholder="Enter student name"
+                        autocomplete="name"
                         required
                     >
 
                 </div>
 
 
-                <!-- Father Name -->
+                <!-- =================================================
+                     FATHER NAME
+                     ================================================= -->
+
                 <div class="form-group">
 
                     <label for="std-father">
@@ -231,7 +390,10 @@
                 </div>
 
 
-                <!-- Class -->
+                <!-- =================================================
+                     CLASS
+                     ================================================= -->
+
                 <div class="form-group">
 
                     <label for="std-class">
@@ -248,7 +410,10 @@
                 </div>
 
 
-                <!-- Seat -->
+                <!-- =================================================
+                     SEAT
+                     ================================================= -->
+
                 <div class="form-group">
 
                     <label for="std-seat">
@@ -265,7 +430,10 @@
                 </div>
 
 
-                <!-- Mobile Number -->
+                <!-- =================================================
+                     MOBILE
+                     ================================================= -->
+
                 <div class="form-group">
 
                     <label for="std-mobile">
@@ -276,29 +444,38 @@
                         type="tel"
                         id="std-mobile"
                         placeholder="Enter mobile number"
+                        inputmode="numeric"
                         maxlength="10"
+                        autocomplete="tel"
                         required
                     >
 
                 </div>
 
 
-                <!-- Shift -->
+                <!-- =================================================
+                     SHIFT
+                     ================================================= -->
+
                 <div class="form-group">
 
                     <label for="std-shift">
                         Shift
                     </label>
 
-                    <select id="std-shift" required>
+                    <select
+                        id="std-shift"
+                        required
+                    >
 
                         <option value="">
                             Select Shift
                         </option>
-                         <option value="Morning">
+
+                        <option value="Morning">
                             Morning
                         </option>
-                        
+
                         <option value="Afternoon">
                             Afternoon
                         </option>
@@ -316,14 +493,20 @@
                 </div>
 
 
-                <!-- Status -->
+                <!-- =================================================
+                     STATUS
+                     ================================================= -->
+
                 <div class="form-group">
 
                     <label for="std-status">
                         Status
                     </label>
 
-                    <select id="std-status" required>
+                    <select
+                        id="std-status"
+                        required
+                    >
 
                         <option value="">
                             Select Status
@@ -342,7 +525,10 @@
                 </div>
 
 
-                <!-- Joining Date -->
+                <!-- =================================================
+                     JOINING DATE
+                     ================================================= -->
+
                 <div class="form-group">
 
                     <label for="std-joining">
@@ -354,13 +540,17 @@
                         id="std-joining"
                         placeholder="DD/MM/YYYY"
                         maxlength="10"
+                        inputmode="numeric"
                         required
                     >
 
                 </div>
 
 
-                <!-- Expiry Date -->
+                <!-- =================================================
+                     EXPIRY DATE
+                     ================================================= -->
+
                 <div class="form-group">
 
                     <label for="std-expiry">
@@ -372,57 +562,79 @@
                         id="std-expiry"
                         placeholder="DD/MM/YYYY"
                         maxlength="10"
+                        inputmode="numeric"
                         required
                     >
 
                 </div>
 
+
             </div>
 
 
-            <!-- Form Buttons -->
+            <!-- =================================================
+                 FORM ACTIONS
+                 ================================================= -->
+
             <div class="form-actions">
+
 
                 <button
                     id="cancel-form-btn"
                     type="button"
-                    class="secondary-btn">
+                    class="secondary-btn"
+                >
 
                     Cancel
 
                 </button>
 
+
                 <button
                     type="submit"
-                    class="primary-btn">
+                    class="primary-btn"
+                >
 
                     Save Student
 
                 </button>
 
+
             </div>
+
 
         </form>
 
+
     </div>
+
 
 </div>
 
 
 <!-- =========================================================
-     FIREBASE
-     Same working initialization chain as Attendance
+     FIREBASE SDK
      ========================================================= -->
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-<!-- Core Engine -->
+
+<!-- =========================================================
+     SHARED CORE
+     ========================================================= -->
+
 <script src="../js/dashboard.js"></script>
 
-<!-- Student Directory -->
+
+<!-- =========================================================
+     STUDENT DIRECTORY LOGIC
+     ========================================================= -->
+
 <script src="../js/students.js"></script>
 
+
 </body>
+
 </html>
