@@ -1,176 +1,467 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Owner Control Room - LibManage SaaS</title>
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>LibControl - Master Control Room</title>
+
 
     <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Global Base Styles -->
-    <link rel="stylesheet" href="../css/style.css">
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
 
-    <!-- Manager Panel Styles -->
-    <link rel="stylesheet" href="../css/manager.css">
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+
+    <!-- Global CSS -->
+
+    <link
+        rel="stylesheet"
+        href="../css/style.css"
+    >
+
+
+    <!-- Manager CSS -->
+
+    <link
+        rel="stylesheet"
+        href="../css/manager.css"
+    >
+
 </head>
+
+
 <body>
+
 
 <div class="manager-layout-wrapper">
 
-    <!-- Top Operations Ribbon -->
+
+    <!-- =====================================================
+         MASTER TOP NAVBAR
+         ===================================================== -->
+
     <header class="manager-top-navbar glass">
+
+
         <div class="mgr-nav-left">
-            <span class="mgr-brand-logo">??</span>
+
+            <span class="mgr-brand-logo">
+                LC
+            </span>
+
+
             <div>
-                <h1>SaaS Master Command Center</h1>
-                <p>System Owner: Network Supervisor Terminal</p>
+
+                <h1>
+                    LibControl Master Command Center
+                </h1>
+
+
+                <p>
+                    System Owner: Network Supervisor Terminal
+                </p>
+
             </div>
+
         </div>
 
-        <button class="btn-mgr-logout" id="mgr-logout-btn">
+
+        <button
+            type="button"
+            class="btn-mgr-logout"
+            id="mgr-logout-btn"
+        >
             Exit Control Room
         </button>
+
+
     </header>
+
 
     <main class="manager-content-body">
 
-        <!-- Global Metrics -->
+
+        <!-- =================================================
+             GLOBAL METRICS
+             ================================================= -->
+
         <div class="mgr-metrics-grid">
 
-            <div class="mgr-metric-card glass">
-                <h3>Total Registered Branches</h3>
-                <p id="total-branches-count">0</p>
-            </div>
+
+            <!-- Total Branches -->
 
             <div class="mgr-metric-card glass">
-                <h3>Active Terminal Nodes</h3>
-                <p id="active-branches-count" class="text-green">0</p>
+
+                <h3>
+                    Total Registered Branches
+                </h3>
+
+
+                <p id="total-branches-count">
+                    0
+                </p>
+
             </div>
 
+
+            <!-- Active Branches -->
+
             <div class="mgr-metric-card glass">
-                <h3>Suspended Branches (Cash Hold)</h3>
-                <p id="disabled-branches-count" class="text-red">0</p>
+
+                <h3>
+                    Active Terminal Nodes
+                </h3>
+
+
+                <p
+                    id="active-branches-count"
+                    class="text-green"
+                >
+                    0
+                </p>
+
             </div>
+
+
+            <!-- Disabled Branches -->
+
+            <div class="mgr-metric-card glass">
+
+                <h3>
+                    Suspended Branches
+                </h3>
+
+
+                <p
+                    id="disabled-branches-count"
+                    class="text-red"
+                >
+                    0
+                </p>
+
+            </div>
+
 
         </div>
+
+
+        <!-- =================================================
+             MAIN SPLIT
+             ================================================= -->
 
         <div class="mgr-split-grid">
 
-            <!-- Left -->
+
+            <!-- =================================================
+                 LEFT PANEL
+                 CREATE LIBRARY
+                 ================================================= -->
+
             <div class="panel-card glass mgr-panel-padded">
 
-                <h2>Deploy New Library Branch</h2>
+
+                <h2>
+                    Deploy New Library Branch
+                </h2>
+
 
                 <p class="panel-subtitle">
-                    Manually bootstrap a new network node instantly with custom seat capacity.
+                    Create a new LibControl library branch with
+                    its own tenant identity and seat capacity.
                 </p>
 
-                <form id="create-library-form" class="mgr-creation-form">
+
+                <form
+                    id="create-library-form"
+                    class="mgr-creation-form"
+                >
+
+
+                    <!-- Library Name -->
 
                     <div class="form-group">
-                        <label for="lib-name">Library Name *</label>
-                        <input type="text" id="lib-name" required>
+
+                        <label for="lib-name">
+                            Library Name *
+                        </label>
+
+
+                        <input
+                            type="text"
+                            id="lib-name"
+                            placeholder="Enter library name"
+                            maxlength="120"
+                            required
+                        >
+
                     </div>
+
+
+                    <!-- Admin Email -->
 
                     <div class="form-group">
-                        <label for="lib-email">Admin Login Email *</label>
-                        <input type="email" id="lib-email" required>
+
+                        <label for="lib-email">
+                            Admin Login Email *
+                        </label>
+
+
+                        <input
+                            type="email"
+                            id="lib-email"
+                            placeholder="admin@example.com"
+                            autocomplete="email"
+                            required
+                        >
+
                     </div>
+
+
+                    <!-- Password -->
 
                     <div class="form-group">
-                        <label for="lib-pass">Console Password *</label>
-                        <input type="text" id="lib-pass" value="password123" required>
+
+                        <label for="lib-pass">
+                            Admin Password *
+                        </label>
+
+
+                        <input
+                            type="password"
+                            id="lib-pass"
+                            placeholder="Create secure password"
+                            autocomplete="new-password"
+                            minlength="8"
+                            required
+                        >
+
                     </div>
+
+
+                    <!-- Seat Capacity -->
 
                     <div class="form-group">
-                        <label for="lib-seats">Manual Seat Capacity *</label>
-                        <input type="number" id="lib-seats" value="30" min="5" max="500" required>
+
+                        <label for="lib-seats">
+                            Manual Seat Capacity *
+                        </label>
+
+
+                        <input
+                            type="number"
+                            id="lib-seats"
+                            value="30"
+                            min="5"
+                            max="500"
+                            required
+                        >
+
                     </div>
-<div class="form-group">
-    <label for="lib-mobile">Library Mobile Number</label>
-    <input
-        type="tel"
-        id="lib-mobile"
-        placeholder="e.g. 9876543210"
-        inputmode="numeric"
-        maxlength="10"
-    >
-</div>
 
-<div class="form-group">
-    <label for="lib-joining-date">Joining Date</label>
-    <input
-        type="date"
-        id="lib-joining-date"
-    >
-</div>
 
-<div class="form-group">
-    <label for="lib-expiry-date">Expiry Date</label>
-    <input
-        type="date"
-        id="lib-expiry-date"
-    >
-</div>
-                    <button type="submit" class="btn-mgr-submit">
+                    <!-- Mobile -->
+
+                    <div class="form-group">
+
+                        <label for="lib-mobile">
+                            Library Mobile Number
+                        </label>
+
+
+                        <input
+                            type="tel"
+                            id="lib-mobile"
+                            placeholder="e.g. 9876543210"
+                            inputmode="numeric"
+                            maxlength="10"
+                            autocomplete="tel"
+                        >
+
+                    </div>
+
+
+                    <!-- Joining Date -->
+
+                    <div class="form-group">
+
+                        <label for="lib-joining-date">
+                            Joining Date
+                        </label>
+
+
+                        <input
+                            type="date"
+                            id="lib-joining-date"
+                        >
+
+                    </div>
+
+
+                    <!-- Expiry Date -->
+
+                    <div class="form-group">
+
+                        <label for="lib-expiry-date">
+                            Expiry Date
+                        </label>
+
+
+                        <input
+                            type="date"
+                            id="lib-expiry-date"
+                        >
+
+                    </div>
+
+
+                    <!-- Submit -->
+
+                    <button
+                        type="submit"
+                        class="btn-mgr-submit"
+                    >
                         Initialize Network Node
                     </button>
 
+
                 </form>
+
 
             </div>
 
-            <!-- Right -->
+
+            <!-- =================================================
+                 RIGHT PANEL
+                 LIBRARY REGISTRY
+                 ================================================= -->
+
             <div class="panel-card glass mgr-panel-padded">
 
-                <h2>Ecosystem Network Registry</h2>
+
+                <h2>
+                    Ecosystem Network Registry
+                </h2>
+
 
                 <p class="panel-subtitle">
-                    Approve, Enable or Disable library branches.
+                    Approve, enable, disable and manage
+                    LibControl library branches.
                 </p>
-<div class="mgr-library-search-wrapper">
 
-    <input
-        type="search"
-        id="library-search-input"
-        class="mgr-library-search-input"
-        placeholder="Search Library Name, Library ID or Admin Email..."
-        autocomplete="off"
-    >
 
-</div>
-                <div class="mgr-table-scroll-wrapper">
+                <!-- Search -->
 
-                    <table class="mgr-data-table">
+                <div class="mgr-library-search-wrapper">
 
-                        <thead>
-                        <tr>
-                            <th>ID / Name</th>
-                            <th>Admin Email</th>
-                            <th>Strength</th>
-                            <th>Status</th>
-                            <th class="text-right">Actions</th>
-                        </tr>
-                        </thead>
 
-                        <tbody id="network-libraries-rows">
+                    <input
+                        type="search"
+                        id="library-search-input"
+                        class="mgr-library-search-input"
+                        placeholder="Search Library Name, Library ID or Admin Email..."
+                        autocomplete="off"
+                    >
 
-                        </tbody>
-
-                    </table>
 
                 </div>
 
+
+                <!-- Registry Table -->
+
+                <div class="mgr-table-scroll-wrapper">
+
+
+                    <table class="mgr-data-table">
+
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    ID / Name
+                                </th>
+
+                                <th>
+                                    Admin Email
+                                </th>
+
+                                <th>
+                                    Strength
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                                <th class="text-right">
+                                    Actions
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody
+                            id="network-libraries-rows"
+                        >
+
+                            <tr>
+
+                                <td
+                                    colspan="5"
+                                    style="
+                                        text-align:center;
+                                        padding:2rem;
+                                    "
+                                >
+                                    Loading library registry...
+                                </td>
+
+                            </tr>
+
+                        </tbody>
+
+
+                    </table>
+
+
+                </div>
+
+
             </div>
+
 
         </div>
 
+
     </main>
 
+
 </div>
+
+
 <!-- =========================================================
      LIBRARY DETAILS / EDIT MODAL
      ========================================================= -->
@@ -181,78 +472,113 @@
     aria-hidden="true"
 >
 
+
     <div
         class="mgr-library-modal glass"
         role="dialog"
         aria-modal="true"
+        aria-labelledby="library-modal-title"
     >
+
+
+        <!-- Modal Header -->
 
         <div class="mgr-library-modal-header">
 
+
             <div>
+
                 <h2 id="library-modal-title">
                     Library Details
                 </h2>
 
+
                 <p id="library-modal-subtitle">
                     View and manage library information.
                 </p>
+
             </div>
+
 
             <button
                 type="button"
                 id="library-modal-close"
                 class="mgr-modal-close"
+                aria-label="Close"
             >
                 ×
             </button>
 
+
         </div>
 
 
+        <!-- Modal Body -->
+
         <div class="mgr-library-modal-body">
 
+
+            <!-- Library ID -->
+
             <div class="form-group">
+
                 <label for="edit-library-id">
                     Library ID
                 </label>
+
 
                 <input
                     type="text"
                     id="edit-library-id"
                     readonly
                 >
+
             </div>
 
 
+            <!-- Library Name -->
+
             <div class="form-group">
+
                 <label for="edit-library-name">
                     Library Name
                 </label>
 
+
                 <input
                     type="text"
                     id="edit-library-name"
+                    maxlength="120"
                 >
+
             </div>
 
 
+            <!-- Admin Email -->
+
             <div class="form-group">
+
                 <label for="edit-library-email">
                     Admin Email
                 </label>
+
 
                 <input
                     type="email"
                     id="edit-library-email"
                 >
+
             </div>
 
 
+            <!-- Mobile -->
+
             <div class="form-group">
+
                 <label for="edit-library-mobile">
                     Mobile Number
                 </label>
+
 
                 <input
                     type="tel"
@@ -260,13 +586,18 @@
                     inputmode="numeric"
                     maxlength="10"
                 >
+
             </div>
 
 
+            <!-- Seat Capacity -->
+
             <div class="form-group">
+
                 <label for="edit-library-seats">
                     Seat Capacity
                 </label>
+
 
                 <input
                     type="number"
@@ -274,50 +605,71 @@
                     min="5"
                     max="500"
                 >
+
             </div>
 
 
+            <!-- Joining -->
+
             <div class="form-group">
+
                 <label for="edit-library-joining">
                     Joining Date
                 </label>
+
 
                 <input
                     type="date"
                     id="edit-library-joining"
                 >
+
             </div>
 
 
+            <!-- Expiry -->
+
             <div class="form-group">
+
                 <label for="edit-library-expiry">
                     Expiry Date
                 </label>
+
 
                 <input
                     type="date"
                     id="edit-library-expiry"
                 >
+
             </div>
 
 
+            <!-- New Password -->
+
             <div class="form-group">
+
                 <label for="edit-library-password">
                     New Admin Password
                 </label>
 
+
                 <input
-                    type="text"
+                    type="password"
                     id="edit-library-password"
                     placeholder="Leave blank to keep current password"
                     autocomplete="new-password"
+                    minlength="8"
                 >
+
             </div>
+
 
         </div>
 
 
+        <!-- Modal Footer -->
+
         <div class="mgr-library-modal-footer">
+
 
             <button
                 type="button"
@@ -327,6 +679,7 @@
                 Cancel
             </button>
 
+
             <button
                 type="button"
                 id="library-modal-save"
@@ -335,20 +688,40 @@
                 Save Changes
             </button>
 
+
         </div>
+
 
     </div>
 
 </div>
-<!-- Firebase SDK -->
+
+
+<!-- =========================================================
+     FIREBASE SDK
+     ========================================================= -->
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-<!-- Shared Firebase Core -->
+
+<!-- =========================================================
+     LIBCONTROL CORE
+     ========================================================= -->
+
 <script src="../js/dashboard.js"></script>
 
-<!-- Manager Logic -->
+
+<!-- =========================================================
+     MANAGER LOGIC
+     ========================================================= -->
+
 <script src="../js/manager.js"></script>
 
+
 </body>
+
 </html>
