@@ -5,19 +5,18 @@
  */
 
 // 1. Unified Multi-Tenant Cloud Architecture Parameters Base Configurations
-const unifiedFirebaseConfig = {
-    apiKey: "AIzaSyCUe84QnEA5DY31DXtzM-7M4Xu5bSa8xO8",
-    authDomain: "appointment-app-cb979.firebaseapp.com",
-    projectId: "appointment-app-cb979",
-    storageBucket: "appointment-app-cb979.firebasestorage.app",
-    messagingSenderId: "596931961212",
-    appId: "1:596931961212:web:6039e8f8ab4e759c9104f9"
+const firebaseConfig = {
+  apiKey: "AIzaSyCUe84QnEA5DY31DXtzM-7M4Xu5bSa8xO8",
+  authDomain: "appointment-app-cb979.firebaseapp.com",
+  projectId: "appointment-app-cb979",
+  storageBucket: "appointment-app-cb979.firebasestorage.app",
+  messagingSenderId: "596931961212",
+  appId: "1:596931961212:web:adc604e0a47f63fd9104f9"
 };
-
 // 2. Deterministic Singular Structural Global Bootstrapper Sequence Execution
 if (typeof firebase !== "undefined" && firebase.apps) {
     if (!firebase.apps.length) {
-        firebase.initializeApp(unifiedFirebaseConfig);
+        firebase.initializeApp(FirebaseConfig);
     }
     window.db = firebase.firestore();
 } else {
