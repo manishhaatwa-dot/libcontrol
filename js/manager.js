@@ -1,162 +1,241 @@
 /**
  * ==========================================================================
- * LIBMANAGE - NEW SAAS OWNER / MANAGER MODULE
+ * LIBCONTROL - MASTER MANAGER ENGINE
  * ==========================================================================
  *
- * NEW PROJECT NAMESPACE ONLY
- *
- * Firestore:
- *
- * libmanage_secure_v2
- *   └── system
- *       └── manager
- *
- *   └── libraries
- *       └── LIB-XXXXXX
- *           ├── students
- *           ├── attendance
- *           ├── notices
- *           └── seats
- *
  * IMPORTANT:
- * - Does NOT read old "saas_libraries"
- * - Does NOT modify old LibManage data
- * - Does NOT delete anything outside this application's namespace
+ * This module belongs ONLY to the new LibControl application.
+ *
+ * It NEVER reads/writes the old LibManage collections.
+ *
+ * NEW FIREBASE NAMESPACE:
+ *
+ * libcontrol_apps
+ * libcontrol_libraries
+ *
+ * Security Rules are intentionally NOT created here.
+ * Firestore documents/collections are created automatically.
  * ==========================================================================
  */
 
-
-/* ==========================================================================
-   1. MANAGER MODULE STATE
-   ========================================================================== */
-
-let managerLibraries = [];
-
-let managerLibraryMap = {};
-
-let managerEditingLibraryId = null;
-
-let managerSaving = false;
+"use strict";
 
 
 /* ==========================================================================
-   2. DOM HELPER
+   FIREBASE CORE
    ========================================================================== */
 
-function managerEl(id) {
-    return document.getElementById(id);
+let managerDB = null;
+
+if (
+    typeof firebase !== "undefined" &&
+    firebase.apps &&
+    firebase.apps.length
+) {
+    managerDB = firebase.firestore();
+}
+
+window.managerDB = managerDB;
+
+
+/* ==========================================================================
+   LIBCONTROL FIREBASE STRUCTURE
+   ========================================================================== */
+
+const LIBCONTROL_COLLECTIONS = {
+
+    APPS:
+        "libcontrol_apps",
+
+    LIBRARIES:
+        "libcontrol_libraries"
+
+};
+
+
+/* ==========================================================================
+   SESSION
+   ========================================================================== */
+
+function getManagerUID() {
+
+    return localStorage.getItem(
+        "session_manager_uid"
+    );
+
+}
+
+
+function getManagerEmail() {
+
+    return localStorage.getItem(
+        "session_manager_email"
+    );
+
 }
 
 
 /* ==========================================================================
-   3. NEW APP FIRESTORE ROOT
+   BASIC MANAGER SESSION VALIDATION
    ========================================================================== */
 
-function getManagerRoot() {
+async function verifyMasterManager() {
 
-    if (!window.db) {
-        return null;
-    }
+    if (!managerDB) {
 
-    return window.db
-        .collection("libmanage_secure_v2");
-}
-
-
-/* ==========================================================================
-   4. LIBRARIES COLLECTION
-   ========================================================================== */
-
-function getManagerLibrariesRef() {
-
-    const root =
-        getManagerRoot();
-
-    if (!root) {
-        return null;
-    }
-
-    return root.collection("libraries");
-}
-
-
-/* ==========================================================================
-   5. CURRENT MANAGER SESSION
-   ========================================================================== */
-
-function isManagerSessionValid() {
-
-    const role =
-        localStorage.getItem(
-            "session_role"
+        throw new Error(
+            "Firebase database is not initialized."
         );
 
-    return role === "manager";
-}
+    }
 
+    const currentUser =
+        firebase.auth().currentUser;
 
-/* ==========================================================================
-   6. REQUIRE MANAGER SESSION
-   ========================================================================== */
-
-function requireManagerSession() {
+    const storedUID =
+        getManagerUID();
 
     if (
-        !isManagerSessionValid()
+        !currentUser ||
+        !storedUID ||
+        currentUser.uid !== storedUID
     ) {
 
+        localStorage.clear();
+        sessionStorage.clear();
+
         window.location.href =
-            "../index.html";
+            "manager-login.html";
 
         return false;
     }
+
+
+    /*
+     * IMPORTANT:
+     * The manager document must already exist.
+     *
+     * Login page NEVER creates this document automatically.
+     * Otherwise an unauthorized user could self-register
+     * as Master Manager.
+     */
+
+    const managerDoc =
+        await managerDB
+            .collection("master_managers")
+            .doc(currentUser.uid)
+            .get();
+
+
+    if (!managerDoc.exists) {
+
+        await firebase.auth().signOut();
+
+        localStorage.clear();
+        sessionStorage.clear();
+
+        alert(
+            "Master Manager authorization record not found."
+        );
+
+        window.location.href =
+            "manager-login.html";
+
+        return false;
+    }
+
+
+    const managerData =
+        managerDoc.data() || {};
+
+
+    if (
+        managerData.role !==
+        "master_manager"
+    ) {
+
+        await firebase.auth().signOut();
+
+        localStorage.clear();
+        sessionStorage.clear();
+
+        alert(
+            "Access denied."
+        );
+
+        window.location.href =
+            "manager-login.html";
+
+        return false;
+    }
+
+
+    if (
+        managerData.enabled === false
+    ) {
+
+        await firebase.auth().signOut();
+
+        localStorage.clear();
+        sessionStorage.clear();
+
+        alert(
+            "Master Manager access is disabled."
+        );
+
+        window.location.href =
+            "manager-login.html";
+
+        return false;
+    }
+
 
     return true;
 }
 
 
 /* ==========================================================================
-   7. ESCAPE HTML
+   UTILITY
    ========================================================================== */
 
-function escapeManagerHtml(value) {
+function safeText(value) {
 
     return String(
         value ?? ""
-    )
-    .replace(
-        /&/g,
-        "&amp;"
-    )
-    .replace(
-        /</g,
-        "&lt;"
-    )
-    .replace(
-        />/g,
-        "&gt;"
-    )
-    .replace(
-        /"/g,
-        "&quot;"
-    )
-    .replace(
-        /'/g,
-        "&#39;"
     );
+
 }
 
 
-/* ==========================================================================
-   8. GENERATE LIBRARY ID
-   ========================================================================== */
+function escapeHTML(value) {
 
-function generateLibraryId() {
+    return safeText(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+
+function normalizeLibraryID(value) {
+
+    return safeText(value)
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9_-]/g, "");
+
+}
+
+
+function generateLibraryID() {
 
     const characters =
         "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-    let randomPart = "";
+    let result =
+        "LIB-";
 
     for (
         let i = 0;
@@ -164,7 +243,7 @@ function generateLibraryId() {
         i++
     ) {
 
-        randomPart +=
+        result +=
             characters[
                 Math.floor(
                     Math.random() *
@@ -174,1019 +253,230 @@ function generateLibraryId() {
 
     }
 
+    return result;
+}
+
+
+function generateAppID() {
+
     return (
-        "LIB-" +
-        randomPart
+        "LC-" +
+        Date.now().toString(36).toUpperCase() +
+        "-" +
+        Math.random()
+            .toString(36)
+            .substring(2, 7)
+            .toUpperCase()
     );
+
 }
 
 
 /* ==========================================================================
-   9. CHECK LIBRARY ID COLLISION
+   AUTOMATIC APP REGISTRY
    ========================================================================== */
 
-async function generateUniqueLibraryId() {
+async function ensureLibControlApp() {
 
-    const librariesRef =
-        getManagerLibrariesRef();
+    if (!managerDB) {
 
-    if (!librariesRef) {
         throw new Error(
-            "Database unavailable."
-        );
-    }
-
-    for (
-        let attempt = 0;
-        attempt < 10;
-        attempt++
-    ) {
-
-        const id =
-            generateLibraryId();
-
-        const snapshot =
-            await librariesRef
-                .doc(id)
-                .get();
-
-        if (!snapshot.exists) {
-            return id;
-        }
-
-    }
-
-    throw new Error(
-        "Unable to generate a unique Library ID."
-    );
-}
-
-
-/* ==========================================================================
-   10. FORM VALUE HELPERS
-   ========================================================================== */
-
-function getFirstExistingValue(
-    ids
-) {
-
-    for (
-        const id of ids
-    ) {
-
-        const element =
-            managerEl(id);
-
-        if (element) {
-            return element.value.trim();
-        }
-
-    }
-
-    return "";
-
-}
-
-
-/* ==========================================================================
-   11. GET MANAGER FORM DATA
-   ========================================================================== */
-
-function getManagerFormData() {
-
-    return {
-
-        name:
-            getFirstExistingValue([
-                "library-name",
-                "mgr-library-name",
-                "libraryName",
-                "new-library-name"
-            ]),
-
-        ownerName:
-            getFirstExistingValue([
-                "owner-name",
-                "mgr-owner-name",
-                "ownerName"
-            ]),
-
-        mobile:
-            getFirstExistingValue([
-                "owner-mobile",
-                "mgr-owner-mobile",
-                "ownerMobile"
-            ]),
-
-        email:
-            getFirstExistingValue([
-                "owner-email",
-                "mgr-owner-email",
-                "ownerEmail"
-            ]),
-
-        password:
-            getFirstExistingValue([
-                "library-password",
-                "admin-password",
-                "mgr-library-password",
-                "new-library-password"
-            ])
-
-    };
-
-}
-
-
-/* ==========================================================================
-   12. VALIDATE LIBRARY DATA
-   ========================================================================== */
-
-function validateManagerLibraryData(
-    data
-) {
-
-    if (!data.name) {
-
-        return "Please enter library name.";
-
-    }
-
-
-    if (
-        data.mobile &&
-        !/^\d{10}$/.test(
-            data.mobile
-        )
-    ) {
-
-        return "Please enter a valid 10 digit mobile number.";
-
-    }
-
-
-    if (
-        data.email &&
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-            data.email
-        )
-    ) {
-
-        return "Please enter a valid email address.";
-
-    }
-
-
-    if (
-        data.password &&
-        data.password.length < 8
-    ) {
-
-        return "Library password must contain at least 8 characters.";
-
-    }
-
-
-    return null;
-
-}
-
-
-/* ==========================================================================
-   13. CLEAR FORM
-   ========================================================================== */
-
-function clearManagerForm() {
-
-    const ids = [
-
-        "library-name",
-        "mgr-library-name",
-        "libraryName",
-        "new-library-name",
-
-        "owner-name",
-        "mgr-owner-name",
-        "ownerName",
-
-        "owner-mobile",
-        "mgr-owner-mobile",
-        "ownerMobile",
-
-        "owner-email",
-        "mgr-owner-email",
-        "ownerEmail",
-
-        "library-password",
-        "admin-password",
-        "mgr-library-password",
-        "new-library-password"
-
-    ];
-
-
-    const processed =
-        new Set();
-
-
-    ids.forEach(
-        (id) => {
-
-            if (
-                processed.has(id)
-            ) {
-                return;
-            }
-
-            processed.add(id);
-
-            const element =
-                managerEl(id);
-
-            if (element) {
-                element.value = "";
-            }
-
-        }
-    );
-
-
-    managerEditingLibraryId =
-        null;
-
-
-    updateManagerFormMode();
-
-}
-
-
-/* ==========================================================================
-   14. UPDATE FORM MODE
-   ========================================================================== */
-
-function updateManagerFormMode() {
-
-    const title =
-        managerEl(
-            "manager-form-title"
-        ) ||
-        managerEl(
-            "mgr-form-title"
-        );
-
-
-    const submitButton =
-        managerEl(
-            "manager-submit-btn"
-        ) ||
-        managerEl(
-            "btn-mgr-submit"
-        );
-
-
-    if (
-        managerEditingLibraryId
-    ) {
-
-        if (title) {
-            title.textContent =
-                "Edit Library";
-        }
-
-        if (submitButton) {
-            submitButton.textContent =
-                "Update Library";
-        }
-
-    } else {
-
-        if (title) {
-            title.textContent =
-                "Create Library";
-        }
-
-        if (submitButton) {
-            submitButton.textContent =
-                "Create Library";
-        }
-
-    }
-
-}
-
-
-/* ==========================================================================
-   15. LOAD LIBRARIES
-   ========================================================================== */
-
-async function loadManagerLibraries() {
-
-    const tableBody =
-        managerEl(
-            "manager-library-table-body"
-        ) ||
-        managerEl(
-            "mgr-library-table-body"
-        ) ||
-        managerEl(
-            "library-table-body"
-        ) ||
-        managerEl(
-            "libraries-table-body"
-        );
-
-
-    if (!tableBody) {
-        return;
-    }
-
-
-    const librariesRef =
-        getManagerLibrariesRef();
-
-
-    if (!librariesRef) {
-
-        tableBody.innerHTML = `
-            <tr>
-                <td
-                    colspan="10"
-                    class="table-empty"
-                >
-                    Database unavailable.
-                </td>
-            </tr>
-        `;
-
-        return;
-    }
-
-
-    try {
-
-        const snapshot =
-            await librariesRef
-                .orderBy(
-                    "createdAt",
-                    "desc"
-                )
-                .get();
-
-
-        managerLibraries =
-            snapshot.docs.map(
-                (doc) => ({
-
-                    firestoreId:
-                        doc.id,
-
-                    ...doc.data()
-
-                })
-            );
-
-
-        managerLibraryMap =
-            {};
-
-
-        managerLibraries.forEach(
-            (library) => {
-
-                managerLibraryMap[
-                    library.firestoreId
-                ] =
-                    library;
-
-            }
-        );
-
-
-        renderManagerLibraries(
-            managerLibraries
-        );
-
-
-        updateManagerMetrics(
-            managerLibraries
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "[Manager] Library loading error:",
-            error
-        );
-
-
-        /*
-         * Fallback without orderBy.
-         * This avoids requiring an index.
-         */
-
-        try {
-
-            const fallbackSnapshot =
-                await librariesRef.get();
-
-
-            managerLibraries =
-                fallbackSnapshot.docs.map(
-                    (doc) => ({
-
-                        firestoreId:
-                            doc.id,
-
-                        ...doc.data()
-
-                    })
-                );
-
-
-            managerLibraries.sort(
-                (a, b) => {
-
-                    const aTime =
-                        getManagerTimestamp(
-                            a.createdAt
-                        );
-
-                    const bTime =
-                        getManagerTimestamp(
-                            b.createdAt
-                        );
-
-                    return (
-                        bTime -
-                        aTime
-                    );
-
-                }
-            );
-
-
-            managerLibraryMap =
-                {};
-
-
-            managerLibraries.forEach(
-                (library) => {
-
-                    managerLibraryMap[
-                        library.firestoreId
-                    ] =
-                        library;
-
-                }
-            );
-
-
-            renderManagerLibraries(
-                managerLibraries
-            );
-
-
-            updateManagerMetrics(
-                managerLibraries
-            );
-
-
-        } catch (
-            fallbackError
-        ) {
-
-            console.error(
-                "[Manager] Fallback library loading error:",
-                fallbackError
-            );
-
-
-            tableBody.innerHTML = `
-                <tr>
-                    <td
-                        colspan="10"
-                        class="table-empty"
-                    >
-                        Unable to load library records.
-                    </td>
-                </tr>
-            `;
-
-        }
-
-    }
-
-}
-
-
-/* ==========================================================================
-   16. TIMESTAMP
-   ========================================================================== */
-
-function getManagerTimestamp(
-    value
-) {
-
-    if (!value) {
-        return 0;
-    }
-
-
-    if (
-        typeof value.toMillis ===
-        "function"
-    ) {
-
-        return value.toMillis();
-
-    }
-
-
-    if (
-        typeof value.toDate ===
-        "function"
-    ) {
-
-        return value.toDate().getTime();
-
-    }
-
-
-    if (
-        value.seconds
-    ) {
-
-        return (
-            value.seconds *
-            1000
+            "Firebase database unavailable."
         );
 
     }
 
 
-    return 0;
+    const managerUID =
+        getManagerUID();
 
-}
+    if (!managerUID) {
 
-
-/* ==========================================================================
-   17. FORMAT DATE
-   ========================================================================== */
-
-function formatManagerDate(
-    value
-) {
-
-    const timestamp =
-        getManagerTimestamp(
-            value
-        );
-
-
-    if (!timestamp) {
-        return "-";
-    }
-
-
-    return new Date(
-        timestamp
-    ).toLocaleString(
-        "en-IN",
-        {
-            day: "2-digit",
-            month: "short",
-            year: "numeric"
-        }
-    );
-
-}
-
-
-/* ==========================================================================
-   18. RENDER LIBRARIES
-   ========================================================================== */
-
-function renderManagerLibraries(
-    libraries
-) {
-
-    const tableBody =
-        managerEl(
-            "manager-library-table-body"
-        ) ||
-        managerEl(
-            "mgr-library-table-body"
-        ) ||
-        managerEl(
-            "library-table-body"
-        ) ||
-        managerEl(
-            "libraries-table-body"
-        );
-
-
-    if (!tableBody) {
-        return;
-    }
-
-
-    if (
-        !libraries ||
-        !libraries.length
-    ) {
-
-        tableBody.innerHTML = `
-            <tr>
-                <td
-                    colspan="10"
-                    class="table-empty"
-                >
-                    No libraries registered yet.
-                </td>
-            </tr>
-        `;
-
-        return;
-
-    }
-
-
-    let html = "";
-
-
-    libraries.forEach(
-        (library) => {
-
-            const libraryId =
-                library.firestoreId;
-
-
-            const status =
-                String(
-                    library.status ||
-                    "pending"
-                ).toLowerCase();
-
-
-            const enabled =
-                library.enabled !== false;
-
-
-            const statusClass =
-                status === "approved"
-                    ? "status-approved"
-                    : "status-pending";
-
-
-            const enabledClass =
-                enabled
-                    ? "status-active"
-                    : "status-disabled";
-
-
-            html += `
-                <tr
-                    data-library-id="${escapeManagerHtml(
-                        libraryId
-                    )}"
-                >
-
-                    <td>
-
-                        <div
-                            class="lib-meta-cell"
-                        >
-
-                            <strong>
-                                ${escapeManagerHtml(
-                                    library.name ||
-                                    "Unnamed Library"
-                                )}
-                            </strong>
-
-                            <span>
-                                ${escapeManagerHtml(
-                                    libraryId
-                                )}
-                            </span>
-
-                        </div>
-
-                    </td>
-
-
-                    <td>
-                        ${escapeManagerHtml(
-                            library.ownerName ||
-                            "-"
-                        )}
-                    </td>
-
-
-                    <td>
-                        ${escapeManagerHtml(
-                            library.mobile ||
-                            "-"
-                        )}
-                    </td>
-
-
-                    <td>
-                        ${escapeManagerHtml(
-                            library.email ||
-                            "-"
-                        )}
-                    </td>
-
-
-                    <td>
-                        <span
-                            class="mgr-badge ${statusClass}"
-                        >
-                            ${escapeManagerHtml(
-                                status
-                            )}
-                        </span>
-                    </td>
-
-
-                    <td>
-                        <span
-                            class="mgr-badge ${enabledClass}"
-                        >
-                            ${
-                                enabled
-                                    ? "Active"
-                                    : "Disabled"
-                            }
-                        </span>
-                    </td>
-
-
-                    <td>
-                        ${formatManagerDate(
-                            library.createdAt
-                        )}
-                    </td>
-
-
-                    <td class="text-right">
-
-                        <div
-                            class="mgr-actions-row"
-                        >
-
-                            ${
-                                status !==
-                                "approved"
-                                    ? `
-                                        <button
-                                            type="button"
-                                            class="btn-ops-toggle btn-approve"
-                                            data-manager-action="approve"
-                                            data-library-id="${escapeManagerHtml(
-                                                libraryId
-                                            )}"
-                                        >
-                                            Approve
-                                        </button>
-                                    `
-                                    : ""
-                            }
-
-
-                            <button
-                                type="button"
-                                class="btn-ops-toggle btn-edit"
-                                data-manager-action="edit"
-                                data-library-id="${escapeManagerHtml(
-                                    libraryId
-                                )}"
-                            >
-                                Edit
-                            </button>
-
-
-                            ${
-                                enabled
-                                    ? `
-                                        <button
-                                            type="button"
-                                            class="btn-ops-toggle btn-disable"
-                                            data-manager-action="disable"
-                                            data-library-id="${escapeManagerHtml(
-                                                libraryId
-                                            )}"
-                                        >
-                                            Disable
-                                        </button>
-                                    `
-                                    : `
-                                        <button
-                                            type="button"
-                                            class="btn-ops-toggle btn-enable"
-                                            data-manager-action="enable"
-                                            data-library-id="${escapeManagerHtml(
-                                                libraryId
-                                            )}"
-                                        >
-                                            Enable
-                                        </button>
-                                    `
-                            }
-
-
-                            <button
-                                type="button"
-                                class="btn-ops-toggle btn-delete"
-                                data-manager-action="delete"
-                                data-library-id="${escapeManagerHtml(
-                                    libraryId
-                                )}"
-                                title="Delete Library"
-                            >
-                                Delete
-                            </button>
-
-                        </div>
-
-                    </td>
-
-                </tr>
-            `;
-
-        }
-    );
-
-
-    tableBody.innerHTML =
-        html;
-
-}
-
-
-/* ==========================================================================
-   19. UPDATE METRICS
-   ========================================================================== */
-
-function updateManagerMetrics(
-    libraries
-) {
-
-    const total =
-        libraries.length;
-
-
-    const approved =
-        libraries.filter(
-            (library) =>
-                String(
-                    library.status ||
-                    ""
-                ).toLowerCase() ===
-                "approved"
-        ).length;
-
-
-    const pending =
-        libraries.filter(
-            (library) =>
-                String(
-                    library.status ||
-                    ""
-                ).toLowerCase() ===
-                "pending"
-        ).length;
-
-
-    const active =
-        libraries.filter(
-            (library) =>
-                library.enabled !== false
-        ).length;
-
-
-    const totalElement =
-        managerEl(
-            "total-libraries"
-        ) ||
-        managerEl(
-            "mgr-total-libraries"
-        );
-
-
-    const approvedElement =
-        managerEl(
-            "approved-libraries"
-        ) ||
-        managerEl(
-            "mgr-approved-libraries"
-        );
-
-
-    const pendingElement =
-        managerEl(
-            "pending-libraries"
-        ) ||
-        managerEl(
-            "mgr-pending-libraries"
-        );
-
-
-    const activeElement =
-        managerEl(
-            "active-libraries"
-        ) ||
-        managerEl(
-            "mgr-active-libraries"
-        );
-
-
-    if (totalElement) {
-        totalElement.textContent =
-            total;
-    }
-
-
-    if (approvedElement) {
-        approvedElement.textContent =
-            approved;
-    }
-
-
-    if (pendingElement) {
-        pendingElement.textContent =
-            pending;
-    }
-
-
-    if (activeElement) {
-        activeElement.textContent =
-            active;
-    }
-
-}
-
-
-/* ==========================================================================
-   20. CREATE LIBRARY
-   ========================================================================== */
-
-async function createManagerLibrary(
-    data
-) {
-
-    const librariesRef =
-        getManagerLibrariesRef();
-
-
-    if (!librariesRef) {
         throw new Error(
-            "Database unavailable."
+            "Manager session UID missing."
         );
+
     }
 
 
-    const libraryId =
-        await generateUniqueLibraryId();
+    /*
+     * One permanent app identity for this website.
+     */
+
+    const appDocumentID =
+        "libcontrol";
+
+
+    const appRef =
+        managerDB
+            .collection(
+                LIBCONTROL_COLLECTIONS.APPS
+            )
+            .doc(appDocumentID);
+
+
+    const appSnapshot =
+        await appRef.get();
+
+
+    if (!appSnapshot.exists) {
+
+        await appRef.set({
+
+            appId:
+                appDocumentID,
+
+            appName:
+                "LibControl",
+
+            appType:
+                "library_management",
+
+            ownerManagerUID:
+                managerUID,
+
+            ownerManagerEmail:
+                getManagerEmail() || "",
+
+            enabled:
+                true,
+
+            createdAt:
+                firebase.firestore
+                    .FieldValue
+                    .serverTimestamp(),
+
+            updatedAt:
+                firebase.firestore
+                    .FieldValue
+                    .serverTimestamp()
+
+        });
+
+    }
+    else {
+
+        await appRef.set({
+
+            updatedAt:
+                firebase.firestore
+                    .FieldValue
+                    .serverTimestamp()
+
+        }, {
+
+            merge:
+                true
+
+        });
+
+    }
+
+
+    return appDocumentID;
+}
+
+
+/* ==========================================================================
+   AUTOMATIC LIBRARY CREATION
+   ========================================================================== */
+
+async function createLibraryRecord(libraryData) {
+
+    if (!managerDB) {
+
+        throw new Error(
+            "Firebase database unavailable."
+        );
+
+    }
+
+
+    const managerUID =
+        getManagerUID();
+
+
+    if (!managerUID) {
+
+        throw new Error(
+            "Manager session expired."
+        );
+
+    }
+
+
+    const appId =
+        await ensureLibControlApp();
+
+
+    let libraryId =
+        normalizeLibraryID(
+            libraryData.libraryId
+        );
+
+
+    if (!libraryId) {
+
+        libraryId =
+            generateLibraryID();
+
+    }
+
+
+    const libraryRef =
+        managerDB
+            .collection(
+                LIBCONTROL_COLLECTIONS.LIBRARIES
+            )
+            .doc(libraryId);
+
+
+    const existingLibrary =
+        await libraryRef.get();
+
+
+    if (existingLibrary.exists) {
+
+        throw new Error(
+            "Library ID already exists. Please use another ID."
+        );
+
+    }
 
 
     /*
      * IMPORTANT:
-     * Password is stored only for compatibility
-     * with the current gateway.
      *
-     * For production-grade security, Firebase Authentication
-     * should replace browser/database password verification.
+     * The entire library is stored under the
+     * NEW LibControl namespace.
+     *
+     * Existing LibManage:
+     * saas_libraries
+     *
+     * is NEVER touched.
      */
 
-    const libraryData = {
+    await libraryRef.set({
 
         libraryId:
             libraryId,
 
+        appId:
+            appId,
+
         name:
-            data.name,
+            safeText(
+                libraryData.name
+            ).trim(),
 
-        ownerName:
-            data.ownerName ||
-            "",
+        ownerManagerUID:
+            managerUID,
 
-        mobile:
-            data.mobile ||
-            "",
-
-        email:
-            data.email ||
-            "",
-
-        adminPass:
-            data.password ||
-            "",
+        ownerManagerEmail:
+            getManagerEmail() || "",
 
         status:
-            "pending",
+            "approved",
 
         enabled:
             true,
@@ -1201,223 +491,38 @@ async function createManagerLibrary(
                 .FieldValue
                 .serverTimestamp()
 
-    };
-
-
-    await librariesRef
-        .doc(libraryId)
-        .set(
-            libraryData
-        );
-
-
-    return libraryId;
-
-}
-
-
-/* ==========================================================================
-   21. UPDATE LIBRARY
-   ========================================================================== */
-
-async function updateManagerLibrary(
-    libraryId,
-    data
-) {
-
-    const librariesRef =
-        getManagerLibrariesRef();
-
-
-    if (!librariesRef) {
-        throw new Error(
-            "Database unavailable."
-        );
-    }
-
-
-    const updateData = {
-
-        name:
-            data.name,
-
-        ownerName:
-            data.ownerName ||
-            "",
-
-        mobile:
-            data.mobile ||
-            "",
-
-        email:
-            data.email ||
-            "",
-
-        updatedAt:
-            firebase.firestore
-                .FieldValue
-                .serverTimestamp()
-
-    };
+    });
 
 
     /*
-     * Password only changes if user
-     * entered a new one.
+     * Automatically create the library's
+     * structural documents.
+     *
+     * No rules are created here.
      */
 
-    if (
-        data.password
-    ) {
-
-        updateData.adminPass =
-            data.password;
-
-    }
+    const libraryBase =
+        libraryRef;
 
 
-    await librariesRef
-        .doc(libraryId)
-        .update(
-            updateData
-        );
+    await libraryBase
+        .collection("settings")
+        .doc("general")
+        .set({
 
-}
+            libraryId:
+                libraryId,
 
+            appId:
+                appId,
 
-/* ==========================================================================
-   22. OPEN EDIT MODE
-   ========================================================================== */
+            capacityConfigured:
+                false,
 
-function openManagerEdit(
-    libraryId
-) {
+            totalCapacity:
+                0,
 
-    const library =
-        managerLibraryMap[
-            libraryId
-        ];
-
-
-    if (!library) {
-        return;
-    }
-
-
-    managerEditingLibraryId =
-        libraryId;
-
-
-    const fieldMap = {
-
-        name: [
-            "library-name",
-            "mgr-library-name",
-            "libraryName",
-            "new-library-name"
-        ],
-
-        ownerName: [
-            "owner-name",
-            "mgr-owner-name",
-            "ownerName"
-        ],
-
-        mobile: [
-            "owner-mobile",
-            "mgr-owner-mobile",
-            "ownerMobile"
-        ],
-
-        email: [
-            "owner-email",
-            "mgr-owner-email",
-            "ownerEmail"
-        ]
-
-    };
-
-
-    Object.keys(
-        fieldMap
-    ).forEach(
-        (key) => {
-
-            fieldMap[key].some(
-                (id) => {
-
-                    const element =
-                        managerEl(id);
-
-                    if (!element) {
-                        return false;
-                    }
-
-                    element.value =
-                        library[key] ||
-                        "";
-
-                    return true;
-
-                }
-            );
-
-        }
-    );
-
-
-    updateManagerFormMode();
-
-
-    const form =
-        managerEl(
-            "manager-creation-form"
-        ) ||
-        managerEl(
-            "mgr-creation-form"
-        );
-
-
-    if (form) {
-
-        form.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
-
-    }
-
-}
-
-
-/* ==========================================================================
-   23. APPROVE LIBRARY
-   ========================================================================== */
-
-async function approveManagerLibrary(
-    libraryId
-) {
-
-    const librariesRef =
-        getManagerLibrariesRef();
-
-
-    if (!librariesRef) {
-        return;
-    }
-
-
-    await librariesRef
-        .doc(libraryId)
-        .update({
-
-            status:
-                "approved",
-
-            enabled:
-                true,
-
-            approvedAt:
+            createdAt:
                 firebase.firestore
                     .FieldValue
                     .serverTimestamp(),
@@ -1430,36 +535,55 @@ async function approveManagerLibrary(
         });
 
 
-    await loadManagerLibraries();
+    await libraryBase
+        .collection("settings")
+        .doc("shifts")
+        .set({
 
-}
+            morningCapacity:
+                0,
+
+            afternoonCapacity:
+                0,
+
+            eveningCapacity:
+                0,
+
+            fullDayCapacity:
+                0,
+
+            updatedAt:
+                firebase.firestore
+                    .FieldValue
+                    .serverTimestamp()
+
+        });
 
 
-/* ==========================================================================
-   24. ENABLE LIBRARY
-   ========================================================================== */
+    /*
+     * Create structural placeholder documents.
+     * These make the required collections appear
+     * immediately in Firestore.
+     */
 
-async function enableManagerLibrary(
-    libraryId
-) {
+    await libraryBase
+        .collection("metadata")
+        .doc("system")
+        .set({
 
-    const librariesRef =
-        getManagerLibrariesRef();
+            libraryId:
+                libraryId,
 
+            appId:
+                appId,
 
-    if (!librariesRef) {
-        return;
-    }
-
-
-    await librariesRef
-        .doc(libraryId)
-        .update({
-
-            enabled:
+            initialized:
                 true,
 
-            updatedAt:
+            version:
+                "1.0",
+
+            createdAt:
                 firebase.firestore
                     .FieldValue
                     .serverTimestamp()
@@ -1467,229 +591,285 @@ async function enableManagerLibrary(
         });
 
 
-    await loadManagerLibraries();
-
+    return libraryId;
 }
 
 
 /* ==========================================================================
-   25. DISABLE LIBRARY
+   LIBRARY UPDATE
    ========================================================================== */
 
-async function disableManagerLibrary(
-    libraryId
+async function updateLibraryRecord(
+    libraryId,
+    updates
 ) {
 
-    const librariesRef =
-        getManagerLibrariesRef();
+    if (!managerDB) {
 
+        throw new Error(
+            "Firebase database unavailable."
+        );
 
-    if (!librariesRef) {
-        return;
     }
 
 
-    await librariesRef
-        .doc(libraryId)
-        .update({
-
-            enabled:
-                false,
-
-            updatedAt:
-                firebase.firestore
-                    .FieldValue
-                    .serverTimestamp()
-
-        });
-
-
-    await loadManagerLibraries();
-
-}
-
-
-/* ==========================================================================
-   26. DELETE LIBRARY
-   ========================================================================== */
-
-async function deleteManagerLibrary(
-    libraryId
-) {
-
-    const library =
-        managerLibraryMap[
+    const normalizedID =
+        normalizeLibraryID(
             libraryId
-        ];
-
-
-    if (!library) {
-        return;
-    }
-
-
-    const confirmation =
-        window.confirm(
-            "Delete this library?\n\nThis action will remove the library document from the NEW LibManage system."
         );
 
 
-    if (!confirmation) {
-        return;
+    if (!normalizedID) {
+
+        throw new Error(
+            "Invalid Library ID."
+        );
+
     }
 
 
-    const librariesRef =
-        getManagerLibrariesRef();
+    const libraryRef =
+        managerDB
+            .collection(
+                LIBCONTROL_COLLECTIONS.LIBRARIES
+            )
+            .doc(normalizedID);
 
 
-    if (!librariesRef) {
-        return;
+    const snapshot =
+        await libraryRef.get();
+
+
+    if (!snapshot.exists) {
+
+        throw new Error(
+            "Library not found."
+        );
+
+    }
+
+
+    const managerUID =
+        getManagerUID();
+
+
+    const existing =
+        snapshot.data() || {};
+
+
+    if (
+        existing.ownerManagerUID !==
+        managerUID
+    ) {
+
+        throw new Error(
+            "You are not authorized to modify this library."
+        );
+
+    }
+
+
+    const safeUpdates = {};
+
+
+    if (
+        Object.prototype.hasOwnProperty
+            .call(updates, "name")
+    ) {
+
+        safeUpdates.name =
+            safeText(
+                updates.name
+            ).trim();
+
+    }
+
+
+    if (
+        Object.prototype.hasOwnProperty
+            .call(updates, "enabled")
+    ) {
+
+        safeUpdates.enabled =
+            Boolean(
+                updates.enabled
+            );
+
+    }
+
+
+    if (
+        Object.prototype.hasOwnProperty
+            .call(updates, "status")
+    ) {
+
+        safeUpdates.status =
+            safeText(
+                updates.status
+            );
+
+    }
+
+
+    safeUpdates.updatedAt =
+        firebase.firestore
+            .FieldValue
+            .serverTimestamp();
+
+
+    await libraryRef.update(
+        safeUpdates
+    );
+
+}
+
+
+/* ==========================================================================
+   LIBRARY DELETE
+   ========================================================================== */
+
+async function deleteLibraryRecord(
+    libraryId
+) {
+
+    if (!managerDB) {
+
+        throw new Error(
+            "Firebase database unavailable."
+        );
+
+    }
+
+
+    const normalizedID =
+        normalizeLibraryID(
+            libraryId
+        );
+
+
+    if (!normalizedID) {
+
+        throw new Error(
+            "Invalid Library ID."
+        );
+
+    }
+
+
+    const libraryRef =
+        managerDB
+            .collection(
+                LIBCONTROL_COLLECTIONS.LIBRARIES
+            )
+            .doc(normalizedID);
+
+
+    const snapshot =
+        await libraryRef.get();
+
+
+    if (!snapshot.exists) {
+
+        throw new Error(
+            "Library not found."
+        );
+
+    }
+
+
+    const data =
+        snapshot.data() || {};
+
+
+    if (
+        data.ownerManagerUID !==
+        getManagerUID()
+    ) {
+
+        throw new Error(
+            "You are not authorized to delete this library."
+        );
+
     }
 
 
     /*
-     * Safety:
-     * Delete ONLY the exact document from:
+     * Delete only the library root document.
      *
-     * libmanage_secure_v2/libraries/LIB-ID
+     * Child collections are intentionally NOT
+     * recursively deleted from the browser.
      *
-     * No old collection is touched.
+     * This prevents accidental mass deletion.
      */
 
-    await librariesRef
-        .doc(libraryId)
-        .delete();
-
-
-    delete managerLibraryMap[
-        libraryId
-    ];
-
-
-    managerLibraries =
-        managerLibraries.filter(
-            (item) =>
-                item.firestoreId !==
-                libraryId
-        );
-
-
-    renderManagerLibraries(
-        managerLibraries
-    );
-
-
-    updateManagerMetrics(
-        managerLibraries
-    );
+    await libraryRef.delete();
 
 }
 
 
 /* ==========================================================================
-   27. LIBRARY SEARCH
+   LOAD LIBRARIES
    ========================================================================== */
 
-function bindManagerLibrarySearch() {
+async function loadManagerLibraries() {
 
-    const searchInput =
-        managerEl(
-            "mgr-library-search-input"
-        ) ||
-        managerEl(
-            "library-search-input"
-        ) ||
-        managerEl(
-            "manager-library-search"
-        );
-
-
-    if (!searchInput) {
-        return;
+    if (!managerDB) {
+        return [];
     }
 
 
-    searchInput.addEventListener(
-        "input",
-        () => {
-
-            const query =
-                searchInput.value
-                    .trim()
-                    .toLowerCase();
+    const managerUID =
+        getManagerUID();
 
 
-            if (!query) {
-
-                renderManagerLibraries(
-                    managerLibraries
-                );
-
-                return;
-
-            }
+    if (!managerUID) {
+        return [];
+    }
 
 
-            const filtered =
-                managerLibraries.filter(
-                    (library) => {
-
-                        const searchable =
-                            [
-
-                                library.libraryId,
-
-                                library.name,
-
-                                library.ownerName,
-
-                                library.mobile,
-
-                                library.email,
-
-                                library.status
-
-                            ]
-                            .join(" ")
-                            .toLowerCase();
+    const snapshot =
+        await managerDB
+            .collection(
+                LIBCONTROL_COLLECTIONS.LIBRARIES
+            )
+            .where(
+                "ownerManagerUID",
+                "==",
+                managerUID
+            )
+            .get();
 
 
-                        return searchable.includes(
-                            query
-                        );
+    return snapshot.docs.map(
+        (doc) => ({
 
-                    }
-                );
+            id:
+                doc.id,
 
+            ...doc.data()
 
-            renderManagerLibraries(
-                filtered
-            );
-
-        }
+        })
     );
 
 }
 
 
 /* ==========================================================================
-   28. LIBRARY ACTIONS
+   RENDER LIBRARY TABLE
    ========================================================================== */
 
-function bindManagerLibraryActions() {
+function renderManagerLibraries(
+    libraries
+) {
 
     const tableBody =
-        managerEl(
+        document.getElementById(
             "manager-library-table-body"
         ) ||
-        managerEl(
-            "mgr-library-table-body"
-        ) ||
-        managerEl(
+        document.getElementById(
             "library-table-body"
         ) ||
-        managerEl(
+        document.getElementById(
             "libraries-table-body"
         );
 
@@ -1699,154 +879,269 @@ function bindManagerLibraryActions() {
     }
 
 
-    tableBody.addEventListener(
-        "click",
-        async (event) => {
+    if (!libraries.length) {
 
-            const button =
-                event.target.closest(
-                    "[data-manager-action]"
-                );
+        tableBody.innerHTML = `
+            <tr>
+                <td
+                    colspan="10"
+                    class="table-empty"
+                >
+                    No LibControl libraries created yet.
+                </td>
+            </tr>
+        `;
 
-
-            if (!button) {
-                return;
-            }
-
-
-            const action =
-                button.getAttribute(
-                    "data-manager-action"
-                );
+        return;
+    }
 
 
-            const libraryId =
-                button.getAttribute(
-                    "data-library-id"
-                );
+    tableBody.innerHTML =
+        libraries
+            .map(
+                (library) => {
+
+                    const status =
+                        library.status ||
+                        "pending";
 
 
-            if (
-                !action ||
-                !libraryId
-            ) {
-                return;
-            }
+                    const enabled =
+                        library.enabled !== false;
 
 
-            try {
+                    return `
 
-                if (
-                    action ===
-                    "approve"
-                ) {
+                        <tr
+                            data-library-id="${escapeHTML(
+                                library.libraryId ||
+                                library.id
+                            )}"
+                        >
 
-                    await approveManagerLibrary(
-                        libraryId
-                    );
+                            <td>
+
+                                <div class="lib-meta-cell">
+
+                                    <strong>
+                                        ${escapeHTML(
+                                            library.name ||
+                                            "Unnamed Library"
+                                        )}
+                                    </strong>
+
+                                    <span>
+                                        ${escapeHTML(
+                                            library.libraryId ||
+                                            library.id
+                                        )}
+                                    </span>
+
+                                </div>
+
+                            </td>
+
+
+                            <td>
+
+                                <span
+                                    class="mgr-badge status-${escapeHTML(
+                                        status
+                                    )}"
+                                >
+                                    ${escapeHTML(
+                                        status
+                                    )}
+                                </span>
+
+                            </td>
+
+
+                            <td>
+
+                                <span
+                                    class="mgr-badge ${
+                                        enabled
+                                            ? "status-active"
+                                            : "status-disabled"
+                                    }"
+                                >
+                                    ${
+                                        enabled
+                                            ? "Active"
+                                            : "Disabled"
+                                    }
+                                </span>
+
+                            </td>
+
+
+                            <td
+                                class="text-right"
+                            >
+
+                                <div
+                                    class="mgr-actions-row"
+                                >
+
+                                    <button
+                                        type="button"
+                                        class="btn-ops-toggle btn-edit"
+                                        data-library-edit="${
+                                            escapeHTML(
+                                                library.libraryId ||
+                                                library.id
+                                            )
+                                        }"
+                                    >
+                                        Edit
+                                    </button>
+
+
+                                    <button
+                                        type="button"
+                                        class="btn-ops-toggle ${
+                                            enabled
+                                                ? "btn-disable"
+                                                : "btn-enable"
+                                        }"
+                                        data-library-toggle="${
+                                            escapeHTML(
+                                                library.libraryId ||
+                                                library.id
+                                            )
+                                        }"
+                                    >
+                                        ${
+                                            enabled
+                                                ? "Disable"
+                                                : "Enable"
+                                        }
+                                    </button>
+
+
+                                    <button
+                                        type="button"
+                                        class="btn-ops-toggle btn-delete"
+                                        data-library-delete="${
+                                            escapeHTML(
+                                                library.libraryId ||
+                                                library.id
+                                            )
+                                        }"
+                                    >
+                                        Delete
+                                    </button>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+
+                    `;
 
                 }
-
-
-                else if (
-                    action ===
-                    "enable"
-                ) {
-
-                    await enableManagerLibrary(
-                        libraryId
-                    );
-
-                }
-
-
-                else if (
-                    action ===
-                    "disable"
-                ) {
-
-                    const confirmed =
-                        window.confirm(
-                            "Disable this library?"
-                        );
-
-
-                    if (!confirmed) {
-                        return;
-                    }
-
-
-                    await disableManagerLibrary(
-                        libraryId
-                    );
-
-                }
-
-
-                else if (
-                    action ===
-                    "edit"
-                ) {
-
-                    openManagerEdit(
-                        libraryId
-                    );
-
-                }
-
-
-                else if (
-                    action ===
-                    "delete"
-                ) {
-
-                    await deleteManagerLibrary(
-                        libraryId
-                    );
-
-                }
-
-            } catch (error) {
-
-                console.error(
-                    "[Manager] Library action error:",
-                    error
-                );
-
-
-                alert(
-                    "Operation failed. Please try again."
-                );
-
-            }
-
-        }
-    );
+            )
+            .join("");
 
 }
 
 
 /* ==========================================================================
-   29. CREATE / UPDATE FORM
+   REFRESH LIBRARY TABLE
    ========================================================================== */
 
-function bindManagerCreationForm() {
+async function refreshManagerLibraries() {
+
+    try {
+
+        const libraries =
+            await loadManagerLibraries();
+
+        renderManagerLibraries(
+            libraries
+        );
+
+        return libraries;
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl Manager Load Error]",
+            error
+        );
+
+        return [];
+
+    }
+
+}
+
+
+/* ==========================================================================
+   FORM FIELD HELPERS
+   ========================================================================== */
+
+function findFirstElement(
+    selectors
+) {
+
+    for (
+        const selector of selectors
+    ) {
+
+        const element =
+            document.querySelector(
+                selector
+            );
+
+        if (element) {
+            return element;
+        }
+
+    }
+
+    return null;
+}
+
+
+/* ==========================================================================
+   CREATE LIBRARY FORM
+   ========================================================================== */
+
+function initializeLibraryCreationForm() {
 
     const form =
-        managerEl(
-            "manager-creation-form"
-        ) ||
-        managerEl(
-            "mgr-creation-form"
-        ) ||
-        managerEl(
-            "library-creation-form"
-        );
+        findFirstElement([
+
+            "#manager-library-form",
+
+            "#library-creation-form",
+
+            "#create-library-form",
+
+            ".mgr-creation-form"
+
+        ]);
 
 
     if (!form) {
         return;
     }
+
+
+    if (
+        form.dataset.managerBound ===
+        "true"
+    ) {
+        return;
+    }
+
+
+    form.dataset.managerBound =
+        "true";
 
 
     form.addEventListener(
@@ -1856,43 +1151,62 @@ function bindManagerCreationForm() {
             event.preventDefault();
 
 
-            if (managerSaving) {
-                return;
-            }
+            const nameInput =
+                findFirstElement([
+
+                    "#library-name",
+
+                    "#library-name-input",
+
+                    "#new-library-name",
+
+                    "[name='libraryName']",
+
+                    "[name='name']"
+
+                ]);
 
 
-            const data =
-                getManagerFormData();
+            const idInput =
+                findFirstElement([
+
+                    "#library-id",
+
+                    "#library-id-input",
+
+                    "#new-library-id",
+
+                    "[name='libraryId']"
+
+                ]);
 
 
-            const validationError =
-                validateManagerLibraryData(
-                    data
-                );
+            const name =
+                nameInput
+                    ? nameInput.value.trim()
+                    : "";
 
 
-            if (validationError) {
+            const requestedID =
+                idInput
+                    ? idInput.value.trim()
+                    : "";
+
+
+            if (!name) {
 
                 alert(
-                    validationError
+                    "Please enter Library Name."
                 );
 
                 return;
-
             }
 
 
             const submitButton =
-                managerEl(
-                    "manager-submit-btn"
-                ) ||
-                managerEl(
-                    "btn-mgr-submit"
+                form.querySelector(
+                    "button[type='submit']"
                 );
-
-
-            managerSaving =
-                true;
 
 
             if (submitButton) {
@@ -1901,74 +1215,59 @@ function bindManagerCreationForm() {
                     true;
 
                 submitButton.textContent =
-                    managerEditingLibraryId
-                        ? "Updating..."
-                        : "Creating...";
+                    "Creating...";
 
             }
 
 
             try {
 
-                if (
-                    managerEditingLibraryId
-                ) {
+                const libraryId =
+                    await createLibraryRecord({
 
-                    await updateManagerLibrary(
-                        managerEditingLibraryId,
-                        data
-                    );
+                        name:
+                            name,
 
+                        libraryId:
+                            requestedID
 
-                    alert(
-                        "Library updated successfully."
-                    );
-
-                } else {
-
-                    const libraryId =
-                        await createManagerLibrary(
-                            data
-                        );
-
-
-                    alert(
-                        "Library created successfully.\n\nLibrary ID: " +
-                        libraryId
-                    );
-
-                }
-
-
-                clearManagerForm();
-
-                await loadManagerLibraries();
-
-
-            } catch (error) {
-
-                console.error(
-                    "[Manager] Save library error:",
-                    error
-                );
+                    });
 
 
                 alert(
-                    "Unable to save library. Please try again."
+                    "Library created successfully.\n\nLibrary ID: " +
+                    libraryId
                 );
 
-            } finally {
 
-                managerSaving =
-                    false;
+                form.reset();
 
+
+                await refreshManagerLibraries();
+
+            }
+            catch (error) {
+
+                console.error(
+                    "[LibControl Library Creation Error]",
+                    error
+                );
+
+                alert(
+                    error.message ||
+                    "Unable to create library."
+                );
+
+            }
+            finally {
 
                 if (submitButton) {
 
                     submitButton.disabled =
                         false;
 
-                    updateManagerFormMode();
+                    submitButton.textContent =
+                        "Create Library";
 
                 }
 
@@ -1981,68 +1280,234 @@ function bindManagerCreationForm() {
 
 
 /* ==========================================================================
-   30. CANCEL / RESET
+   LIBRARY TABLE ACTIONS
    ========================================================================== */
 
-function bindManagerCancel() {
+function initializeLibraryActions() {
 
-    const cancelButton =
-        managerEl(
-            "manager-cancel-btn"
-        ) ||
-        managerEl(
-            "mgr-cancel-btn"
-        ) ||
-        managerEl(
-            "cancel-manager-form-btn"
-        );
+    const table =
+        findFirstElement([
+
+            "#manager-library-table-body",
+
+            "#library-table-body",
+
+            "#libraries-table-body"
+
+        ]);
 
 
-    if (!cancelButton) {
+    if (!table) {
         return;
     }
 
 
-    cancelButton.addEventListener(
+    if (
+        table.dataset.managerActionsBound ===
+        "true"
+    ) {
+        return;
+    }
+
+
+    table.dataset.managerActionsBound =
+        "true";
+
+
+    table.addEventListener(
         "click",
-        () => {
+        async (event) => {
 
-            clearManagerForm();
-
-        }
-    );
-
-}
-
-
-/* ==========================================================================
-   31. MANAGER LOGOUT
-   ========================================================================== */
-
-function bindManagerLogout() {
-
-    document.addEventListener(
-        "click",
-        (event) => {
-
-            const button =
+            const editButton =
                 event.target.closest(
-                    "#manager-logout-btn, #mgr-logout-btn"
+                    "[data-library-edit]"
                 );
 
 
-            if (!button) {
+            if (editButton) {
+
+                const libraryId =
+                    editButton.getAttribute(
+                        "data-library-edit"
+                    );
+
+
+                const newName =
+                    window.prompt(
+                        "Enter new library name:"
+                    );
+
+
+                if (
+                    newName === null ||
+                    !newName.trim()
+                ) {
+
+                    return;
+                }
+
+
+                try {
+
+                    await updateLibraryRecord(
+                        libraryId,
+                        {
+                            name:
+                                newName.trim()
+                        }
+                    );
+
+
+                    await refreshManagerLibraries();
+
+                }
+                catch (error) {
+
+                    console.error(error);
+
+                    alert(
+                        error.message ||
+                        "Unable to update library."
+                    );
+
+                }
+
                 return;
             }
 
 
-            localStorage.clear();
+            const toggleButton =
+                event.target.closest(
+                    "[data-library-toggle]"
+                );
 
-            sessionStorage.clear();
+
+            if (toggleButton) {
+
+                const libraryId =
+                    toggleButton.getAttribute(
+                        "data-library-toggle"
+                    );
 
 
-            window.location.href =
-                "../index.html";
+                try {
+
+                    const libraryRef =
+                        managerDB
+                            .collection(
+                                LIBCONTROL_COLLECTIONS
+                                    .LIBRARIES
+                            )
+                            .doc(libraryId);
+
+
+                    const snapshot =
+                        await libraryRef.get();
+
+
+                    if (!snapshot.exists) {
+
+                        throw new Error(
+                            "Library not found."
+                        );
+
+                    }
+
+
+                    const data =
+                        snapshot.data() || {};
+
+
+                    if (
+                        data.ownerManagerUID !==
+                        getManagerUID()
+                    ) {
+
+                        throw new Error(
+                            "Unauthorized operation."
+                        );
+
+                    }
+
+
+                    await libraryRef.update({
+
+                        enabled:
+                            data.enabled === false,
+
+                        updatedAt:
+                            firebase.firestore
+                                .FieldValue
+                                .serverTimestamp()
+
+                    });
+
+
+                    await refreshManagerLibraries();
+
+                }
+                catch (error) {
+
+                    console.error(error);
+
+                    alert(
+                        error.message ||
+                        "Unable to change library status."
+                    );
+
+                }
+
+                return;
+            }
+
+
+            const deleteButton =
+                event.target.closest(
+                    "[data-library-delete]"
+                );
+
+
+            if (deleteButton) {
+
+                const libraryId =
+                    deleteButton.getAttribute(
+                        "data-library-delete"
+                    );
+
+
+                const confirmed =
+                    window.confirm(
+                        "Delete this library record?"
+                    );
+
+
+                if (!confirmed) {
+                    return;
+                }
+
+
+                try {
+
+                    await deleteLibraryRecord(
+                        libraryId
+                    );
+
+
+                    await refreshManagerLibraries();
+
+                }
+                catch (error) {
+
+                    console.error(error);
+
+                    alert(
+                        error.message ||
+                        "Unable to delete library."
+                    );
+
+                }
+
+            }
 
         }
     );
@@ -2051,109 +1516,145 @@ function bindManagerLogout() {
 
 
 /* ==========================================================================
-   32. INITIALIZE MANAGER MODULE
+   INITIALIZATION
    ========================================================================== */
 
 async function initializeManagerModule() {
 
-    if (
-        typeof firebase ===
-        "undefined"
-    ) {
+    if (!managerDB) {
 
         console.error(
-            "[Manager] Firebase SDK missing."
+            "[LibControl Manager] Firebase not available."
         );
 
         return;
-
     }
 
 
-    if (
-        !window.db
-    ) {
+    try {
 
-        console.error(
-            "[Manager] Firestore instance missing."
+        const authorized =
+            await verifyMasterManager();
+
+
+        if (!authorized) {
+            return;
+        }
+
+
+        /*
+         * Automatically create the LibControl
+         * application registry document.
+         */
+
+        await ensureLibControlApp();
+
+
+        /*
+         * Load existing libraries.
+         */
+
+        await refreshManagerLibraries();
+
+
+        initializeLibraryCreationForm();
+
+        initializeLibraryActions();
+
+
+        console.log(
+            "[LibControl Manager] Master Manager initialized successfully."
         );
 
-        return;
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl Manager Initialization Error]",
+            error
+        );
 
     }
-
-
-    if (
-        !requireManagerSession()
-    ) {
-
-        return;
-
-    }
-
-
-    bindManagerCreationForm();
-
-    bindManagerCancel();
-
-    bindManagerLibrarySearch();
-
-    bindManagerLibraryActions();
-
-    bindManagerLogout();
-
-    updateManagerFormMode();
-
-
-    await loadManagerLibraries();
 
 }
 
 
 /* ==========================================================================
-   33. START
+   LOGOUT
    ========================================================================== */
 
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
+function logoutMasterManager() {
 
-        initializeManagerModule();
+    if (
+        typeof firebase !==
+        "undefined"
+    ) {
+
+        firebase
+            .auth()
+            .signOut()
+            .catch(
+                (error) => {
+
+                    console.error(
+                        "[Manager Logout Error]",
+                        error
+                    );
+
+                }
+            );
+
+    }
+
+
+    localStorage.clear();
+    sessionStorage.clear();
+
+
+    window.location.href =
+        "manager-login.html";
+
+}
+
+
+document.addEventListener(
+    "click",
+    (event) => {
+
+        const logoutButton =
+            event.target.closest(
+                "#manager-logout-btn, #mgr-logout-btn"
+            );
+
+
+        if (!logoutButton) {
+            return;
+        }
+
+
+        logoutMasterManager();
 
     }
 );
 
 
 /* ==========================================================================
-   34. PUBLIC API
+   START
    ========================================================================== */
 
-window.LibManageManager = {
+if (
+    document.readyState ===
+    "loading"
+) {
 
-    reload:
-        loadManagerLibraries,
+    document.addEventListener(
+        "DOMContentLoaded",
+        initializeManagerModule
+    );
 
-    create:
-        createManagerLibrary,
+}
+else {
 
-    update:
-        updateManagerLibrary,
+    initializeManagerModule();
 
-    approve:
-        approveManagerLibrary,
-
-    enable:
-        enableManagerLibrary,
-
-    disable:
-        disableManagerLibrary,
-
-    delete:
-        deleteManagerLibrary
-
-};
-
-
-console.log(
-    "[LibManage] New Manager module loaded successfully."
-);
+}
