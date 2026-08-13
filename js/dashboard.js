@@ -1,27 +1,36 @@
 /**
  * ==========================================================================
- * LIBMANAGE - SECURE MULTI-TENANT CORE ENGINE
+ * LIBMANAGE - SHARED CORE ENGINE
  * ==========================================================================
  *
+ * This file is shared by:
+ *
+ * index.html
+ * manager-login.html
+ * manager-dashboard.html
+ * admin-dashboard.html
+ * students.html
+ * attendance.html
+ * seats.html
+ * student-dashboard.html
+ *
  * IMPORTANT:
- * This is the NEW LibManage application core.
+ * This NEW application uses its own Firestore namespace.
  *
- * This project uses its own isolated Firestore namespace:
- *
- *     libmanage_secure_v2
- *
- * Existing/old LibManage collections such as:
- *
+ * OLD:
  *     saas_libraries
  *
- * are NOT read, modified, deleted or migrated by this file.
+ * NEW:
+ *     libmanage_secure_v2
+ *
+ * This file NEVER reads/writes/deletes the old saas_libraries collection.
  *
  * ==========================================================================
  */
 
 
 /* ==========================================================================
-   1. FIREBASE CONFIGURATION
+   1. FIREBASE CONFIG
    ========================================================================== */
 
 const firebaseConfig = {
@@ -35,114 +44,63 @@ const firebaseConfig = {
 
 
 /* ==========================================================================
-   2. APPLICATION NAMESPACE
+   2. NEW APP DATABASE NAMESPACE
    ========================================================================== */
 
-/*
- * DO NOT change this casually.
- *
- * Every new LibManage collection will live below this namespace.
- *
- * Old:
- *     saas_libraries
- *
- * New:
- *     libmanage_secure_v2/libraries/...
- */
-
-const LIBMANAGE_ROOT_COLLECTION =
+const LIBMANAGE_ROOT =
     "libmanage_secure_v2";
 
-
-/*
- * Version marker.
- *
- * Useful later if database architecture is upgraded.
- */
-
 const LIBMANAGE_SCHEMA_VERSION =
-    "2.0";
+    "1.0";
 
 
 /* ==========================================================================
    3. FIREBASE INITIALIZATION
    ========================================================================== */
 
-(function initializeLibManageFirebase() {
+(function initializeFirebase() {
 
     if (typeof firebase === "undefined") {
 
         console.error(
-            "[LibManage Firebase] Firebase SDK is not loaded."
+            "[LibManage] Firebase SDK not loaded."
         );
 
         return;
     }
 
-
     try {
-
-        /*
-         * Reuse only the Firebase app belonging to THIS page.
-         *
-         * We never initialize another project and never touch
-         * existing Firebase app instances unnecessarily.
-         */
 
         if (!firebase.apps.length) {
 
             firebase.initializeApp(
                 firebaseConfig
             );
+
         }
-
-
-        /*
-         * Firestore instance.
-         */
 
         window.db =
             firebase.firestore();
 
-
-        /*
-         * Expose configuration safely for pages that need
-         * to initialize the Firebase SDK before dashboard.js.
-         */
-
         window.firebaseConfig =
             firebaseConfig;
 
-
-        /*
-         * Application information.
-         */
-
-        window.LIBMANAGE_APP =
-            Object.freeze({
-
-                rootCollection:
-                    LIBMANAGE_ROOT_COLLECTION,
-
-                schemaVersion:
-                    LIBMANAGE_SCHEMA_VERSION
-
-            });
-
+        window.LIBMANAGE_ROOT =
+            LIBMANAGE_ROOT;
 
         console.log(
-            "[LibManage Firebase] Secure core initialized."
+            "[LibManage] Firebase initialized."
         );
 
         console.log(
-            "[LibManage Firebase] Database namespace:",
-            LIBMANAGE_ROOT_COLLECTION
+            "[LibManage] New database namespace:",
+            LIBMANAGE_ROOT
         );
 
     } catch (error) {
 
         console.error(
-            "[LibManage Firebase] Initialization failed:",
+            "[LibManage] Firebase initialization error:",
             error
         );
 
@@ -152,239 +110,222 @@ const LIBMANAGE_SCHEMA_VERSION =
 
 
 /* ==========================================================================
-   4. DATABASE REFERENCE HELPERS
+   4. NORMALIZATION
    ========================================================================== */
 
-/*
- * These helper functions make sure every future module uses
- * the NEW LibManage namespace.
- *
- * Example:
- *
- * getLibrariesCollection()
- *
- * returns:
- *
- * libmanage_secure_v2/libraries
- *
- */
+function normalizeLibraryId(value) {
+
+    return String(value || "")
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, "");
+
+}
 
 
-function getLibrariesCollection() {
+function normalizeStudentCode(value) {
+
+    return String(value || "")
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, "");
+
+}
+
+
+/* ==========================================================================
+   5. FIRESTORE STRUCTURE
+   ==========================================================================
+   
+   libmanage_secure_v2
+       └── libraries
+           └── records
+               └── LIBRARY_ID
+                   ├── students
+                   ├── attendance
+                   ├── notices
+                   └── configuration
+                       ├── seats
+                       └── general
+
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   Libraries
+-------------------------------------------------------------------------- */
+
+function librariesRef() {
 
     if (!window.db) {
         throw new Error(
-            "Firestore database is not initialized."
+            "Firestore is not initialized."
         );
     }
 
     return window.db
-        .collection(
-            LIBMANAGE_ROOT_COLLECTION
-        )
+        .collection(LIBMANAGE_ROOT)
         .doc("libraries")
         .collection("records");
+
 }
 
 
-/*
- * Individual library document.
- */
+/* --------------------------------------------------------------------------
+   Single Library
+-------------------------------------------------------------------------- */
 
-function getLibraryDocument(
-    libraryId
-) {
+function libraryRef(libraryId) {
 
-    const safeLibraryId =
+    const id =
         normalizeLibraryId(
             libraryId
         );
 
-    if (!safeLibraryId) {
+    if (!id) {
         throw new Error(
             "Invalid Library ID."
         );
     }
 
-    return getLibrariesCollection()
-        .doc(safeLibraryId);
+    return librariesRef().doc(id);
+
 }
 
 
-/*
- * Students.
- */
+/* --------------------------------------------------------------------------
+   Students
+-------------------------------------------------------------------------- */
 
-function getStudentsCollection(
-    libraryId
-) {
+function studentsRef(libraryId) {
 
-    return getLibraryDocument(
+    return libraryRef(
         libraryId
-    )
-    .collection("students");
+    ).collection("students");
+
 }
 
 
-/*
- * Individual student.
- */
-
-function getStudentDocument(
+function studentRef(
     libraryId,
     studentCode
 ) {
 
-    const safeStudentCode =
+    const code =
         normalizeStudentCode(
             studentCode
         );
 
-    if (!safeStudentCode) {
+    if (!code) {
         throw new Error(
             "Invalid Student Code."
         );
     }
 
-    return getStudentsCollection(
+    return studentsRef(
         libraryId
-    )
-    .doc(safeStudentCode);
+    ).doc(code);
+
 }
 
 
-/*
- * Attendance.
- */
+/* --------------------------------------------------------------------------
+   Attendance
+-------------------------------------------------------------------------- */
 
-function getAttendanceCollection(
-    libraryId
-) {
+function attendanceRef(libraryId) {
 
-    return getLibraryDocument(
+    return libraryRef(
         libraryId
-    )
-    .collection("attendance");
+    ).collection("attendance");
+
 }
 
 
-/*
- * Notices.
- */
+/* --------------------------------------------------------------------------
+   Notices
+-------------------------------------------------------------------------- */
 
-function getNoticesCollection(
-    libraryId
-) {
+function noticesRef(libraryId) {
 
-    return getLibraryDocument(
+    return libraryRef(
         libraryId
-    )
-    .collection("notices");
+    ).collection("notices");
+
 }
 
 
-/*
- * Seat configuration.
- */
+/* --------------------------------------------------------------------------
+   Seat Configuration
+-------------------------------------------------------------------------- */
 
-function getSeatConfigurationDocument(
-    libraryId
-) {
+function seatConfigRef(libraryId) {
 
-    return getLibraryDocument(
+    return libraryRef(
         libraryId
     )
     .collection("configuration")
     .doc("seats");
+
 }
 
 
-/*
- * Library configuration.
- */
+/* --------------------------------------------------------------------------
+   General Configuration
+-------------------------------------------------------------------------- */
 
-function getLibraryConfigurationDocument(
-    libraryId
-) {
+function generalConfigRef(libraryId) {
 
-    return getLibraryDocument(
+    return libraryRef(
         libraryId
     )
     .collection("configuration")
     .doc("general");
+
 }
 
 
-/*
- * Expose helpers globally.
- *
- * Other JS files will use these instead of manually writing
- * Firestore collection names.
- */
+/* ==========================================================================
+   6. GLOBAL DATABASE HELPERS
+   ========================================================================== */
 
-window.LibManageDB = Object.freeze({
+window.LibManageDB = {
 
     root:
-        LIBMANAGE_ROOT_COLLECTION,
+        LIBMANAGE_ROOT,
 
     libraries:
-        getLibrariesCollection,
+        librariesRef,
 
     library:
-        getLibraryDocument,
+        libraryRef,
 
     students:
-        getStudentsCollection,
+        studentsRef,
 
     student:
-        getStudentDocument,
+        studentRef,
 
     attendance:
-        getAttendanceCollection,
+        attendanceRef,
 
     notices:
-        getNoticesCollection,
+        noticesRef,
 
-    seatConfiguration:
-        getSeatConfigurationDocument,
+    seatConfig:
+        seatConfigRef,
 
-    libraryConfiguration:
-        getLibraryConfigurationDocument
+    generalConfig:
+        generalConfigRef
 
-});
-
-
-/* ==========================================================================
-   5. NORMALIZATION HELPERS
-   ========================================================================== */
-
-function normalizeLibraryId(
-    value
-) {
-
-    return String(value || "")
-        .trim()
-        .toUpperCase()
-        .replace(/\s+/g, "");
-}
-
-
-function normalizeStudentCode(
-    value
-) {
-
-    return String(value || "")
-        .trim()
-        .toUpperCase()
-        .replace(/\s+/g, "");
-}
+};
 
 
 /* ==========================================================================
-   6. SESSION MANAGEMENT
+   7. SESSION KEYS
    ========================================================================== */
 
-const SESSION_KEYS = Object.freeze({
+const SESSION_KEYS = {
 
     role:
         "session_role",
@@ -401,14 +342,14 @@ const SESSION_KEYS = Object.freeze({
     studentSeat:
         "session_student_seat"
 
-});
+};
 
 
-/*
- * Get current session.
- */
+/* ==========================================================================
+   8. SESSION FUNCTIONS
+   ========================================================================== */
 
-function getLibManageSession() {
+function getCurrentSession() {
 
     return {
 
@@ -442,213 +383,121 @@ function getLibManageSession() {
 }
 
 
-window.getLibManageSession =
-    getLibManageSession;
+window.getCurrentSession =
+    getCurrentSession;
 
-
-/*
- * Clear only LibManage session values.
- *
- * We intentionally do NOT blindly remove unrelated localStorage
- * keys belonging to another application.
- */
 
 function clearLibManageSession() {
 
-    Object.values(
+    Object.keys(
         SESSION_KEYS
-    ).forEach((key) => {
+    ).forEach(
+        (key) => {
 
-        localStorage.removeItem(key);
+            localStorage.removeItem(
+                SESSION_KEYS[key]
+            );
 
-    });
+        }
+    );
 
 }
 
 
 /* ==========================================================================
-   7. PATH HELPERS
+   9. PATH HELPERS
    ========================================================================== */
-
-function getPagesPrefix() {
-
-    return window.location.pathname.includes(
-        "/pages/"
-    )
-        ? ""
-        : "pages/";
-
-}
-
 
 function getRootIndexPath() {
 
-    return window.location.pathname.includes(
-        "/pages/"
-    )
-        ? "../index.html"
-        : "index.html";
+    if (
+        window.location.pathname.includes(
+            "/pages/"
+        )
+    ) {
+
+        return "../index.html";
+
+    }
+
+    return "index.html";
+
+}
+
+
+function getPagePath(fileName) {
+
+    if (
+        window.location.pathname.includes(
+            "/pages/"
+        )
+    ) {
+
+        return fileName;
+
+    }
+
+    return "pages/" + fileName;
 
 }
 
 
 /* ==========================================================================
-   8. PAGE ACCESS PROTECTION
+   10. LIBRARY ACCESS VALIDATION
    ========================================================================== */
 
-/*
- * These functions will be used by individual pages.
- *
- * Example:
- *
- * requireAdminSession();
- *
- * requireStudentSession();
- *
- * requireManagerSession();
- *
- */
-
-
-function redirectToGateway() {
-
-    window.location.href =
-        getRootIndexPath();
-
-}
-
-
-/*
- * Admin page protection.
- */
-
-function requireAdminSession() {
-
-    const session =
-        getLibManageSession();
-
-    if (
-        session.role !== "admin" ||
-        !session.libraryId
-    ) {
-
-        clearLibManageSession();
-
-        redirectToGateway();
-
-        return false;
-    }
-
-    return true;
-}
-
-
-/*
- * Student page protection.
- */
-
-function requireStudentSession() {
-
-    const session =
-        getLibManageSession();
-
-    if (
-        session.role !== "student" ||
-        !session.libraryId ||
-        !session.studentCode
-    ) {
-
-        clearLibManageSession();
-
-        redirectToGateway();
-
-        return false;
-    }
-
-    return true;
-}
-
-
-/*
- * Manager page protection.
- */
-
-function requireManagerSession() {
-
-    const session =
-        getLibManageSession();
-
-    if (
-        session.role !== "manager"
-    ) {
-
-        clearLibManageSession();
-
-        redirectToGateway();
-
-        return false;
-    }
-
-    return true;
-}
-
-
-/* ==========================================================================
-   9. LIBRARY STATUS VALIDATION
-   ========================================================================== */
-
-async function validateLibraryAccess(
+async function validateLibrary(
     libraryId
 ) {
 
-    const safeLibraryId =
+    const id =
         normalizeLibraryId(
             libraryId
         );
 
-    if (!safeLibraryId) {
+    if (!id) {
 
         return {
 
             valid: false,
 
             reason:
-                "INVALID_LIBRARY_ID"
+                "INVALID_LIBRARY"
 
         };
 
     }
 
-
     try {
 
-        const librarySnapshot =
-            await getLibraryDocument(
-                safeLibraryId
-            )
-            .get();
+        const snapshot =
+            await libraryRef(
+                id
+            ).get();
 
 
-        if (!librarySnapshot.exists) {
+        if (!snapshot.exists) {
 
             return {
 
                 valid: false,
 
                 reason:
-                    "LIBRARY_NOT_FOUND"
+                    "NOT_FOUND"
 
             };
 
         }
 
 
-        const libraryData =
-            librarySnapshot.data() || {};
+        const data =
+            snapshot.data() || {};
 
 
         if (
-            libraryData.status !==
+            String(
+                data.status || ""
+            ).toLowerCase() !==
             "approved"
         ) {
 
@@ -657,10 +506,10 @@ async function validateLibraryAccess(
                 valid: false,
 
                 reason:
-                    "LIBRARY_NOT_APPROVED",
+                    "NOT_APPROVED",
 
                 data:
-                    libraryData
+                    data
 
             };
 
@@ -668,7 +517,7 @@ async function validateLibraryAccess(
 
 
         if (
-            libraryData.enabled === false
+            data.enabled === false
         ) {
 
             return {
@@ -676,10 +525,10 @@ async function validateLibraryAccess(
                 valid: false,
 
                 reason:
-                    "LIBRARY_DISABLED",
+                    "DISABLED",
 
                 data:
-                    libraryData
+                    data
 
             };
 
@@ -691,7 +540,7 @@ async function validateLibraryAccess(
             valid: true,
 
             data:
-                libraryData
+                data
 
         };
 
@@ -699,7 +548,7 @@ async function validateLibraryAccess(
     } catch (error) {
 
         console.error(
-            "[Library Validation Error]",
+            "[LibManage] Library validation error:",
             error
         );
 
@@ -720,30 +569,31 @@ async function validateLibraryAccess(
 }
 
 
+window.validateLibrary =
+    validateLibrary;
+
+
 /* ==========================================================================
-   10. STUDENT LOGIN
+   11. STUDENT LOGIN
    ========================================================================== */
 
-async function processStudentLogin(
+async function studentLogin(
     libraryId,
     studentCode
 ) {
 
-    const safeLibraryId =
+    const id =
         normalizeLibraryId(
             libraryId
         );
 
-    const safeStudentCode =
+    const code =
         normalizeStudentCode(
             studentCode
         );
 
 
-    if (
-        !safeLibraryId ||
-        !safeStudentCode
-    ) {
+    if (!id || !code) {
 
         return {
 
@@ -773,13 +623,9 @@ async function processStudentLogin(
 
     try {
 
-        /*
-         * First validate library.
-         */
-
         const libraryResult =
-            await validateLibraryAccess(
-                safeLibraryId
+            await validateLibrary(
+                id
             );
 
 
@@ -787,7 +633,7 @@ async function processStudentLogin(
 
             if (
                 libraryResult.reason ===
-                "LIBRARY_NOT_FOUND"
+                "NOT_FOUND"
             ) {
 
                 return {
@@ -804,7 +650,7 @@ async function processStudentLogin(
 
             if (
                 libraryResult.reason ===
-                "LIBRARY_NOT_APPROVED"
+                "NOT_APPROVED"
             ) {
 
                 return {
@@ -821,7 +667,7 @@ async function processStudentLogin(
 
             if (
                 libraryResult.reason ===
-                "LIBRARY_DISABLED"
+                "DISABLED"
             ) {
 
                 return {
@@ -841,23 +687,18 @@ async function processStudentLogin(
                 success: false,
 
                 message:
-                    "Unable to verify library access."
+                    "Unable to verify library."
 
             };
 
         }
 
 
-        /*
-         * Find student.
-         */
-
         const studentSnapshot =
-            await getStudentDocument(
-                safeLibraryId,
-                safeStudentCode
-            )
-            .get();
+            await studentRef(
+                id,
+                code
+            ).get();
 
 
         if (!studentSnapshot.exists) {
@@ -877,13 +718,6 @@ async function processStudentLogin(
         const studentData =
             studentSnapshot.data() || {};
 
-        const libraryData =
-            libraryResult.data || {};
-
-
-        /*
-         * Expired students are not allowed to login.
-         */
 
         if (
             String(
@@ -897,7 +731,7 @@ async function processStudentLogin(
                 success: false,
 
                 message:
-                    "Access Denied: Your library membership has expired."
+                    "Access Denied: Your membership has expired."
 
             };
 
@@ -905,7 +739,7 @@ async function processStudentLogin(
 
 
         /*
-         * Save student session.
+         * Start NEW student session.
          */
 
         clearLibManageSession();
@@ -916,27 +750,31 @@ async function processStudentLogin(
             "student"
         );
 
+
+        localStorage.setItem(
+            SESSION_KEYS.libraryId,
+            id
+        );
+
+
+        localStorage.setItem(
+            SESSION_KEYS.libraryName,
+            libraryResult.data.name ||
+            "Library"
+        );
+
+
         localStorage.setItem(
             SESSION_KEYS.studentCode,
             studentData.studentCode ||
-            safeStudentCode
+            code
         );
+
 
         localStorage.setItem(
             SESSION_KEYS.studentSeat,
             studentData.seatNumber ||
             ""
-        );
-
-        localStorage.setItem(
-            SESSION_KEYS.libraryId,
-            safeLibraryId
-        );
-
-        localStorage.setItem(
-            SESSION_KEYS.libraryName,
-            libraryData.name ||
-            "Library"
         );
 
 
@@ -948,7 +786,7 @@ async function processStudentLogin(
                 studentData,
 
             library:
-                libraryData
+                libraryResult.data
 
         };
 
@@ -956,7 +794,7 @@ async function processStudentLogin(
     } catch (error) {
 
         console.error(
-            "[Student Login Error]",
+            "[LibManage] Student login error:",
             error
         );
 
@@ -965,7 +803,7 @@ async function processStudentLogin(
             success: false,
 
             message:
-                "Unable to connect to the secure cloud database."
+                "Cloud synchronization failed."
 
         };
 
@@ -974,50 +812,40 @@ async function processStudentLogin(
 }
 
 
+window.studentLogin =
+    studentLogin;
+
+
 /* ==========================================================================
-   11. ADMIN LOGIN
+   12. ADMIN LOGIN
    ========================================================================== */
 
 /*
- * IMPORTANT SECURITY ARCHITECTURE NOTE
+ * NOTE:
  *
- * The old version compared:
+ * This compatibility login keeps the same current UI behaviour.
  *
- *     libraryData.adminPass
+ * Later, when manager/admin Firebase Authentication is connected,
+ * this function will be changed to Firebase Auth.
  *
- * directly inside browser JavaScript.
- *
- * That is NOT a strong security model.
- *
- * For the new version we keep the login pipeline isolated, but the
- * final production authentication should use Firebase Authentication.
- *
- * This function currently supports the existing UI pipeline while
- * keeping the new database completely separated.
- *
- * The manager JS will later create/maintain proper Firebase Auth
- * accounts for library administrators.
+ * No old database is touched.
  */
 
-
-async function processAdminLogin(
+async function adminLogin(
     libraryId,
     password
 ) {
 
-    const safeLibraryId =
+    const id =
         normalizeLibraryId(
             libraryId
         );
 
-    const passInput =
+    const pass =
         String(password || "");
 
 
-    if (
-        !safeLibraryId ||
-        !passInput
-    ) {
+    if (!id || !pass) {
 
         return {
 
@@ -1048,8 +876,8 @@ async function processAdminLogin(
     try {
 
         const libraryResult =
-            await validateLibraryAccess(
-                safeLibraryId
+            await validateLibrary(
+                id
             );
 
 
@@ -1057,7 +885,7 @@ async function processAdminLogin(
 
             if (
                 libraryResult.reason ===
-                "LIBRARY_NOT_FOUND"
+                "NOT_FOUND"
             ) {
 
                 return {
@@ -1074,7 +902,7 @@ async function processAdminLogin(
 
             if (
                 libraryResult.reason ===
-                "LIBRARY_NOT_APPROVED"
+                "NOT_APPROVED"
             ) {
 
                 return {
@@ -1082,7 +910,7 @@ async function processAdminLogin(
                     success: false,
 
                     message:
-                        "Access Restricted: Your library is awaiting approval."
+                        "Access Restricted: Library awaiting approval."
 
                 };
 
@@ -1091,7 +919,7 @@ async function processAdminLogin(
 
             if (
                 libraryResult.reason ===
-                "LIBRARY_DISABLED"
+                "DISABLED"
             ) {
 
                 return {
@@ -1099,7 +927,7 @@ async function processAdminLogin(
                     success: false,
 
                     message:
-                        "Access Suspended: This library is disabled."
+                        "Access Suspended: Library disabled."
 
                 };
 
@@ -1111,7 +939,7 @@ async function processAdminLogin(
                 success: false,
 
                 message:
-                    "Unable to verify library access."
+                    "Unable to verify library."
 
             };
 
@@ -1123,23 +951,16 @@ async function processAdminLogin(
 
 
         /*
-         * TEMPORARY COMPATIBILITY CHECK
+         * Current compatibility check.
          *
-         * This is intentionally marked for replacement with Firebase Auth.
-         *
-         * New manager/admin creation code should eventually stop storing
-         * passwords in Firestore.
+         * This will later be replaced by Firebase Authentication.
          */
 
-        const storedPassword =
+        if (
             String(
                 libraryData.adminPass || ""
-            );
-
-
-        if (
-            !storedPassword ||
-            storedPassword !== passInput
+            ) !==
+            pass
         ) {
 
             return {
@@ -1154,10 +975,6 @@ async function processAdminLogin(
         }
 
 
-        /*
-         * Create admin session.
-         */
-
         clearLibManageSession();
 
 
@@ -1166,11 +983,13 @@ async function processAdminLogin(
             "admin"
         );
 
+
         localStorage.setItem(
             SESSION_KEYS.libraryId,
             libraryData.libraryId ||
-            safeLibraryId
+            id
         );
+
 
         localStorage.setItem(
             SESSION_KEYS.libraryName,
@@ -1192,7 +1011,7 @@ async function processAdminLogin(
     } catch (error) {
 
         console.error(
-            "[Admin Login Error]",
+            "[LibManage] Admin login error:",
             error
         );
 
@@ -1201,7 +1020,7 @@ async function processAdminLogin(
             success: false,
 
             message:
-                "Unable to connect to the secure cloud database."
+                "Cloud synchronization failed."
 
         };
 
@@ -1210,8 +1029,12 @@ async function processAdminLogin(
 }
 
 
+window.adminLogin =
+    adminLogin;
+
+
 /* ==========================================================================
-   12. GATEWAY AUTH PIPELINES
+   13. GATEWAY LOGIN FORMS
    ========================================================================== */
 
 function bindGatewayAuthPipelines() {
@@ -1221,6 +1044,7 @@ function bindGatewayAuthPipelines() {
             "student-login-form"
         );
 
+
     const adminForm =
         document.getElementById(
             "admin-login-form"
@@ -1228,7 +1052,7 @@ function bindGatewayAuthPipelines() {
 
 
     /* ----------------------------------------------------------------------
-       STUDENT LOGIN
+       STUDENT
     ---------------------------------------------------------------------- */
 
     if (studentForm) {
@@ -1245,7 +1069,8 @@ function bindGatewayAuthPipelines() {
                         "student-library-id"
                     );
 
-                const studentCodeInput =
+
+                const codeInput =
                     document.getElementById(
                         "student-uid"
                     );
@@ -1253,11 +1078,11 @@ function bindGatewayAuthPipelines() {
 
                 if (
                     !libraryInput ||
-                    !studentCodeInput
+                    !codeInput
                 ) {
 
                     alert(
-                        "Login fields are unavailable."
+                        "Student login fields not found."
                     );
 
                     return;
@@ -1266,9 +1091,9 @@ function bindGatewayAuthPipelines() {
 
 
                 const result =
-                    await processStudentLogin(
+                    await studentLogin(
                         libraryInput.value,
-                        studentCodeInput.value
+                        codeInput.value
                     );
 
 
@@ -1284,7 +1109,9 @@ function bindGatewayAuthPipelines() {
 
 
                 window.location.href =
-                    "pages/student-dashboard.html";
+                    getPagePath(
+                        "student-dashboard.html"
+                    );
 
             }
         );
@@ -1293,7 +1120,7 @@ function bindGatewayAuthPipelines() {
 
 
     /* ----------------------------------------------------------------------
-       ADMIN LOGIN
+       ADMIN
     ---------------------------------------------------------------------- */
 
     if (adminForm) {
@@ -1310,6 +1137,7 @@ function bindGatewayAuthPipelines() {
                         "admin-library-id"
                     );
 
+
                 const passwordInput =
                     document.getElementById(
                         "admin-password"
@@ -1322,7 +1150,7 @@ function bindGatewayAuthPipelines() {
                 ) {
 
                     alert(
-                        "Login fields are unavailable."
+                        "Admin login fields not found."
                     );
 
                     return;
@@ -1331,7 +1159,7 @@ function bindGatewayAuthPipelines() {
 
 
                 const result =
-                    await processAdminLogin(
+                    await adminLogin(
                         libraryInput.value,
                         passwordInput.value
                     );
@@ -1349,7 +1177,9 @@ function bindGatewayAuthPipelines() {
 
 
                 window.location.href =
-                    "pages/admin-dashboard.html";
+                    getPagePath(
+                        "admin-dashboard.html"
+                    );
 
             }
         );
@@ -1360,7 +1190,7 @@ function bindGatewayAuthPipelines() {
 
 
 /* ==========================================================================
-   13. COMPONENT LOADER
+   14. COMPONENT LOADER
    ========================================================================== */
 
 async function loadSaaSLayoutComponent(
@@ -1424,63 +1254,142 @@ async function loadSaaSLayoutComponent(
 
         console.error(
             "[LibManage Component Loader Error]",
-            {
-                containerId:
-                    containerId,
-
-                componentUrl:
-                    componentUrl,
-
-                error:
-                    error
-
-            }
+            error
         );
 
     }
 
 }
 
-
-/*
- * Global access for other modules.
- */
 
 window.loadSaaSLayoutComponent =
     loadSaaSLayoutComponent;
 
 
 /* ==========================================================================
-   14. NAVBAR / COMPONENT SESSION DATA
+   15. PAGE SESSION PROTECTION
+   ========================================================================== */
+
+function requireAdminSession() {
+
+    const session =
+        getCurrentSession();
+
+
+    if (
+        session.role !== "admin" ||
+        !session.libraryId
+    ) {
+
+        clearLibManageSession();
+
+        window.location.href =
+            getRootIndexPath();
+
+        return false;
+
+    }
+
+
+    return true;
+
+}
+
+
+window.requireAdminSession =
+    requireAdminSession;
+
+
+function requireStudentSession() {
+
+    const session =
+        getCurrentSession();
+
+
+    if (
+        session.role !== "student" ||
+        !session.libraryId ||
+        !session.studentCode
+    ) {
+
+        clearLibManageSession();
+
+        window.location.href =
+            getRootIndexPath();
+
+        return false;
+
+    }
+
+
+    return true;
+
+}
+
+
+window.requireStudentSession =
+    requireStudentSession;
+
+
+function requireManagerSession() {
+
+    const session =
+        getCurrentSession();
+
+
+    if (
+        session.role !== "manager"
+    ) {
+
+        clearLibManageSession();
+
+        window.location.href =
+            getRootIndexPath();
+
+        return false;
+
+    }
+
+
+    return true;
+
+}
+
+
+window.requireManagerSession =
+    requireManagerSession;
+
+
+/* ==========================================================================
+   16. NAVBAR LIBRARY NAME
    ========================================================================== */
 
 function initializeLibraryNavigation() {
 
-    const libraryNameElement =
+    const element =
         document.getElementById(
             "nav-library-name"
         );
 
 
-    if (!libraryNameElement) {
+    if (!element) {
         return;
     }
 
 
     const session =
-        getLibManageSession();
+        getCurrentSession();
 
 
-    libraryNameElement.textContent =
+    element.textContent =
         session.libraryName ||
         "Library";
-
 
 }
 
 
 /* ==========================================================================
-   15. LOGOUT
+   17. LOGOUT
    ========================================================================== */
 
 document.addEventListener(
@@ -1502,9 +1411,12 @@ document.addEventListener(
 
 
         /*
-         * Clear only known LibManage sessionStorage keys if present.
-         * Do not wipe unrelated applications' storage.
+         * Do NOT use localStorage.clear().
+         *
+         * That could destroy data belonging to another app
+         * running on the same origin.
          */
+
 
         sessionStorage.removeItem(
             "libmanage_session"
@@ -1519,81 +1431,68 @@ document.addEventListener(
 
 
 /* ==========================================================================
-   16. NOTICE MODULE
+   18. ADMIN NOTICE MODULE
    ========================================================================== */
-
-/*
- * Realtime unsubscribe reference.
- */
 
 let adminNoticeRealtimeUnsubscribe =
     null;
 
 
-/*
- * Admin notice system.
- *
- * Uses ONLY:
- *
- * libmanage_secure_v2
- *   -> libraries
- *      -> records
- *         -> LIBRARY_ID
- *            -> notices
- *
- */
-
 function initAdminNoticeModule() {
 
-    const addNoticeButton =
+    const addButton =
         document.getElementById(
             "btn-add-notice"
         );
 
-    const modalOverlay =
+
+    const modal =
         document.getElementById(
             "notice-modal-overlay"
         );
 
-    const closeModalButton =
+
+    const closeButton =
         document.getElementById(
             "notice-modal-close"
         );
+
 
     const cancelButton =
         document.getElementById(
             "notice-cancel-btn"
         );
 
+
     const saveButton =
         document.getElementById(
             "notice-save-btn"
         );
 
-    const modalTitle =
-        document.getElementById(
-            "notice-modal-title"
-        );
 
     const titleInput =
         document.getElementById(
             "notice-title-input"
         );
 
+
     const messageInput =
         document.getElementById(
             "notice-message-input"
         );
+
 
     const errorBox =
         document.getElementById(
             "notice-form-error"
         );
 
+
     const successBox =
         document.getElementById(
             "notice-form-success"
         );
+
 
     const noticeContainer =
         document.getElementById(
@@ -1601,17 +1500,12 @@ function initAdminNoticeModule() {
         );
 
 
-    const session =
-        getLibManageSession();
-
-
     if (
-        !addNoticeButton ||
-        !modalOverlay ||
-        !closeModalButton ||
+        !addButton ||
+        !modal ||
+        !closeButton ||
         !cancelButton ||
         !saveButton ||
-        !modalTitle ||
         !titleInput ||
         !messageInput ||
         !errorBox ||
@@ -1624,49 +1518,40 @@ function initAdminNoticeModule() {
     }
 
 
+    const session =
+        getCurrentSession();
+
+
     if (
         session.role !== "admin" ||
         !session.libraryId ||
         !window.db
     ) {
 
-        console.warn(
-            "[Notice Module] Admin session/database unavailable."
-        );
-
         return;
 
     }
 
 
-    const noticesRef =
-        getNoticesCollection(
+    const noticeCollection =
+        noticesRef(
             session.libraryId
         );
 
 
-    let currentNoticeEditId =
+    let editingNoticeId =
         null;
 
-    let isNoticeSaving =
+
+    let saving =
         false;
 
-    let noticeDataMap =
+
+    let noticeMap =
         {};
 
 
-    function resetNoticeForm() {
-
-        titleInput.value =
-            "";
-
-        messageInput.value =
-            "";
-
-    }
-
-
-    function clearNoticeMessages() {
+    function clearMessages() {
 
         errorBox.textContent =
             "";
@@ -1685,7 +1570,107 @@ function initAdminNoticeModule() {
     }
 
 
-    function showNoticeError(
+    function resetForm() {
+
+        titleInput.value =
+            "";
+
+        messageInput.value =
+            "";
+
+    }
+
+
+    function openModal(
+        mode = "add",
+        noticeId = null
+    ) {
+
+        clearMessages();
+
+
+        if (
+            mode === "edit" &&
+            noticeId &&
+            noticeMap[noticeId]
+        ) {
+
+            editingNoticeId =
+                noticeId;
+
+
+            titleInput.value =
+                noticeMap[
+                    noticeId
+                ].title || "";
+
+
+            messageInput.value =
+                noticeMap[
+                    noticeId
+                ].message || "";
+
+        } else {
+
+            editingNoticeId =
+                null;
+
+            resetForm();
+
+        }
+
+
+        modal.classList.add(
+            "active"
+        );
+
+
+        modal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+
+        setTimeout(
+            () => {
+
+                titleInput.focus();
+
+            },
+            40
+        );
+
+    }
+
+
+    function closeModal() {
+
+        modal.classList.remove(
+            "active"
+        );
+
+
+        modal.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+
+        editingNoticeId =
+            null;
+
+        saving =
+            false;
+
+
+        resetForm();
+
+        clearMessages();
+
+    }
+
+
+    function showError(
         message
     ) {
 
@@ -1706,7 +1691,7 @@ function initAdminNoticeModule() {
     }
 
 
-    function showNoticeSuccess(
+    function showSuccess(
         message
     ) {
 
@@ -1723,135 +1708,6 @@ function initAdminNoticeModule() {
         errorBox.classList.remove(
             "active"
         );
-
-    }
-
-
-    function updateSaveButtonState() {
-
-        saveButton.disabled =
-            isNoticeSaving;
-
-
-        if (currentNoticeEditId) {
-
-            saveButton.textContent =
-                isNoticeSaving
-                    ? "Updating..."
-                    : "Update Notice";
-
-            modalTitle.textContent =
-                "Edit Notice";
-
-        } else {
-
-            saveButton.textContent =
-                isNoticeSaving
-                    ? "Saving..."
-                    : "Save Notice";
-
-            modalTitle.textContent =
-                "Add Notice";
-
-        }
-
-    }
-
-
-    function openModal(
-        mode = "add",
-        noticeId = null
-    ) {
-
-        clearNoticeMessages();
-
-
-        if (
-            mode === "edit" &&
-            noticeId &&
-            noticeDataMap[noticeId]
-        ) {
-
-            currentNoticeEditId =
-                noticeId;
-
-
-            titleInput.value =
-                noticeDataMap[
-                    noticeId
-                ].title || "";
-
-
-            messageInput.value =
-                noticeDataMap[
-                    noticeId
-                ].message || "";
-
-        } else {
-
-            currentNoticeEditId =
-                null;
-
-            resetNoticeForm();
-
-        }
-
-
-        isNoticeSaving =
-            false;
-
-
-        updateSaveButtonState();
-
-
-        modalOverlay.classList.add(
-            "active"
-        );
-
-
-        modalOverlay.setAttribute(
-            "aria-hidden",
-            "false"
-        );
-
-
-        setTimeout(
-            () => {
-
-                titleInput.focus();
-
-            },
-            40
-        );
-
-    }
-
-
-    function closeModal() {
-
-        modalOverlay.classList.remove(
-            "active"
-        );
-
-
-        modalOverlay.setAttribute(
-            "aria-hidden",
-            "true"
-        );
-
-
-        currentNoticeEditId =
-            null;
-
-        isNoticeSaving =
-            false;
-
-
-        resetNoticeForm();
-
-        clearNoticeMessages();
-
-        updateSaveButtonState();
 
     }
 
@@ -1887,7 +1743,7 @@ function initAdminNoticeModule() {
     }
 
 
-    function getTimestampMillis(
+    function timestampToMillis(
         value
     ) {
 
@@ -1911,16 +1767,8 @@ function initAdminNoticeModule() {
             "function"
         ) {
 
-            const date =
-                value.toDate();
-
-
-            return date instanceof Date &&
-                !Number.isNaN(
-                    date.getTime()
-                )
-                ? date.getTime()
-                : null;
+            return value.toDate()
+                .getTime();
 
         }
 
@@ -1930,15 +1778,8 @@ function initAdminNoticeModule() {
             "number"
         ) {
 
-            return (
-                value.seconds * 1000
-            ) +
-            Math.floor(
-                (
-                    value.nanoseconds ||
-                    0
-                ) / 1000000
-            );
+            return value.seconds *
+                1000;
 
         }
 
@@ -1948,34 +1789,11 @@ function initAdminNoticeModule() {
     }
 
 
-    function getNoticeSortTime(
-        notice
+    function formatDate(
+        value
     ) {
 
-        return (
-            getTimestampMillis(
-                notice.createdAt
-            ) ??
-            getTimestampMillis(
-                notice.updatedAt
-            ) ??
-            null
-        );
-
-    }
-
-
-    function formatNoticeDate(
-        timestampValue,
-        updatedAtValue
-    ) {
-
-        const source =
-            timestampValue ||
-            updatedAtValue;
-
-
-        if (!source) {
+        if (!value) {
             return "Just now";
         }
 
@@ -1985,21 +1803,22 @@ function initAdminNoticeModule() {
 
 
         if (
-            typeof source.toDate ===
+            typeof value.toDate ===
             "function"
         ) {
 
             date =
-                source.toDate();
+                value.toDate();
 
         } else if (
-            typeof source.seconds ===
+            typeof value.seconds ===
             "number"
         ) {
 
             date =
                 new Date(
-                    source.seconds * 1000
+                    value.seconds *
+                    1000
                 );
 
         }
@@ -2042,19 +1861,25 @@ function initAdminNoticeModule() {
 
     async function saveNotice() {
 
+        if (saving) {
+            return;
+        }
+
+
         const title =
             titleInput.value.trim();
+
 
         const message =
             messageInput.value.trim();
 
 
-        clearNoticeMessages();
+        clearMessages();
 
 
         if (!title) {
 
-            showNoticeError(
+            showError(
                 "Please enter a notice title."
             );
 
@@ -2067,7 +1892,7 @@ function initAdminNoticeModule() {
 
         if (!message) {
 
-            showNoticeError(
+            showError(
                 "Please enter a notice message."
             );
 
@@ -2078,25 +1903,21 @@ function initAdminNoticeModule() {
         }
 
 
-        if (isNoticeSaving) {
-            return;
-        }
-
-
-        isNoticeSaving =
+        saving =
             true;
 
 
-        updateSaveButtonState();
+        saveButton.disabled =
+            true;
 
 
         try {
 
-            if (currentNoticeEditId) {
+            if (editingNoticeId) {
 
-                await noticesRef
+                await noticeCollection
                     .doc(
-                        currentNoticeEditId
+                        editingNoticeId
                     )
                     .update({
 
@@ -2114,37 +1935,38 @@ function initAdminNoticeModule() {
                     });
 
 
-                showNoticeSuccess(
+                showSuccess(
                     "Notice updated successfully."
                 );
 
             } else {
 
-                await noticesRef.add({
+                await noticeCollection
+                    .add({
 
-                    title:
-                        title,
+                        title:
+                            title,
 
-                    message:
-                        message,
+                        message:
+                            message,
 
-                    createdAt:
-                        firebase.firestore
-                            .FieldValue
-                            .serverTimestamp(),
+                        createdAt:
+                            firebase.firestore
+                                .FieldValue
+                                .serverTimestamp(),
 
-                    updatedAt:
-                        firebase.firestore
-                            .FieldValue
-                            .serverTimestamp(),
+                        updatedAt:
+                            firebase.firestore
+                                .FieldValue
+                                .serverTimestamp(),
 
-                    createdBy:
-                        session.libraryId
+                        createdBy:
+                            session.libraryId
 
-                });
+                    });
 
 
-                showNoticeSuccess(
+                showSuccess(
                     "Notice saved successfully."
                 );
 
@@ -2152,11 +1974,7 @@ function initAdminNoticeModule() {
 
 
             setTimeout(
-                () => {
-
-                    closeModal();
-
-                },
+                closeModal,
                 450
             );
 
@@ -2164,23 +1982,22 @@ function initAdminNoticeModule() {
         } catch (error) {
 
             console.error(
-                "[Notice Save Error]",
+                "[LibManage Notice Save Error]",
                 error
             );
 
 
-            showNoticeError(
-                currentNoticeEditId
-                    ? "Failed to update notice. Please try again."
-                    : "Failed to save notice. Please try again."
+            showError(
+                "Unable to save notice. Please try again."
             );
 
 
-            isNoticeSaving =
+            saving =
                 false;
 
 
-            updateSaveButtonState();
+            saveButton.disabled =
+                false;
 
         }
 
@@ -2196,36 +2013,35 @@ function initAdminNoticeModule() {
         }
 
 
-        const confirmed =
-            window.confirm(
+        if (
+            !window.confirm(
                 "Are you sure you want to delete this notice?"
-            );
+            )
+        ) {
 
-
-        if (!confirmed) {
             return;
+
         }
 
 
         try {
 
-            await noticesRef
+            await noticeCollection
                 .doc(
                     noticeId
                 )
                 .delete();
 
-
         } catch (error) {
 
             console.error(
-                "[Notice Delete Error]",
+                "[LibManage Notice Delete Error]",
                 error
             );
 
 
             alert(
-                "Failed to delete notice. Please try again."
+                "Unable to delete notice."
             );
 
         }
@@ -2234,16 +2050,16 @@ function initAdminNoticeModule() {
 
 
     function renderNotices(
-        noticeDocs
+        documents
     ) {
 
-        if (
-            !noticeDocs ||
-            !noticeDocs.length
-        ) {
+        noticeMap =
+            {};
 
-            noticeDataMap =
-                {};
+
+        if (
+            !documents.length
+        ) {
 
             noticeContainer.innerHTML = `
                 <div class="notice-empty-state">
@@ -2256,48 +2072,21 @@ function initAdminNoticeModule() {
         }
 
 
-        noticeDataMap =
-            {};
-
-
         let html =
             "";
 
 
-        noticeDocs.forEach(
+        documents.forEach(
             (doc) => {
 
-                const notice =
-                    doc.data || {};
+                const data =
+                    doc.data();
 
 
-                noticeDataMap[
+                noticeMap[
                     doc.id
                 ] =
-                    notice;
-
-
-                const safeTitle =
-                    escapeHtml(
-                        notice.title ||
-                        "Untitled Notice"
-                    );
-
-
-                const safeMessage =
-                    escapeHtml(
-                        notice.message ||
-                        ""
-                    );
-
-
-                const safeDate =
-                    escapeHtml(
-                        formatNoticeDate(
-                            notice.createdAt,
-                            notice.updatedAt
-                        )
-                    );
+                    data;
 
 
                 html += `
@@ -2309,20 +2098,34 @@ function initAdminNoticeModule() {
                         <div class="notice-card-header">
 
                             <h3 class="notice-card-title">
-                                ${safeTitle}
+                                ${escapeHtml(
+                                    data.title ||
+                                    "Untitled Notice"
+                                )}
                             </h3>
 
                         </div>
 
+
                         <p class="notice-card-message">
-                            ${safeMessage}
+                            ${escapeHtml(
+                                data.message ||
+                                ""
+                            )}
                         </p>
+
 
                         <div class="notice-card-footer">
 
                             <span class="notice-card-date">
-                                ${safeDate}
+                                ${escapeHtml(
+                                    formatDate(
+                                        data.createdAt ||
+                                        data.updatedAt
+                                    )
+                                )}
                             </span>
+
 
                             <div class="notice-card-actions">
 
@@ -2333,6 +2136,7 @@ function initAdminNoticeModule() {
                                 >
                                     Edit
                                 </button>
+
 
                                 <button
                                     type="button"
@@ -2359,7 +2163,7 @@ function initAdminNoticeModule() {
     }
 
 
-    addNoticeButton.addEventListener(
+    addButton.addEventListener(
         "click",
         () => {
 
@@ -2371,7 +2175,7 @@ function initAdminNoticeModule() {
     );
 
 
-    closeModalButton.addEventListener(
+    closeButton.addEventListener(
         "click",
         closeModal
     );
@@ -2383,13 +2187,13 @@ function initAdminNoticeModule() {
     );
 
 
-    modalOverlay.addEventListener(
+    modal.addEventListener(
         "click",
         (event) => {
 
             if (
                 event.target ===
-                modalOverlay
+                modal
             ) {
 
                 closeModal();
@@ -2408,13 +2212,13 @@ function initAdminNoticeModule() {
 
     titleInput.addEventListener(
         "input",
-        clearNoticeMessages
+        clearMessages
     );
 
 
     messageInput.addEventListener(
         "input",
-        clearNoticeMessages
+        clearMessages
     );
 
 
@@ -2422,17 +2226,17 @@ function initAdminNoticeModule() {
         "click",
         (event) => {
 
-            const editButton =
+            const edit =
                 event.target.closest(
                     "[data-notice-edit]"
                 );
 
 
-            if (editButton) {
+            if (edit) {
 
                 openModal(
                     "edit",
-                    editButton.getAttribute(
+                    edit.getAttribute(
                         "data-notice-edit"
                     )
                 );
@@ -2442,16 +2246,16 @@ function initAdminNoticeModule() {
             }
 
 
-            const deleteButton =
+            const remove =
                 event.target.closest(
                     "[data-notice-delete]"
                 );
 
 
-            if (deleteButton) {
+            if (remove) {
 
                 deleteNotice(
-                    deleteButton.getAttribute(
+                    remove.getAttribute(
                         "data-notice-delete"
                     )
                 );
@@ -2473,35 +2277,36 @@ function initAdminNoticeModule() {
 
 
     adminNoticeRealtimeUnsubscribe =
-        noticesRef.onSnapshot(
+        noticeCollection.onSnapshot(
 
             (snapshot) => {
 
-                const noticeDocs =
-                    snapshot.docs.map(
-                        (doc) => ({
-
-                            id:
-                                doc.id,
-
-                            data:
-                                doc.data()
-
-                        })
-                    );
+                const docs =
+                    snapshot.docs.slice();
 
 
-                noticeDocs.sort(
+                docs.sort(
                     (a, b) => {
 
+                        const aData =
+                            a.data();
+
+
+                        const bData =
+                            b.data();
+
+
                         const aTime =
-                            getNoticeSortTime(
-                                a.data
+                            timestampToMillis(
+                                aData.createdAt ||
+                                aData.updatedAt
                             );
 
+
                         const bTime =
-                            getNoticeSortTime(
-                                b.data
+                            timestampToMillis(
+                                bData.createdAt ||
+                                bData.updatedAt
                             );
 
 
@@ -2535,7 +2340,7 @@ function initAdminNoticeModule() {
 
 
                 renderNotices(
-                    noticeDocs
+                    docs
                 );
 
             },
@@ -2544,7 +2349,7 @@ function initAdminNoticeModule() {
             (error) => {
 
                 console.error(
-                    "[Notice Realtime Listener Error]",
+                    "[LibManage Notice Listener Error]",
                     error
                 );
 
@@ -2563,44 +2368,16 @@ function initAdminNoticeModule() {
 
 
 /* ==========================================================================
-   17. DOM INITIALIZATION
+   19. DOM READY
    ========================================================================== */
 
 document.addEventListener(
     "DOMContentLoaded",
     () => {
 
-        /*
-         * Gateway login forms.
-         */
-
         bindGatewayAuthPipelines();
 
-
-        /*
-         * Navbar library name.
-         */
-
         initializeLibraryNavigation();
-
-
-        /*
-         * Do NOT automatically force page redirects here.
-         *
-         * Individual page JS files will call:
-         *
-         *     requireAdminSession()
-         *     requireStudentSession()
-         *     requireManagerSession()
-         *
-         * This prevents one common core file from breaking another page.
-         */
-
-
-        /*
-         * Notice module only initializes when its required
-         * elements exist.
-         */
 
         initAdminNoticeModule();
 
@@ -2609,47 +2386,65 @@ document.addEventListener(
 
 
 /* ==========================================================================
-   18. GLOBAL DEBUG / VERSION INFORMATION
+   20. GLOBAL CORE OBJECT
    ========================================================================== */
 
-window.LibManageCore =
-    Object.freeze({
+window.LibManageCore = {
 
-        version:
-            LIBMANAGE_SCHEMA_VERSION,
+    version:
+        LIBMANAGE_SCHEMA_VERSION,
 
-        namespace:
-            LIBMANAGE_ROOT_COLLECTION,
+    namespace:
+        LIBMANAGE_ROOT,
 
-        session:
-            getLibManageSession,
+    session:
+        getCurrentSession,
 
-        clearSession:
-            clearLibManageSession,
+    clearSession:
+        clearLibManageSession,
 
-        requireAdmin:
-            requireAdminSession,
+    library:
+        libraryRef,
 
-        requireStudent:
-            requireStudentSession,
+    students:
+        studentsRef,
 
-        requireManager:
-            requireManagerSession,
+    student:
+        studentRef,
 
-        validateLibrary:
-            validateLibraryAccess,
+    attendance:
+        attendanceRef,
 
-        studentLogin:
-            processStudentLogin,
+    notices:
+        noticesRef,
 
-        adminLogin:
-            processAdminLogin
+    seats:
+        seatConfigRef,
 
-    });
+    generalConfig:
+        generalConfigRef,
+
+    validateLibrary:
+        validateLibrary,
+
+    studentLogin:
+        studentLogin,
+
+    adminLogin:
+        adminLogin,
+
+    requireAdmin:
+        requireAdminSession,
+
+    requireStudent:
+        requireStudentSession,
+
+    requireManager:
+        requireManagerSession
+
+};
 
 
 console.log(
-    "[LibManage Core] Version " +
-    LIBMANAGE_SCHEMA_VERSION +
-    " loaded."
+    "[LibManage] Shared dashboard.js loaded successfully."
 );
