@@ -3,26 +3,26 @@
  * LIBCONTROL - MASTER MANAGER ENGINE
  * ==========================================================================
  *
- * IMPORTANT:
- * This module belongs ONLY to the new LibControl application.
+ * NEW APP ONLY
  *
- * It NEVER reads/writes the old LibManage collections.
+ * This file NEVER uses the old LibManage collection:
  *
- * NEW FIREBASE NAMESPACE:
+ *     saas_libraries
  *
- * libcontrol_apps
- * libcontrol_libraries
+ * LibControl uses its own namespace:
  *
- * Security Rules are intentionally NOT created here.
- * Firestore documents/collections are created automatically.
+ *     master_managers
+ *     libcontrol_apps
+ *     libcontrol_libraries
+ *
+ * Firestore Security Rules are NOT created from this file.
  * ==========================================================================
- */
 
 "use strict";
 
 
 /* ==========================================================================
-   FIREBASE CORE
+   FIREBASE INITIALIZATION
    ========================================================================== */
 
 let managerDB = null;
@@ -30,7 +30,7 @@ let managerDB = null;
 if (
     typeof firebase !== "undefined" &&
     firebase.apps &&
-    firebase.apps.length
+    firebase.apps.length > 0
 ) {
     managerDB = firebase.firestore();
 }
@@ -39,10 +39,13 @@ window.managerDB = managerDB;
 
 
 /* ==========================================================================
-   LIBCONTROL FIREBASE STRUCTURE
+   LIBCONTROL COLLECTION NAMES
    ========================================================================== */
 
-const LIBCONTROL_COLLECTIONS = {
+const LIBCONTROL = {
+
+    MASTER_MANAGERS:
+        "master_managers",
 
     APPS:
         "libcontrol_apps",
@@ -54,7 +57,7 @@ const LIBCONTROL_COLLECTIONS = {
 
 
 /* ==========================================================================
-   SESSION
+   SESSION HELPERS
    ========================================================================== */
 
 function getManagerUID() {
@@ -76,126 +79,7 @@ function getManagerEmail() {
 
 
 /* ==========================================================================
-   BASIC MANAGER SESSION VALIDATION
-   ========================================================================== */
-
-async function verifyMasterManager() {
-
-    if (!managerDB) {
-
-        throw new Error(
-            "Firebase database is not initialized."
-        );
-
-    }
-
-    const currentUser =
-        firebase.auth().currentUser;
-
-    const storedUID =
-        getManagerUID();
-
-    if (
-        !currentUser ||
-        !storedUID ||
-        currentUser.uid !== storedUID
-    ) {
-
-        localStorage.clear();
-        sessionStorage.clear();
-
-        window.location.href =
-            "manager-login.html";
-
-        return false;
-    }
-
-
-    /*
-     * IMPORTANT:
-     * The manager document must already exist.
-     *
-     * Login page NEVER creates this document automatically.
-     * Otherwise an unauthorized user could self-register
-     * as Master Manager.
-     */
-
-    const managerDoc =
-        await managerDB
-            .collection("master_managers")
-            .doc(currentUser.uid)
-            .get();
-
-
-    if (!managerDoc.exists) {
-
-        await firebase.auth().signOut();
-
-        localStorage.clear();
-        sessionStorage.clear();
-
-        alert(
-            "Master Manager authorization record not found."
-        );
-
-        window.location.href =
-            "manager-login.html";
-
-        return false;
-    }
-
-
-    const managerData =
-        managerDoc.data() || {};
-
-
-    if (
-        managerData.role !==
-        "master_manager"
-    ) {
-
-        await firebase.auth().signOut();
-
-        localStorage.clear();
-        sessionStorage.clear();
-
-        alert(
-            "Access denied."
-        );
-
-        window.location.href =
-            "manager-login.html";
-
-        return false;
-    }
-
-
-    if (
-        managerData.enabled === false
-    ) {
-
-        await firebase.auth().signOut();
-
-        localStorage.clear();
-        sessionStorage.clear();
-
-        alert(
-            "Master Manager access is disabled."
-        );
-
-        window.location.href =
-            "manager-login.html";
-
-        return false;
-    }
-
-
-    return true;
-}
-
-
-/* ==========================================================================
-   UTILITY
+   TEXT SECURITY HELPERS
    ========================================================================== */
 
 function safeText(value) {
@@ -234,8 +118,7 @@ function generateLibraryID() {
     const characters =
         "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-    let result =
-        "LIB-";
+    let id = "LIB-";
 
     for (
         let i = 0;
@@ -243,7 +126,7 @@ function generateLibraryID() {
         i++
     ) {
 
-        result +=
+        id +=
             characters[
                 Math.floor(
                     Math.random() *
@@ -253,27 +136,175 @@ function generateLibraryID() {
 
     }
 
-    return result;
-}
-
-
-function generateAppID() {
-
-    return (
-        "LC-" +
-        Date.now().toString(36).toUpperCase() +
-        "-" +
-        Math.random()
-            .toString(36)
-            .substring(2, 7)
-            .toUpperCase()
-    );
+    return id;
 
 }
 
 
 /* ==========================================================================
-   AUTOMATIC APP REGISTRY
+   FIND ELEMENT HELPER
+   ========================================================================== */
+
+function findFirstElement(selectors) {
+
+    for (
+        const selector of selectors
+    ) {
+
+        const element =
+            document.querySelector(
+                selector
+            );
+
+        if (element) {
+
+            return element;
+
+        }
+
+    }
+
+    return null;
+
+}
+
+
+/* ==========================================================================
+   MASTER MANAGER AUTHORIZATION
+   ========================================================================== */
+
+async function verifyMasterManager() {
+
+    if (!managerDB) {
+
+        throw new Error(
+            "Firebase Firestore is not initialized."
+        );
+
+    }
+
+
+    const currentUser =
+        firebase.auth().currentUser;
+
+
+    const sessionUID =
+        getManagerUID();
+
+
+    if (
+        !currentUser ||
+        !sessionUID ||
+        currentUser.uid !== sessionUID
+    ) {
+
+        localStorage.clear();
+        sessionStorage.clear();
+
+        window.location.href =
+            "manager-login.html";
+
+        return false;
+
+    }
+
+
+    /*
+     * IMPORTANT:
+     *
+     * The authorization document must already exist.
+     *
+     * Manager login creates NOTHING here.
+     */
+
+    const managerSnapshot =
+        await managerDB
+            .collection(
+                LIBCONTROL.MASTER_MANAGERS
+            )
+            .doc(currentUser.uid)
+            .get();
+
+
+    if (!managerSnapshot.exists) {
+
+        await firebase
+            .auth()
+            .signOut();
+
+        localStorage.clear();
+        sessionStorage.clear();
+
+        alert(
+            "Access Denied: Master Manager authorization record not found."
+        );
+
+        window.location.href =
+            "manager-login.html";
+
+        return false;
+
+    }
+
+
+    const managerData =
+        managerSnapshot.data() || {};
+
+
+    if (
+        managerData.role !==
+        "master_manager"
+    ) {
+
+        await firebase
+            .auth()
+            .signOut();
+
+        localStorage.clear();
+        sessionStorage.clear();
+
+        alert(
+            "Access Denied: Invalid Master Manager role."
+        );
+
+        window.location.href =
+            "manager-login.html";
+
+        return false;
+
+    }
+
+
+    if (
+        managerData.enabled === false
+    ) {
+
+        await firebase
+            .auth()
+            .signOut();
+
+        localStorage.clear();
+        sessionStorage.clear();
+
+        alert(
+            "Access Denied: Master Manager account is disabled."
+        );
+
+        window.location.href =
+            "manager-login.html";
+
+        return false;
+
+    }
+
+
+    return true;
+
+}
+
+
+/* ==========================================================================
+   AUTOMATIC LIBCONTROL APP REGISTRY
    ========================================================================== */
 
 async function ensureLibControlApp() {
@@ -281,7 +312,7 @@ async function ensureLibControlApp() {
     if (!managerDB) {
 
         throw new Error(
-            "Firebase database unavailable."
+            "Firebase database is unavailable."
         );
 
     }
@@ -290,29 +321,31 @@ async function ensureLibControlApp() {
     const managerUID =
         getManagerUID();
 
+
     if (!managerUID) {
 
         throw new Error(
-            "Manager session UID missing."
+            "Manager session UID is missing."
         );
 
     }
 
 
     /*
-     * One permanent app identity for this website.
+     * Permanent application document.
+     *
+     * This automatically creates:
+     *
+     * libcontrol_apps
+     *     └── libcontrol
      */
-
-    const appDocumentID =
-        "libcontrol";
-
 
     const appRef =
         managerDB
             .collection(
-                LIBCONTROL_COLLECTIONS.APPS
+                LIBCONTROL.APPS
             )
-            .doc(appDocumentID);
+            .doc("libcontrol");
 
 
     const appSnapshot =
@@ -324,7 +357,7 @@ async function ensureLibControlApp() {
         await appRef.set({
 
             appId:
-                appDocumentID,
+                "libcontrol",
 
             appName:
                 "LibControl",
@@ -373,20 +406,23 @@ async function ensureLibControlApp() {
     }
 
 
-    return appDocumentID;
+    return "libcontrol";
+
 }
 
 
 /* ==========================================================================
-   AUTOMATIC LIBRARY CREATION
+   CREATE LIBRARY
    ========================================================================== */
 
-async function createLibraryRecord(libraryData) {
+async function createLibraryRecord(
+    libraryData
+) {
 
     if (!managerDB) {
 
         throw new Error(
-            "Firebase database unavailable."
+            "Firebase database is unavailable."
         );
 
     }
@@ -399,11 +435,15 @@ async function createLibraryRecord(libraryData) {
     if (!managerUID) {
 
         throw new Error(
-            "Manager session expired."
+            "Manager session has expired."
         );
 
     }
 
+
+    /*
+     * Make sure LibControl app registry exists.
+     */
 
     const appId =
         await ensureLibControlApp();
@@ -426,34 +466,44 @@ async function createLibraryRecord(libraryData) {
     const libraryRef =
         managerDB
             .collection(
-                LIBCONTROL_COLLECTIONS.LIBRARIES
+                LIBCONTROL.LIBRARIES
             )
             .doc(libraryId);
 
 
-    const existingLibrary =
+    const existingSnapshot =
         await libraryRef.get();
 
 
-    if (existingLibrary.exists) {
+    if (existingSnapshot.exists) {
 
         throw new Error(
-            "Library ID already exists. Please use another ID."
+            "Library ID already exists. Please use another Library ID."
+        );
+
+    }
+
+
+    const libraryName =
+        safeText(
+            libraryData.name
+        ).trim();
+
+
+    if (!libraryName) {
+
+        throw new Error(
+            "Library name is required."
         );
 
     }
 
 
     /*
-     * IMPORTANT:
+     * CREATE LIBRARY ROOT
      *
-     * The entire library is stored under the
-     * NEW LibControl namespace.
-     *
-     * Existing LibManage:
-     * saas_libraries
-     *
-     * is NEVER touched.
+     * libcontrol_libraries
+     *     └── LIB-XXXXXX
      */
 
     await libraryRef.set({
@@ -465,9 +515,7 @@ async function createLibraryRecord(libraryData) {
             appId,
 
         name:
-            safeText(
-                libraryData.name
-            ).trim(),
+            libraryName,
 
         ownerManagerUID:
             managerUID,
@@ -495,17 +543,10 @@ async function createLibraryRecord(libraryData) {
 
 
     /*
-     * Automatically create the library's
-     * structural documents.
-     *
-     * No rules are created here.
+     * AUTOMATIC SETTINGS STRUCTURE
      */
 
-    const libraryBase =
-        libraryRef;
-
-
-    await libraryBase
+    await libraryRef
         .collection("settings")
         .doc("general")
         .set({
@@ -535,7 +576,7 @@ async function createLibraryRecord(libraryData) {
         });
 
 
-    await libraryBase
+    await libraryRef
         .collection("settings")
         .doc("shifts")
         .set({
@@ -561,12 +602,10 @@ async function createLibraryRecord(libraryData) {
 
 
     /*
-     * Create structural placeholder documents.
-     * These make the required collections appear
-     * immediately in Firestore.
+     * AUTOMATIC METADATA
      */
 
-    await libraryBase
+    await libraryRef
         .collection("metadata")
         .doc("system")
         .set({
@@ -592,229 +631,20 @@ async function createLibraryRecord(libraryData) {
 
 
     return libraryId;
-}
-
-
-/* ==========================================================================
-   LIBRARY UPDATE
-   ========================================================================== */
-
-async function updateLibraryRecord(
-    libraryId,
-    updates
-) {
-
-    if (!managerDB) {
-
-        throw new Error(
-            "Firebase database unavailable."
-        );
-
-    }
-
-
-    const normalizedID =
-        normalizeLibraryID(
-            libraryId
-        );
-
-
-    if (!normalizedID) {
-
-        throw new Error(
-            "Invalid Library ID."
-        );
-
-    }
-
-
-    const libraryRef =
-        managerDB
-            .collection(
-                LIBCONTROL_COLLECTIONS.LIBRARIES
-            )
-            .doc(normalizedID);
-
-
-    const snapshot =
-        await libraryRef.get();
-
-
-    if (!snapshot.exists) {
-
-        throw new Error(
-            "Library not found."
-        );
-
-    }
-
-
-    const managerUID =
-        getManagerUID();
-
-
-    const existing =
-        snapshot.data() || {};
-
-
-    if (
-        existing.ownerManagerUID !==
-        managerUID
-    ) {
-
-        throw new Error(
-            "You are not authorized to modify this library."
-        );
-
-    }
-
-
-    const safeUpdates = {};
-
-
-    if (
-        Object.prototype.hasOwnProperty
-            .call(updates, "name")
-    ) {
-
-        safeUpdates.name =
-            safeText(
-                updates.name
-            ).trim();
-
-    }
-
-
-    if (
-        Object.prototype.hasOwnProperty
-            .call(updates, "enabled")
-    ) {
-
-        safeUpdates.enabled =
-            Boolean(
-                updates.enabled
-            );
-
-    }
-
-
-    if (
-        Object.prototype.hasOwnProperty
-            .call(updates, "status")
-    ) {
-
-        safeUpdates.status =
-            safeText(
-                updates.status
-            );
-
-    }
-
-
-    safeUpdates.updatedAt =
-        firebase.firestore
-            .FieldValue
-            .serverTimestamp();
-
-
-    await libraryRef.update(
-        safeUpdates
-    );
 
 }
 
 
 /* ==========================================================================
-   LIBRARY DELETE
-   ========================================================================== */
-
-async function deleteLibraryRecord(
-    libraryId
-) {
-
-    if (!managerDB) {
-
-        throw new Error(
-            "Firebase database unavailable."
-        );
-
-    }
-
-
-    const normalizedID =
-        normalizeLibraryID(
-            libraryId
-        );
-
-
-    if (!normalizedID) {
-
-        throw new Error(
-            "Invalid Library ID."
-        );
-
-    }
-
-
-    const libraryRef =
-        managerDB
-            .collection(
-                LIBCONTROL_COLLECTIONS.LIBRARIES
-            )
-            .doc(normalizedID);
-
-
-    const snapshot =
-        await libraryRef.get();
-
-
-    if (!snapshot.exists) {
-
-        throw new Error(
-            "Library not found."
-        );
-
-    }
-
-
-    const data =
-        snapshot.data() || {};
-
-
-    if (
-        data.ownerManagerUID !==
-        getManagerUID()
-    ) {
-
-        throw new Error(
-            "You are not authorized to delete this library."
-        );
-
-    }
-
-
-    /*
-     * Delete only the library root document.
-     *
-     * Child collections are intentionally NOT
-     * recursively deleted from the browser.
-     *
-     * This prevents accidental mass deletion.
-     */
-
-    await libraryRef.delete();
-
-}
-
-
-/* ==========================================================================
-   LOAD LIBRARIES
+   LOAD MANAGER LIBRARIES
    ========================================================================== */
 
 async function loadManagerLibraries() {
 
     if (!managerDB) {
+
         return [];
+
     }
 
 
@@ -823,14 +653,16 @@ async function loadManagerLibraries() {
 
 
     if (!managerUID) {
+
         return [];
+
     }
 
 
     const snapshot =
         await managerDB
             .collection(
-                LIBCONTROL_COLLECTIONS.LIBRARIES
+                LIBCONTROL.LIBRARIES
             )
             .where(
                 "ownerManagerUID",
@@ -841,7 +673,7 @@ async function loadManagerLibraries() {
 
 
     return snapshot.docs.map(
-        (doc) => ({
+        doc => ({
 
             id:
                 doc.id,
@@ -863,48 +695,64 @@ function renderManagerLibraries(
 ) {
 
     const tableBody =
-        document.getElementById(
-            "manager-library-table-body"
-        ) ||
-        document.getElementById(
-            "library-table-body"
-        ) ||
-        document.getElementById(
-            "libraries-table-body"
-        );
+        findFirstElement([
+
+            "#manager-library-table-body",
+
+            "#library-table-body",
+
+            "#libraries-table-body",
+
+            "#mgr-library-table-body"
+
+        ]);
 
 
     if (!tableBody) {
+
         return;
+
     }
 
 
     if (!libraries.length) {
 
         tableBody.innerHTML = `
+
             <tr>
+
                 <td
                     colspan="10"
                     class="table-empty"
                 >
-                    No LibControl libraries created yet.
+                    No libraries available.
                 </td>
+
             </tr>
+
         `;
 
         return;
+
     }
 
 
     tableBody.innerHTML =
         libraries
             .map(
-                (library) => {
+                library => {
+
+                    const libraryID =
+                        library.libraryId ||
+                        library.id;
+
+                    const libraryName =
+                        library.name ||
+                        "Unnamed Library";
 
                     const status =
                         library.status ||
                         "pending";
-
 
                     const enabled =
                         library.enabled !== false;
@@ -914,8 +762,7 @@ function renderManagerLibraries(
 
                         <tr
                             data-library-id="${escapeHTML(
-                                library.libraryId ||
-                                library.id
+                                libraryID
                             )}"
                         >
 
@@ -925,15 +772,13 @@ function renderManagerLibraries(
 
                                     <strong>
                                         ${escapeHTML(
-                                            library.name ||
-                                            "Unnamed Library"
+                                            libraryName
                                         )}
                                     </strong>
 
                                     <span>
                                         ${escapeHTML(
-                                            library.libraryId ||
-                                            library.id
+                                            libraryID
                                         )}
                                     </span>
 
@@ -966,11 +811,13 @@ function renderManagerLibraries(
                                             : "status-disabled"
                                     }"
                                 >
+
                                     ${
                                         enabled
                                             ? "Active"
                                             : "Disabled"
                                     }
+
                                 </span>
 
                             </td>
@@ -987,12 +834,9 @@ function renderManagerLibraries(
                                     <button
                                         type="button"
                                         class="btn-ops-toggle btn-edit"
-                                        data-library-edit="${
-                                            escapeHTML(
-                                                library.libraryId ||
-                                                library.id
-                                            )
-                                        }"
+                                        data-library-edit="${escapeHTML(
+                                            libraryID
+                                        )}"
                                     >
                                         Edit
                                     </button>
@@ -1005,30 +849,26 @@ function renderManagerLibraries(
                                                 ? "btn-disable"
                                                 : "btn-enable"
                                         }"
-                                        data-library-toggle="${
-                                            escapeHTML(
-                                                library.libraryId ||
-                                                library.id
-                                            )
-                                        }"
+                                        data-library-toggle="${escapeHTML(
+                                            libraryID
+                                        )}"
                                     >
+
                                         ${
                                             enabled
                                                 ? "Disable"
                                                 : "Enable"
                                         }
+
                                     </button>
 
 
                                     <button
                                         type="button"
                                         class="btn-ops-toggle btn-delete"
-                                        data-library-delete="${
-                                            escapeHTML(
-                                                library.libraryId ||
-                                                library.id
-                                            )
-                                        }"
+                                        data-library-delete="${escapeHTML(
+                                            libraryID
+                                        )}"
                                     >
                                         Delete
                                     </button>
@@ -1049,7 +889,7 @@ function renderManagerLibraries(
 
 
 /* ==========================================================================
-   REFRESH LIBRARY TABLE
+   REFRESH LIBRARIES
    ========================================================================== */
 
 async function refreshManagerLibraries() {
@@ -1059,9 +899,11 @@ async function refreshManagerLibraries() {
         const libraries =
             await loadManagerLibraries();
 
+
         renderManagerLibraries(
             libraries
         );
+
 
         return libraries;
 
@@ -1069,41 +911,15 @@ async function refreshManagerLibraries() {
     catch (error) {
 
         console.error(
-            "[LibControl Manager Load Error]",
+            "[LibControl Manager Libraries Error]",
             error
         );
+
 
         return [];
 
     }
 
-}
-
-
-/* ==========================================================================
-   FORM FIELD HELPERS
-   ========================================================================== */
-
-function findFirstElement(
-    selectors
-) {
-
-    for (
-        const selector of selectors
-    ) {
-
-        const element =
-            document.querySelector(
-                selector
-            );
-
-        if (element) {
-            return element;
-        }
-
-    }
-
-    return null;
 }
 
 
@@ -1128,7 +944,13 @@ function initializeLibraryCreationForm() {
 
 
     if (!form) {
+
+        console.warn(
+            "[LibControl] Library creation form not found."
+        );
+
         return;
+
     }
 
 
@@ -1136,7 +958,9 @@ function initializeLibraryCreationForm() {
         form.dataset.managerBound ===
         "true"
     ) {
+
         return;
+
     }
 
 
@@ -1146,7 +970,7 @@ function initializeLibraryCreationForm() {
 
     form.addEventListener(
         "submit",
-        async (event) => {
+        async event => {
 
             event.preventDefault();
 
@@ -1181,7 +1005,7 @@ function initializeLibraryCreationForm() {
                 ]);
 
 
-            const name =
+            const libraryName =
                 nameInput
                     ? nameInput.value.trim()
                     : "";
@@ -1193,13 +1017,14 @@ function initializeLibraryCreationForm() {
                     : "";
 
 
-            if (!name) {
+            if (!libraryName) {
 
                 alert(
                     "Please enter Library Name."
                 );
 
                 return;
+
             }
 
 
@@ -1226,7 +1051,7 @@ function initializeLibraryCreationForm() {
                     await createLibraryRecord({
 
                         name:
-                            name,
+                            libraryName,
 
                         libraryId:
                             requestedID
@@ -1252,6 +1077,7 @@ function initializeLibraryCreationForm() {
                     "[LibControl Library Creation Error]",
                     error
                 );
+
 
                 alert(
                     error.message ||
@@ -1280,43 +1106,269 @@ function initializeLibraryCreationForm() {
 
 
 /* ==========================================================================
+   UPDATE LIBRARY
+   ========================================================================== */
+
+async function updateLibraryRecord(
+    libraryId,
+    updates
+) {
+
+    if (!managerDB) {
+
+        throw new Error(
+            "Firebase database is unavailable."
+        );
+
+    }
+
+
+    const normalizedID =
+        normalizeLibraryID(
+            libraryId
+        );
+
+
+    if (!normalizedID) {
+
+        throw new Error(
+            "Invalid Library ID."
+        );
+
+    }
+
+
+    const libraryRef =
+        managerDB
+            .collection(
+                LIBCONTROL.LIBRARIES
+            )
+            .doc(normalizedID);
+
+
+    const snapshot =
+        await libraryRef.get();
+
+
+    if (!snapshot.exists) {
+
+        throw new Error(
+            "Library not found."
+        );
+
+    }
+
+
+    const libraryData =
+        snapshot.data() || {};
+
+
+    if (
+        libraryData.ownerManagerUID !==
+        getManagerUID()
+    ) {
+
+        throw new Error(
+            "You are not authorized to modify this library."
+        );
+
+    }
+
+
+    const updateData = {};
+
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            updates,
+            "name"
+        )
+    ) {
+
+        const name =
+            safeText(
+                updates.name
+            ).trim();
+
+
+        if (!name) {
+
+            throw new Error(
+                "Library name cannot be empty."
+            );
+
+        }
+
+
+        updateData.name =
+            name;
+
+    }
+
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            updates,
+            "enabled"
+        )
+    ) {
+
+        updateData.enabled =
+            Boolean(
+                updates.enabled
+            );
+
+    }
+
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            updates,
+            "status"
+        )
+    ) {
+
+        updateData.status =
+            safeText(
+                updates.status
+            );
+
+    }
+
+
+    updateData.updatedAt =
+        firebase.firestore
+            .FieldValue
+            .serverTimestamp();
+
+
+    await libraryRef.update(
+        updateData
+    );
+
+}
+
+
+/* ==========================================================================
+   DELETE LIBRARY ROOT
+   ========================================================================== */
+
+async function deleteLibraryRecord(
+    libraryId
+) {
+
+    if (!managerDB) {
+
+        throw new Error(
+            "Firebase database is unavailable."
+        );
+
+    }
+
+
+    const normalizedID =
+        normalizeLibraryID(
+            libraryId
+        );
+
+
+    const libraryRef =
+        managerDB
+            .collection(
+                LIBCONTROL.LIBRARIES
+            )
+            .doc(normalizedID);
+
+
+    const snapshot =
+        await libraryRef.get();
+
+
+    if (!snapshot.exists) {
+
+        throw new Error(
+            "Library not found."
+        );
+
+    }
+
+
+    const libraryData =
+        snapshot.data() || {};
+
+
+    if (
+        libraryData.ownerManagerUID !==
+        getManagerUID()
+    ) {
+
+        throw new Error(
+            "You are not authorized to delete this library."
+        );
+
+    }
+
+
+    /*
+     * Only root document is deleted.
+     *
+     * Browser-side recursive deletion is intentionally
+     * avoided to prevent accidental mass deletion.
+     */
+
+    await libraryRef.delete();
+
+}
+
+
+/* ==========================================================================
    LIBRARY TABLE ACTIONS
    ========================================================================== */
 
 function initializeLibraryActions() {
 
-    const table =
+    const tableBody =
         findFirstElement([
 
             "#manager-library-table-body",
 
             "#library-table-body",
 
-            "#libraries-table-body"
+            "#libraries-table-body",
+
+            "#mgr-library-table-body"
 
         ]);
 
 
-    if (!table) {
+    if (!tableBody) {
+
         return;
+
     }
 
 
     if (
-        table.dataset.managerActionsBound ===
+        tableBody.dataset.managerActionsBound ===
         "true"
     ) {
+
         return;
+
     }
 
 
-    table.dataset.managerActionsBound =
+    tableBody.dataset.managerActionsBound =
         "true";
 
 
-    table.addEventListener(
+    tableBody.addEventListener(
         "click",
-        async (event) => {
+        async event => {
+
+            /* --------------------------------------------------------------
+               EDIT
+            -------------------------------------------------------------- */
 
             const editButton =
                 event.target.closest(
@@ -1344,17 +1396,21 @@ function initializeLibraryActions() {
                 ) {
 
                     return;
+
                 }
 
 
                 try {
 
                     await updateLibraryRecord(
+
                         libraryId,
+
                         {
                             name:
                                 newName.trim()
                         }
+
                     );
 
 
@@ -1363,7 +1419,11 @@ function initializeLibraryActions() {
                 }
                 catch (error) {
 
-                    console.error(error);
+                    console.error(
+                        "[LibControl Edit Error]",
+                        error
+                    );
+
 
                     alert(
                         error.message ||
@@ -1372,9 +1432,15 @@ function initializeLibraryActions() {
 
                 }
 
+
                 return;
+
             }
 
+
+            /* --------------------------------------------------------------
+               ENABLE / DISABLE
+            -------------------------------------------------------------- */
 
             const toggleButton =
                 event.target.closest(
@@ -1395,8 +1461,7 @@ function initializeLibraryActions() {
                     const libraryRef =
                         managerDB
                             .collection(
-                                LIBCONTROL_COLLECTIONS
-                                    .LIBRARIES
+                                LIBCONTROL.LIBRARIES
                             )
                             .doc(libraryId);
 
@@ -1414,12 +1479,12 @@ function initializeLibraryActions() {
                     }
 
 
-                    const data =
+                    const libraryData =
                         snapshot.data() || {};
 
 
                     if (
-                        data.ownerManagerUID !==
+                        libraryData.ownerManagerUID !==
                         getManagerUID()
                     ) {
 
@@ -1433,7 +1498,7 @@ function initializeLibraryActions() {
                     await libraryRef.update({
 
                         enabled:
-                            data.enabled === false,
+                            libraryData.enabled === false,
 
                         updatedAt:
                             firebase.firestore
@@ -1448,7 +1513,11 @@ function initializeLibraryActions() {
                 }
                 catch (error) {
 
-                    console.error(error);
+                    console.error(
+                        "[LibControl Toggle Error]",
+                        error
+                    );
+
 
                     alert(
                         error.message ||
@@ -1457,9 +1526,15 @@ function initializeLibraryActions() {
 
                 }
 
+
                 return;
+
             }
 
+
+            /* --------------------------------------------------------------
+               DELETE
+            -------------------------------------------------------------- */
 
             const deleteButton =
                 event.target.closest(
@@ -1477,12 +1552,14 @@ function initializeLibraryActions() {
 
                 const confirmed =
                     window.confirm(
-                        "Delete this library record?"
+                        "Are you sure you want to delete this library record?"
                     );
 
 
                 if (!confirmed) {
+
                     return;
+
                 }
 
 
@@ -1498,7 +1575,11 @@ function initializeLibraryActions() {
                 }
                 catch (error) {
 
-                    console.error(error);
+                    console.error(
+                        "[LibControl Delete Error]",
+                        error
+                    );
+
 
                     alert(
                         error.message ||
@@ -1516,98 +1597,130 @@ function initializeLibraryActions() {
 
 
 /* ==========================================================================
-   INITIALIZATION
+   LIBRARY SEARCH
    ========================================================================== */
 
-async function initializeManagerModule() {
+function initializeLibrarySearch() {
 
-    if (!managerDB) {
+    const searchInput =
+        findFirstElement([
 
-        console.error(
-            "[LibControl Manager] Firebase not available."
-        );
+            "#mgr-library-search",
+
+            "#library-search",
+
+            ".mgr-library-search-input"
+
+        ]);
+
+
+    if (!searchInput) {
 
         return;
+
     }
 
 
-    try {
+    if (
+        searchInput.dataset.searchBound ===
+        "true"
+    ) {
 
-        const authorized =
-            await verifyMasterManager();
+        return;
+
+    }
 
 
-        if (!authorized) {
-            return;
+    searchInput.dataset.searchBound =
+        "true";
+
+
+    searchInput.addEventListener(
+        "input",
+        async () => {
+
+            const query =
+                searchInput.value
+                    .trim()
+                    .toLowerCase();
+
+
+            const libraries =
+                await loadManagerLibraries();
+
+
+            const filtered =
+                !query
+                    ? libraries
+                    : libraries.filter(
+                        library => {
+
+                            const name =
+                                safeText(
+                                    library.name
+                                )
+                                    .toLowerCase();
+
+                            const id =
+                                safeText(
+                                    library.libraryId ||
+                                    library.id
+                                )
+                                    .toLowerCase();
+
+
+                            return (
+                                name.includes(query) ||
+                                id.includes(query)
+                            );
+
+                        }
+                    );
+
+
+            renderManagerLibraries(
+                filtered
+            );
+
         }
-
-
-        /*
-         * Automatically create the LibControl
-         * application registry document.
-         */
-
-        await ensureLibControlApp();
-
-
-        /*
-         * Load existing libraries.
-         */
-
-        await refreshManagerLibraries();
-
-
-        initializeLibraryCreationForm();
-
-        initializeLibraryActions();
-
-
-        console.log(
-            "[LibControl Manager] Master Manager initialized successfully."
-        );
-
-    }
-    catch (error) {
-
-        console.error(
-            "[LibControl Manager Initialization Error]",
-            error
-        );
-
-    }
+    );
 
 }
 
 
 /* ==========================================================================
-   LOGOUT
+   MANAGER LOGOUT
    ========================================================================== */
 
-function logoutMasterManager() {
+async function logoutMasterManager() {
 
-    if (
-        typeof firebase !==
-        "undefined"
-    ) {
+    try {
 
-        firebase
-            .auth()
-            .signOut()
-            .catch(
-                (error) => {
+        if (
+            typeof firebase !==
+            "undefined" &&
+            firebase.auth
+        ) {
 
-                    console.error(
-                        "[Manager Logout Error]",
-                        error
-                    );
+            await firebase
+                .auth()
+                .signOut();
 
-                }
-            );
+        }
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl Logout Error]",
+            error
+        );
 
     }
 
 
     localStorage.clear();
+
     sessionStorage.clear();
 
 
@@ -1619,16 +1732,18 @@ function logoutMasterManager() {
 
 document.addEventListener(
     "click",
-    (event) => {
+    event => {
 
         const logoutButton =
             event.target.closest(
-                "#manager-logout-btn, #mgr-logout-btn"
+                "#manager-logout-btn, #mgr-logout-btn, #admin-logout-btn"
             );
 
 
         if (!logoutButton) {
+
             return;
+
         }
 
 
@@ -1636,6 +1751,98 @@ document.addEventListener(
 
     }
 );
+
+
+/* ==========================================================================
+   INITIALIZE MANAGER PAGE
+   ========================================================================== */
+
+async function initializeManagerModule() {
+
+    if (!managerDB) {
+
+        console.error(
+            "[LibControl Manager] Firebase SDK/Firestore not available."
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        /*
+         * First verify Master Manager.
+         */
+
+        const authorized =
+            await verifyMasterManager();
+
+
+        if (!authorized) {
+
+            return;
+
+        }
+
+
+        /*
+         * Automatically create:
+         *
+         * libcontrol_apps
+         *     └── libcontrol
+         */
+
+        await ensureLibControlApp();
+
+
+        /*
+         * Load libraries.
+         */
+
+        await refreshManagerLibraries();
+
+
+        /*
+         * Bind dashboard controls.
+         */
+
+        initializeLibraryCreationForm();
+
+        initializeLibraryActions();
+
+        initializeLibrarySearch();
+
+
+        console.log(
+            "[LibControl Manager] Initialization successful."
+        );
+
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl Manager Initialization Error]",
+            error
+        );
+
+
+        if (
+            error.code ===
+            "permission-denied"
+        ) {
+
+            alert(
+                "Firestore permission denied. Security Rules need to authorize the Master Manager."
+            );
+
+        }
+
+    }
+
+}
 
 
 /* ==========================================================================
