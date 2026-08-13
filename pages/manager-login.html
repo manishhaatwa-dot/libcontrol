@@ -10,10 +10,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>LibControl - Master Owner Access</title>
-
-
-    <!-- Google Fonts -->
+    <title>Master Owner Access - LibControl</title>
 
     <link
         rel="preconnect"
@@ -31,9 +28,6 @@
         rel="stylesheet"
     >
 
-
-    <!-- Global CSS -->
-
     <link
         rel="stylesheet"
         href="../css/style.css"
@@ -41,113 +35,55 @@
 
 </head>
 
-
 <body>
-
-
-<script>
-
-    /*
-     * UI convenience only.
-     *
-     * Real manager authorization will NOT depend on
-     * localStorage. Firebase Authentication + server-side
-     * authorization + Firestore Security Rules will be
-     * the actual security boundary.
-     */
-
-    if (
-        localStorage.getItem("libcontrol_manager_session") === "true"
-    ) {
-
-        window.location.replace(
-            "manager-dashboard.html"
-        );
-
-    }
-
-</script>
-
 
 <div
     class="gateway-container"
     style="margin:15vh auto;"
 >
 
-
-    <!-- =====================================================
-         HEADER
-         ===================================================== -->
-
     <header class="gateway-header">
 
-        <h1>
-            LibControl
-        </h1>
+        <h1>Owner Control Room</h1>
 
         <p>
-            Master Owner Control Room
+            SaaS Network Master Entry Terminal
         </p>
 
     </header>
 
 
-    <!-- =====================================================
-         LOGIN CARD
-         ===================================================== -->
-
     <div class="gateway-card glass">
 
-
         <div class="auth-panel active">
-
 
             <h2>
                 Secure Master Login
             </h2>
 
-
             <p class="panel-subtitle">
-
-                Authorized system owner credentials are required
-                to access the LibControl master console.
-
+                Sign in with your authorized master manager account.
             </p>
 
 
-            <form
-                id="manager-standalone-login-form"
-                autocomplete="on"
-            >
-
-
-                <!-- =================================================
-                     EMAIL
-                     ================================================= -->
+            <form id="manager-standalone-login-form">
 
                 <div class="form-group">
 
                     <label for="manager-email-input">
-                        Manager Email Address
+                        Manager Gmail Address
                     </label>
-
 
                     <input
                         type="email"
                         id="manager-email-input"
-                        name="email"
-                        placeholder="manager@example.com"
+                        placeholder="manager@gmail.com"
                         autocomplete="username"
-                        spellcheck="false"
                         required
                     >
 
                 </div>
 
-
-                <!-- =================================================
-                     PASSWORD
-                     ================================================= -->
 
                 <div class="form-group">
 
@@ -155,128 +91,35 @@
                         Master Password
                     </label>
 
-
                     <input
                         type="password"
                         id="manager-password-input"
-                        name="password"
-                        placeholder="Enter master password"
+                        placeholder="••••••••"
                         autocomplete="current-password"
-                        minlength="8"
                         required
                     >
 
                 </div>
 
 
-                <!-- =================================================
-                     LOGIN BUTTON
-                     ================================================= -->
-
                 <button
                     type="submit"
                     class="btn-gateway-submit btn-manager-override"
-                    id="manager-login-submit"
+                    id="manager-login-btn"
                 >
                     Execute Authorization
                 </button>
 
-
             </form>
-
-
-            <!-- =================================================
-                 LOGIN STATUS
-                 ================================================= -->
-
-            <div
-                id="manager-login-status"
-                class="gateway-login-status"
-                aria-live="polite"
-                style="
-                    display:none;
-                    margin-top:1rem;
-                    padding:0.75rem;
-                    border-radius:8px;
-                    font-size:0.85rem;
-                    text-align:center;
-                "
-            ></div>
-
 
         </div>
 
-
     </div>
-
-
-    <!-- =====================================================
-         SECURITY INFORMATION
-         ===================================================== -->
-
-    <div
-        class="gateway-security-note"
-        style="
-            text-align:center;
-            margin-top:1rem;
-        "
-    >
-
-        <span
-            style="
-                display:block;
-                font-weight:600;
-            "
-        >
-            Protected System
-        </span>
-
-
-        <small
-            style="
-                color:var(--text-muted);
-            "
-        >
-            Access is restricted to authorized LibControl
-            master accounts.
-        </small>
-
-    </div>
-
 
 </div>
 
 
-<!-- =========================================================
-     FOOTER
-     ========================================================= -->
-
-<footer class="footer-panel">
-
-    <p>
-
-        &copy; 2026 LibControl Ecosystem.
-        All Rights Reserved.
-        |
-        Powered by
-
-        <a
-            href="https://opnora.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="footer-brand-link"
-        >
-            Opnora
-        </a>
-
-    </p>
-
-</footer>
-
-
-<!-- =========================================================
-     FIREBASE SDK
-     ========================================================= -->
+<!-- Firebase -->
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 
@@ -285,19 +128,329 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 
-<!-- =========================================================
-     LIBCONTROL CORE
-     ========================================================= -->
+<!-- Shared Core -->
 
 <script src="../js/dashboard.js"></script>
 
 
-<!-- =========================================================
-     MANAGER AUTH LOGIC
-     ========================================================= -->
+<script>
 
-<script src="../js/manager-login.js"></script>
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
 
+        const loginForm =
+            document.getElementById(
+                "manager-standalone-login-form"
+            );
+
+        const emailInput =
+            document.getElementById(
+                "manager-email-input"
+            );
+
+        const passwordInput =
+            document.getElementById(
+                "manager-password-input"
+            );
+
+        const loginButton =
+            document.getElementById(
+                "manager-login-btn"
+            );
+
+
+        if (!loginForm) {
+            return;
+        }
+
+
+        loginForm.addEventListener(
+            "submit",
+            async (event) => {
+
+                event.preventDefault();
+
+
+                const email =
+                    emailInput.value
+                        .trim()
+                        .toLowerCase();
+
+                const password =
+                    passwordInput.value;
+
+
+                if (!email || !password) {
+
+                    alert(
+                        "Please enter Manager Email and Password."
+                    );
+
+                    return;
+                }
+
+
+                if (
+                    typeof firebase ===
+                    "undefined"
+                ) {
+
+                    alert(
+                        "Security Engine Offline. Please refresh the page."
+                    );
+
+                    return;
+                }
+
+
+                if (
+                    !firebase.apps.length
+                ) {
+
+                    alert(
+                        "Firebase security service is not initialized."
+                    );
+
+                    return;
+                }
+
+
+                const db =
+                    window.db ||
+                    firebase.firestore();
+
+
+                loginButton.disabled = true;
+
+                loginButton.textContent =
+                    "Authorizing...";
+
+
+                try {
+
+                    /*
+                     * STEP 1
+                     * Firebase Authentication
+                     */
+
+                    const credential =
+                        await firebase
+                            .auth()
+                            .signInWithEmailAndPassword(
+                                email,
+                                password
+                            );
+
+
+                    const user =
+                        credential.user;
+
+
+                    if (!user) {
+
+                        throw new Error(
+                            "Manager authentication failed."
+                        );
+
+                    }
+
+
+                    /*
+                     * STEP 2
+                     * Master Manager Registry
+                     *
+                     * Document:
+                     *
+                     * master_managers/{firebase-auth-uid}
+                     */
+
+                    const managerDoc =
+                        await db
+                            .collection(
+                                "master_managers"
+                            )
+                            .doc(user.uid)
+                            .get();
+
+
+                    if (
+                        !managerDoc.exists
+                    ) {
+
+                        await firebase
+                            .auth()
+                            .signOut();
+
+
+                        alert(
+                            "Access Denied: This Firebase account is not registered as a Master Manager."
+                        );
+
+                        return;
+                    }
+
+
+                    const managerData =
+                        managerDoc.data() || {};
+
+
+                    /*
+                     * STEP 3
+                     * Authorization State
+                     */
+
+                    if (
+                        managerData.enabled ===
+                        false
+                    ) {
+
+                        await firebase
+                            .auth()
+                            .signOut();
+
+
+                        alert(
+                            "Access Suspended: Master Manager access is disabled."
+                        );
+
+                        return;
+                    }
+
+
+                    if (
+                        managerData.role !==
+                        "master_manager"
+                    ) {
+
+                        await firebase
+                            .auth()
+                            .signOut();
+
+
+                        alert(
+                            "Access Denied: Invalid Manager authorization role."
+                        );
+
+                        return;
+                    }
+
+
+                    /*
+                     * STEP 4
+                     * Create Manager Session
+                     */
+
+                    localStorage.setItem(
+                        "session_role",
+                        "manager"
+                    );
+
+                    localStorage.setItem(
+                        "session_manager_uid",
+                        user.uid
+                    );
+
+                    localStorage.setItem(
+                        "session_manager_email",
+                        user.email || email
+                    );
+
+
+                    /*
+                     * Multiple SaaS / Library
+                     * management will use the
+                     * Manager UID as the master
+                     * identity.
+                     */
+
+                    localStorage.setItem(
+                        "manager_authorized",
+                        "true"
+                    );
+
+
+                    /*
+                     * STEP 5
+                     * Open Master Dashboard
+                     */
+
+                    window.location.href =
+                        "manager.html";
+
+                }
+
+                catch (error) {
+
+                    console.error(
+                        "[Master Manager Login Error]",
+                        error
+                    );
+
+
+                    let message =
+                        "Login failed. Please verify your credentials.";
+
+
+                    if (
+                        error.code ===
+                        "auth/invalid-credential"
+                    ) {
+
+                        message =
+                            "Invalid Manager Email or Password.";
+
+                    }
+                    else if (
+                        error.code ===
+                        "auth/user-not-found"
+                    ) {
+
+                        message =
+                            "Manager account was not found.";
+
+                    }
+                    else if (
+                        error.code ===
+                        "auth/wrong-password"
+                    ) {
+
+                        message =
+                            "Invalid Manager Password.";
+
+                    }
+                    else if (
+                        error.code ===
+                        "auth/too-many-requests"
+                    ) {
+
+                        message =
+                            "Too many login attempts. Please try again later.";
+
+                    }
+
+
+                    alert(message);
+
+                }
+
+                finally {
+
+                    loginButton.disabled =
+                        false;
+
+                    loginButton.textContent =
+                        "Execute Authorization";
+
+                }
+
+            }
+        );
+
+    }
+);
+
+</script>
 
 </body>
 
