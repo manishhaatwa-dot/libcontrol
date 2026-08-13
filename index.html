@@ -1,143 +1,396 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LibManage SaaS - Universal Gateway</title>
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>LibControl - Library Management System</title>
 
     <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
 
-    <!-- Base Styling -->
-    <link rel="stylesheet" href="css/style.css">
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <!-- LibControl Base CSS -->
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
+
 </head>
+
+
 <body>
+
+    <!-- =====================================================
+         LIBCONTROL UNIVERSAL GATEWAY
+         ===================================================== -->
 
     <div class="gateway-container">
 
-        <!-- Brand Header -->
+
+        <!-- =================================================
+             BRAND HEADER
+             ================================================= -->
+
         <header class="gateway-header">
-            <h1>?? LibManage SaaS</h1>
-            <p>Enterprise Multi-Library Network</p>
+
+            <h1>
+                LibControl
+            </h1>
+
+            <p>
+                Enterprise Multi-Library Management System
+            </p>
+
         </header>
 
-        <!-- Gateway Router Tabs -->
+
+        <!-- =================================================
+             ACCESS TABS
+             ================================================= -->
+
         <div class="gateway-tabs">
-            <button class="gateway-tab-btn active" id="tab-student">Student Access</button>
-            <button class="gateway-tab-btn" id="tab-admin">Library Admin</button>
+
+            <button
+                type="button"
+                class="gateway-tab-btn active"
+                id="tab-student"
+            >
+                Student Access
+            </button>
+
+
+            <button
+                type="button"
+                class="gateway-tab-btn"
+                id="tab-admin"
+            >
+                Library Admin
+            </button>
+
         </div>
 
-        <!-- Card Section -->
+
+        <!-- =================================================
+             AUTHENTICATION CARD
+             ================================================= -->
+
         <div class="gateway-card glass">
 
-            <!-- Student Panel -->
-            <div id="panel-student" class="auth-panel active">
-                <h2>Student Portal</h2>
+
+            <!-- =============================================
+                 STUDENT LOGIN
+                 ============================================= -->
+
+            <div
+                id="panel-student"
+                class="auth-panel active"
+            >
+
+                <h2>
+                    Student Portal
+                </h2>
+
                 <p class="panel-subtitle">
-                    Enter your unique identity token assigned by your library admin.
+                    Enter your library identity and unique
+                    student login code to access your portal.
                 </p>
 
-               <form id="student-login-form">
 
-    <div class="form-group">
-        <label for="student-library-id">Library ID</label>
-        <input
-            type="text"
-            id="student-library-id"
-            placeholder="e.g. LIB-4DNL12"
-            required
-            autocomplete="off">
-    </div>
+                <form id="student-login-form">
 
-    <div class="form-group">
-        <label for="student-uid">Unique Student Code</label>
-        <input
-            type="text"
-            id="student-uid"
-            placeholder="e.g. LIB001"
-            required
-            autocomplete="off">
-    </div>
 
-    <button type="submit" class="btn-gateway-submit">
-        Verify & Enter
-    </button>
+                    <div class="form-group">
 
-</form>
+                        <label for="student-library-id">
+                            Library ID
+                        </label>
+
+                        <input
+                            type="text"
+                            id="student-library-id"
+                            placeholder="e.g. LIB-4DNL12"
+                            autocomplete="off"
+                            autocapitalize="characters"
+                            spellcheck="false"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="student-uid">
+                            Unique Student Code
+                        </label>
+
+                        <input
+                            type="text"
+                            id="student-uid"
+                            placeholder="e.g. LIB001"
+                            autocomplete="off"
+                            autocapitalize="characters"
+                            spellcheck="false"
+                            required
+                        >
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="btn-gateway-submit"
+                    >
+                        Verify &amp; Enter
+                    </button>
+
+
+                </form>
+
             </div>
 
-            <!-- Admin Panel -->
-            <div id="panel-admin" class="auth-panel">
-                <h2>Admin Console</h2>
+
+            <!-- =============================================
+                 ADMIN LOGIN
+                 ============================================= -->
+
+            <div
+                id="panel-admin"
+                class="auth-panel"
+            >
+
+                <h2>
+                    Admin Console
+                </h2>
+
                 <p class="panel-subtitle">
-                    Manage seats, attendance and registers for your library branch.
+                    Securely manage students, seats,
+                    attendance and library operations.
                 </p>
 
-               <form id="admin-login-form">
 
-    <div class="form-group">
-        <label for="admin-library-id">Library ID</label>
-        <input
-            type="text"
-            id="admin-library-id"
-            placeholder="e.g. LIB-4DNL12"
-            required
-            autocomplete="username">
-    </div>
+                <form id="admin-login-form">
 
-    <div class="form-group">
-        <label for="admin-password">Password</label>
-        <input
-            type="password"
-            id="admin-password"
-            placeholder="••••••••"
-            required
-            autocomplete="current-password">
-    </div>
 
-    <button type="submit" class="btn-gateway-submit">
-        Secure Login
-    </button>
+                    <div class="form-group">
 
-</form> 
+                        <label for="admin-library-id">
+                            Library ID
+                        </label>
+
+                        <input
+                            type="text"
+                            id="admin-library-id"
+                            placeholder="e.g. LIB-4DNL12"
+                            autocomplete="username"
+                            autocapitalize="characters"
+                            spellcheck="false"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="admin-password">
+                            Password
+                        </label>
+
+                        <input
+                            type="password"
+                            id="admin-password"
+                            placeholder="Enter your password"
+                            autocomplete="current-password"
+                            required
+                        >
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="btn-gateway-submit"
+                    >
+                        Secure Login
+                    </button>
+
+
+                </form>
+
             </div>
+
 
         </div>
 
+
+        <!-- =================================================
+             SECURITY NOTICE
+             ================================================= -->
+
+        <div
+            class="gateway-security-note"
+            aria-live="polite"
+        >
+
+            <span>
+                Secure Library Access
+            </span>
+
+            <small>
+                Your access is restricted to your authorized
+                library account.
+            </small>
+
+        </div>
+
+
     </div>
-<footer class="footer-panel">
-        <p>&copy; 2026 LibManage Ecosystem. All Rights Reserved. | Powered by <a href="https://opnora.com" target="_blank" class="footer-brand-link">Opnora.com</a></p>
+
+
+    <!-- =====================================================
+         FOOTER
+         ===================================================== -->
+
+    <footer class="footer-panel">
+
+        <p>
+            &copy; 2026 LibControl Ecosystem.
+            All Rights Reserved.
+            |
+            Powered by
+            <a
+                href="https://opnora.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="footer-brand-link"
+            >
+                Opnora
+            </a>
+        </p>
+
     </footer>
-    
-    <!-- Firebase SDK -->
+
+
+    <!-- =====================================================
+         FIREBASE SDK
+         =====================================================
+
+         Firebase Authentication + Firestore are loaded here.
+
+         IMPORTANT:
+         This is a completely separate LibControl implementation.
+         No LibManage collection is referenced from this file.
+
+         Actual authorization will be enforced through:
+         Firebase Authentication
+         +
+         Firestore Security Rules
+         +
+         server-side privileged operations where required.
+         ===================================================== -->
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-    <!-- Shared Core -->
+
+    <!-- =====================================================
+         LIBCONTROL CORE
+         ===================================================== -->
+
     <script src="js/dashboard.js"></script>
 
+
+    <!-- =====================================================
+         GATEWAY TAB CONTROLLER
+         ===================================================== -->
+
     <script>
-        const tabStudent = document.getElementById("tab-student");
-        const tabAdmin = document.getElementById("tab-admin");
-        const panelStudent = document.getElementById("panel-student");
-        const panelAdmin = document.getElementById("panel-admin");
 
-        tabStudent.addEventListener("click", () => {
-            tabStudent.classList.add("active");
-            tabAdmin.classList.remove("active");
-            panelStudent.classList.add("active");
-            panelAdmin.classList.remove("active");
-        });
+        (function () {
 
-        tabAdmin.addEventListener("click", () => {
-            tabAdmin.classList.add("active");
-            tabStudent.classList.remove("active");
-            panelAdmin.classList.add("active");
-            panelStudent.classList.remove("active");
-        });
+            "use strict";
+
+
+            const tabStudent =
+                document.getElementById("tab-student");
+
+            const tabAdmin =
+                document.getElementById("tab-admin");
+
+            const panelStudent =
+                document.getElementById("panel-student");
+
+            const panelAdmin =
+                document.getElementById("panel-admin");
+
+
+            function activateStudentPanel() {
+
+                tabStudent.classList.add("active");
+
+                tabAdmin.classList.remove("active");
+
+                panelStudent.classList.add("active");
+
+                panelAdmin.classList.remove("active");
+
+            }
+
+
+            function activateAdminPanel() {
+
+                tabAdmin.classList.add("active");
+
+                tabStudent.classList.remove("active");
+
+                panelAdmin.classList.add("active");
+
+                panelStudent.classList.remove("active");
+
+            }
+
+
+            tabStudent.addEventListener(
+                "click",
+                activateStudentPanel
+            );
+
+
+            tabAdmin.addEventListener(
+                "click",
+                activateAdminPanel
+            );
+
+
+        })();
+
     </script>
 
+
 </body>
+
 </html>
