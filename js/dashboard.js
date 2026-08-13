@@ -1,32 +1,37 @@
 /**
  * ==========================================================================
- * LIBMANAGE - SHARED CORE ENGINE
+ * LIBCONTROL - SHARED CORE ENGINE
  * ==========================================================================
  *
- * This file is shared by:
+ * Shared by:
  *
  * index.html
- * manager-login.html
- * manager-dashboard.html
  * admin-dashboard.html
  * students.html
  * attendance.html
  * seats.html
  * student-dashboard.html
  *
+ * Manager authentication is handled separately by:
+ *
+ * manager-login.html
+ * manager.js
+ *
  * IMPORTANT:
- * This NEW application uses its own Firestore namespace.
+ * Admin authentication uses Firebase Authentication.
  *
- * OLD:
- *     saas_libraries
+ * NO ADMIN PASSWORD IS STORED IN FIRESTORE.
  *
- * NEW:
- *     libmanage_secure_v2
+ * Admin identity:
  *
- * This file NEVER reads/writes/deletes the old saas_libraries collection.
+ * Firebase Auth UID
+ * +
+ * libcontrol_libraries/{libraryId}/admins/{UID}
  *
  * ==========================================================================
  */
+
+"use strict";
 
 
 /* ==========================================================================
@@ -34,24 +39,37 @@
    ========================================================================== */
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCUe84QnEA5DY31DXtzM-7M4Xu5bSa8xO8",
-    authDomain: "appointment-app-cb979.firebaseapp.com",
-    projectId: "appointment-app-cb979",
-    storageBucket: "appointment-app-cb979.firebasestorage.app",
-    messagingSenderId: "596931961212",
-    appId: "1:596931961212:web:adc604e0a47f63fd9104f9"
+
+    apiKey:
+        "AIzaSyCUe84QnEA5DY31DXtzM-7M4Xu5bSa8xO8",
+
+    authDomain:
+        "appointment-app-cb979.firebaseapp.com",
+
+    projectId:
+        "appointment-app-cb979",
+
+    storageBucket:
+        "appointment-app-cb979.firebasestorage.app",
+
+    messagingSenderId:
+        "596931961212",
+
+    appId:
+        "1:596931961212:web:adc604e0a47f63fd9104f"
+
 };
 
 
 /* ==========================================================================
-   2. NEW APP DATABASE NAMESPACE
+   2. DATABASE NAMESPACE
    ========================================================================== */
 
 const LIBMANAGE_ROOT =
     "libmanage_secure_v2";
 
 const LIBMANAGE_SCHEMA_VERSION =
-    "1.0";
+    "2.0";
 
 
 /* ==========================================================================
@@ -60,18 +78,25 @@ const LIBMANAGE_SCHEMA_VERSION =
 
 (function initializeFirebase() {
 
-    if (typeof firebase === "undefined") {
+    if (
+        typeof firebase ===
+        "undefined"
+    ) {
 
         console.error(
-            "[LibManage] Firebase SDK not loaded."
+            "[LibControl] Firebase SDK not loaded."
         );
 
         return;
+
     }
+
 
     try {
 
-        if (!firebase.apps.length) {
+        if (
+            !firebase.apps.length
+        ) {
 
             firebase.initializeApp(
                 firebaseConfig
@@ -79,28 +104,33 @@ const LIBMANAGE_SCHEMA_VERSION =
 
         }
 
+
         window.db =
             firebase.firestore();
+
+
+        window.auth =
+            firebase.auth();
+
 
         window.firebaseConfig =
             firebaseConfig;
 
+
         window.LIBMANAGE_ROOT =
             LIBMANAGE_ROOT;
 
-        console.log(
-            "[LibManage] Firebase initialized."
-        );
 
         console.log(
-            "[LibManage] New database namespace:",
-            LIBMANAGE_ROOT
+            "[LibControl] Firebase initialized."
         );
 
-    } catch (error) {
+
+    }
+    catch (error) {
 
         console.error(
-            "[LibManage] Firebase initialization error:",
+            "[LibControl] Firebase initialization error:",
             error
         );
 
@@ -113,22 +143,36 @@ const LIBMANAGE_SCHEMA_VERSION =
    4. NORMALIZATION
    ========================================================================== */
 
-function normalizeLibraryId(value) {
+function normalizeLibraryId(
+    value
+) {
 
-    return String(value || "")
+    return String(
+        value || ""
+    )
         .trim()
         .toUpperCase()
-        .replace(/\s+/g, "");
+        .replace(
+            /\s+/g,
+            ""
+        );
 
 }
 
 
-function normalizeStudentCode(value) {
+function normalizeStudentCode(
+    value
+) {
 
-    return String(value || "")
+    return String(
+        value || ""
+    )
         .trim()
         .toUpperCase()
-        .replace(/\s+/g, "");
+        .replace(
+            /\s+/g,
+            ""
+        );
 
 }
 
@@ -136,17 +180,20 @@ function normalizeStudentCode(value) {
 /* ==========================================================================
    5. FIRESTORE STRUCTURE
    ==========================================================================
-   
-   libmanage_secure_v2
-       └── libraries
-           └── records
-               └── LIBRARY_ID
-                   ├── students
-                   ├── attendance
-                   ├── notices
-                   └── configuration
-                       ├── seats
-                       └── general
+
+   libcontrol_libraries
+       └── LIBRARY_ID
+           ├── admins
+           │   └── ADMIN_UID
+           │
+           ├── students
+           ├── attendance
+           ├── seats
+           ├── fees
+           ├── notices
+           ├── notifications
+           ├── subscriptions
+           └── audit_logs
 
    ========================================================================== */
 
@@ -158,15 +205,18 @@ function normalizeStudentCode(value) {
 function librariesRef() {
 
     if (!window.db) {
+
         throw new Error(
             "Firestore is not initialized."
         );
+
     }
 
+
     return window.db
-        .collection(LIBMANAGE_ROOT)
-        .doc("libraries")
-        .collection("records");
+        .collection(
+            "libcontrol_libraries"
+        );
 
 }
 
@@ -175,20 +225,67 @@ function librariesRef() {
    Single Library
 -------------------------------------------------------------------------- */
 
-function libraryRef(libraryId) {
+function libraryRef(
+    libraryId
+) {
 
     const id =
         normalizeLibraryId(
             libraryId
         );
 
+
     if (!id) {
+
         throw new Error(
             "Invalid Library ID."
         );
+
     }
 
-    return librariesRef().doc(id);
+
+    return librariesRef()
+        .doc(id);
+
+}
+
+
+/* --------------------------------------------------------------------------
+   Admins
+-------------------------------------------------------------------------- */
+
+function adminsRef(
+    libraryId
+) {
+
+    return libraryRef(
+        libraryId
+    )
+        .collection(
+            "admins"
+        );
+
+}
+
+
+function adminRef(
+    libraryId,
+    uid
+) {
+
+    if (!uid) {
+
+        throw new Error(
+            "Invalid Admin UID."
+        );
+
+    }
+
+
+    return adminsRef(
+        libraryId
+    )
+        .doc(uid);
 
 }
 
@@ -197,11 +294,16 @@ function libraryRef(libraryId) {
    Students
 -------------------------------------------------------------------------- */
 
-function studentsRef(libraryId) {
+function studentsRef(
+    libraryId
+) {
 
     return libraryRef(
         libraryId
-    ).collection("students");
+    )
+        .collection(
+            "students"
+        );
 
 }
 
@@ -216,15 +318,20 @@ function studentRef(
             studentCode
         );
 
+
     if (!code) {
+
         throw new Error(
             "Invalid Student Code."
         );
+
     }
+
 
     return studentsRef(
         libraryId
-    ).doc(code);
+    )
+        .doc(code);
 
 }
 
@@ -233,11 +340,16 @@ function studentRef(
    Attendance
 -------------------------------------------------------------------------- */
 
-function attendanceRef(libraryId) {
+function attendanceRef(
+    libraryId
+) {
 
     return libraryRef(
         libraryId
-    ).collection("attendance");
+    )
+        .collection(
+            "attendance"
+        );
 
 }
 
@@ -246,11 +358,16 @@ function attendanceRef(libraryId) {
    Notices
 -------------------------------------------------------------------------- */
 
-function noticesRef(libraryId) {
+function noticesRef(
+    libraryId
+) {
 
     return libraryRef(
         libraryId
-    ).collection("notices");
+    )
+        .collection(
+            "notices"
+        );
 
 }
 
@@ -259,13 +376,19 @@ function noticesRef(libraryId) {
    Seat Configuration
 -------------------------------------------------------------------------- */
 
-function seatConfigRef(libraryId) {
+function seatConfigRef(
+    libraryId
+) {
 
     return libraryRef(
         libraryId
     )
-    .collection("configuration")
-    .doc("seats");
+        .collection(
+            "configuration"
+        )
+        .doc(
+            "seats"
+        );
 
 }
 
@@ -274,13 +397,19 @@ function seatConfigRef(libraryId) {
    General Configuration
 -------------------------------------------------------------------------- */
 
-function generalConfigRef(libraryId) {
+function generalConfigRef(
+    libraryId
+) {
 
     return libraryRef(
         libraryId
     )
-    .collection("configuration")
-    .doc("general");
+        .collection(
+            "configuration"
+        )
+        .doc(
+            "general"
+        );
 
 }
 
@@ -299,6 +428,12 @@ window.LibManageDB = {
 
     library:
         libraryRef,
+
+    admins:
+        adminsRef,
+
+    admin:
+        adminRef,
 
     students:
         studentsRef,
@@ -340,7 +475,19 @@ const SESSION_KEYS = {
         "session_student_code",
 
     studentSeat:
-        "session_student_seat"
+        "session_student_seat",
+
+    adminUID:
+        "session_admin_uid",
+
+    adminEmail:
+        "session_admin_email",
+
+    adminEmailVerified:
+        "session_admin_email_verified",
+
+    adminMustChangePassword:
+        "session_admin_must_change_password"
 
 };
 
@@ -376,6 +523,26 @@ function getCurrentSession() {
         studentSeat:
             localStorage.getItem(
                 SESSION_KEYS.studentSeat
+            ),
+
+        adminUID:
+            localStorage.getItem(
+                SESSION_KEYS.adminUID
+            ),
+
+        adminEmail:
+            localStorage.getItem(
+                SESSION_KEYS.adminEmail
+            ),
+
+        adminEmailVerified:
+            localStorage.getItem(
+                SESSION_KEYS.adminEmailVerified
+            ),
+
+        adminMustChangePassword:
+            localStorage.getItem(
+                SESSION_KEYS.adminMustChangePassword
             )
 
     };
@@ -387,25 +554,67 @@ window.getCurrentSession =
     getCurrentSession;
 
 
+/* ==========================================================================
+   9. SESSION CLEARING
+   ========================================================================== */
+
 function clearLibManageSession() {
 
     Object.keys(
         SESSION_KEYS
-    ).forEach(
-        (key) => {
+    )
+        .forEach(
+            (key) => {
 
-            localStorage.removeItem(
-                SESSION_KEYS[key]
-            );
+                localStorage.removeItem(
+                    SESSION_KEYS[key]
+                );
 
-        }
+            }
+        );
+
+}
+
+
+function clearAdminSession() {
+
+    localStorage.removeItem(
+        SESSION_KEYS.role
+    );
+
+    localStorage.removeItem(
+        SESSION_KEYS.libraryId
+    );
+
+    localStorage.removeItem(
+        SESSION_KEYS.libraryName
+    );
+
+    localStorage.removeItem(
+        SESSION_KEYS.adminUID
+    );
+
+    localStorage.removeItem(
+        SESSION_KEYS.adminEmail
+    );
+
+    localStorage.removeItem(
+        SESSION_KEYS.adminEmailVerified
+    );
+
+    localStorage.removeItem(
+        SESSION_KEYS.adminMustChangePassword
     );
 
 }
 
 
+window.clearAdminSession =
+    clearAdminSession;
+
+
 /* ==========================================================================
-   9. PATH HELPERS
+   10. PATH HELPERS
    ========================================================================== */
 
 function getRootIndexPath() {
@@ -420,12 +629,15 @@ function getRootIndexPath() {
 
     }
 
+
     return "index.html";
 
 }
 
 
-function getPagePath(fileName) {
+function getPagePath(
+    fileName
+) {
 
     if (
         window.location.pathname.includes(
@@ -437,13 +649,139 @@ function getPagePath(fileName) {
 
     }
 
+
     return "pages/" + fileName;
 
 }
 
 
 /* ==========================================================================
-   10. LIBRARY ACCESS VALIDATION
+   11. FIREBASE AUTH SESSION WAIT
+   ========================================================================== */
+
+/*
+ * Firebase Authentication can restore an existing session asynchronously.
+ *
+ * NEVER depend only on:
+ *
+ * firebase.auth().currentUser
+ *
+ * immediately after page load.
+ */
+
+function waitForFirebaseAuthUser(
+    timeout = 10000
+) {
+
+    return new Promise(
+        (resolve) => {
+
+            if (
+                typeof firebase ===
+                "undefined" ||
+                !firebase.auth
+            ) {
+
+                resolve(
+                    null
+                );
+
+                return;
+
+            }
+
+
+            let finished =
+                false;
+
+
+            let unsubscribe =
+                null;
+
+
+            const timer =
+                setTimeout(
+                    () => {
+
+                        if (finished) {
+                            return;
+                        }
+
+
+                        finished =
+                            true;
+
+
+                        if (
+                            typeof unsubscribe ===
+                            "function"
+                        ) {
+
+                            unsubscribe();
+
+                        }
+
+
+                        resolve(
+                            firebase
+                                .auth()
+                                .currentUser ||
+                            null
+                        );
+
+                    },
+                    timeout
+                );
+
+
+            unsubscribe =
+                firebase
+                    .auth()
+                    .onAuthStateChanged(
+                        (user) => {
+
+                            if (finished) {
+                                return;
+                            }
+
+
+                            finished =
+                                true;
+
+
+                            clearTimeout(
+                                timer
+                            );
+
+
+                            if (
+                                typeof unsubscribe ===
+                                "function"
+                            ) {
+
+                                unsubscribe();
+
+                            }
+
+
+                            resolve(
+                                user ||
+                                null
+                            );
+
+                        }
+                    );
+
+        }
+    );
+
+}
+
+
+window.waitForFirebaseAuthUser =
+    waitForFirebaseAuthUser;
+/* ==========================================================================
+   12. LIBRARY ACCESS VALIDATION
    ========================================================================== */
 
 async function validateLibrary(
@@ -454,6 +792,7 @@ async function validateLibrary(
         normalizeLibraryId(
             libraryId
         );
+
 
     if (!id) {
 
@@ -468,12 +807,14 @@ async function validateLibrary(
 
     }
 
+
     try {
 
         const snapshot =
             await libraryRef(
                 id
-            ).get();
+            )
+            .get();
 
 
         if (!snapshot.exists) {
@@ -544,13 +885,14 @@ async function validateLibrary(
 
         };
 
-
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
-            "[LibManage] Library validation error:",
+            "[LibControl] Library validation error:",
             error
         );
+
 
         return {
 
@@ -574,7 +916,7 @@ window.validateLibrary =
 
 
 /* ==========================================================================
-   11. STUDENT LOGIN
+   13. STUDENT LOGIN
    ========================================================================== */
 
 async function studentLogin(
@@ -593,7 +935,10 @@ async function studentLogin(
         );
 
 
-    if (!id || !code) {
+    if (
+        !id ||
+        !code
+    ) {
 
         return {
 
@@ -698,7 +1043,8 @@ async function studentLogin(
             await studentRef(
                 id,
                 code
-            ).get();
+            )
+            .get();
 
 
         if (!studentSnapshot.exists) {
@@ -739,7 +1085,8 @@ async function studentLogin(
 
 
         /*
-         * Start NEW student session.
+         * Student login intentionally remains
+         * independent from Firebase Admin Auth.
          */
 
         clearLibManageSession();
@@ -790,13 +1137,14 @@ async function studentLogin(
 
         };
 
-
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
-            "[LibManage] Student login error:",
+            "[LibControl] Student login error:",
             error
         );
+
 
         return {
 
@@ -817,22 +1165,337 @@ window.studentLogin =
 
 
 /* ==========================================================================
-   12. ADMIN LOGIN
+   14. ADMIN AUTHORIZATION RECORD
    ========================================================================== */
 
 /*
- * NOTE:
+ * Firebase Authentication proves WHO the user is.
  *
- * This compatibility login keeps the same current UI behaviour.
+ * Firestore admin document proves:
  *
- * Later, when manager/admin Firebase Authentication is connected,
- * this function will be changed to Firebase Auth.
+ *     role
+ *     libraryId
+ *     enabled
+ *     emailVerified
+ *     mustChangePassword
  *
- * No old database is touched.
+ * Password is NEVER read from Firestore.
+ */
+
+async function getAdminAuthorization(
+    user,
+    libraryId
+) {
+
+    if (!user) {
+
+        return {
+
+            authorized: false,
+
+            reason:
+                "NO_AUTH_USER"
+
+        };
+
+    }
+
+
+    const id =
+        normalizeLibraryId(
+            libraryId
+        );
+
+
+    if (!id) {
+
+        return {
+
+            authorized: false,
+
+            reason:
+                "INVALID_LIBRARY"
+
+        };
+
+    }
+
+
+    try {
+
+        const libraryResult =
+            await validateLibrary(
+                id
+            );
+
+
+        if (!libraryResult.valid) {
+
+            return {
+
+                authorized: false,
+
+                reason:
+                    libraryResult.reason,
+
+                library:
+                    libraryResult.data ||
+                    null
+
+            };
+
+        }
+
+
+        const adminSnapshot =
+            await adminRef(
+                id,
+                user.uid
+            )
+            .get();
+
+
+        if (!adminSnapshot.exists) {
+
+            return {
+
+                authorized: false,
+
+                reason:
+                    "ADMIN_NOT_FOUND"
+
+            };
+
+        }
+
+
+        const adminData =
+            adminSnapshot.data() || {};
+
+
+        if (
+            adminData.uid &&
+            adminData.uid !==
+            user.uid
+        ) {
+
+            return {
+
+                authorized: false,
+
+                reason:
+                    "UID_MISMATCH"
+
+            };
+
+        }
+
+
+        if (
+            adminData.role !==
+            "admin"
+        ) {
+
+            return {
+
+                authorized: false,
+
+                reason:
+                    "INVALID_ROLE"
+
+            };
+
+        }
+
+
+        if (
+            adminData.libraryId &&
+            normalizeLibraryId(
+                adminData.libraryId
+            ) !==
+            id
+        ) {
+
+            return {
+
+                authorized: false,
+
+                reason:
+                    "LIBRARY_MISMATCH"
+
+            };
+
+        }
+
+
+        if (
+            adminData.enabled ===
+            false
+        ) {
+
+            return {
+
+                authorized: false,
+
+                reason:
+                    "ADMIN_DISABLED"
+
+            };
+
+        }
+
+
+        return {
+
+            authorized: true,
+
+            admin:
+                adminData,
+
+            library:
+                libraryResult.data
+
+        };
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl] Admin authorization error:",
+            error
+        );
+
+
+        return {
+
+            authorized: false,
+
+            reason:
+                "DATABASE_ERROR",
+
+            error:
+                error
+
+        };
+
+    }
+
+}
+
+
+window.getAdminAuthorization =
+    getAdminAuthorization;
+
+
+/* ==========================================================================
+   15. ADMIN SESSION CREATION
+   ========================================================================== */
+
+function createAdminSession(
+    user,
+    libraryId,
+    libraryData,
+    adminData
+) {
+
+    clearLibManageSession();
+
+
+    const id =
+        normalizeLibraryId(
+            libraryId
+        );
+
+
+    localStorage.setItem(
+        SESSION_KEYS.role,
+        "admin"
+    );
+
+
+    localStorage.setItem(
+        SESSION_KEYS.libraryId,
+        id
+    );
+
+
+    localStorage.setItem(
+        SESSION_KEYS.libraryName,
+        libraryData &&
+        libraryData.name
+            ? libraryData.name
+            : "Library"
+    );
+
+
+    localStorage.setItem(
+        SESSION_KEYS.adminUID,
+        user.uid
+    );
+
+
+    localStorage.setItem(
+        SESSION_KEYS.adminEmail,
+        user.email ||
+        adminData.email ||
+        ""
+    );
+
+
+    localStorage.setItem(
+        SESSION_KEYS.adminEmailVerified,
+        user.emailVerified
+            ? "true"
+            : "false"
+    );
+
+
+    localStorage.setItem(
+        SESSION_KEYS.adminMustChangePassword,
+        adminData.mustChangePassword ===
+        true
+            ? "true"
+            : "false"
+    );
+
+
+    return getCurrentSession();
+
+}
+
+
+window.createAdminSession =
+    createAdminSession;
+
+
+/* ==========================================================================
+   16. ADMIN LOGIN
+   ========================================================================== */
+
+/*
+ * NEW PRODUCTION FLOW
+ *
+ * Library ID
+ * +
+ * Email
+ * +
+ * Password
+ *       ↓
+ * Firebase Authentication
+ *       ↓
+ * Firebase UID
+ *       ↓
+ * libcontrol_libraries/{libraryId}/admins/{UID}
+ *
+ * IMPORTANT:
+ *
+ * No password is checked against Firestore.
+ * No password is stored in Firestore.
  */
 
 async function adminLogin(
     libraryId,
+    email,
     password
 ) {
 
@@ -841,32 +1504,51 @@ async function adminLogin(
             libraryId
         );
 
+
+    const normalizedEmail =
+        String(
+            email || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
     const pass =
-        String(password || "");
+        String(
+            password || ""
+        );
 
 
-    if (!id || !pass) {
+    if (
+        !id ||
+        !normalizedEmail ||
+        !pass
+    ) {
 
         return {
 
             success: false,
 
             message:
-                "Please enter Library ID and Password."
+                "Please enter Library ID, Email and Password."
 
         };
 
     }
 
 
-    if (!window.db) {
+    if (
+        typeof firebase ===
+        "undefined" ||
+        !firebase.auth
+    ) {
 
         return {
 
             success: false,
 
             message:
-                "Database Engine Offline."
+                "Firebase Authentication is unavailable."
 
         };
 
@@ -874,6 +1556,10 @@ async function adminLogin(
 
 
     try {
+
+        /*
+         * Check library before authentication.
+         */
 
         const libraryResult =
             await validateLibrary(
@@ -893,7 +1579,7 @@ async function adminLogin(
                     success: false,
 
                     message:
-                        "Login Failed: Invalid Library ID or Password."
+                        "Login Failed: Invalid Library or credentials."
 
                 };
 
@@ -946,81 +1632,260 @@ async function adminLogin(
         }
 
 
-        const libraryData =
-            libraryResult.data || {};
+        /*
+         * Firebase Authentication.
+         */
+
+        const credential =
+            await firebase
+                .auth()
+                .signInWithEmailAndPassword(
+                    normalizedEmail,
+                    pass
+                );
+
+
+        const user =
+            credential.user;
+
+
+        if (!user) {
+
+            throw new Error(
+                "Authentication failed."
+            );
+
+        }
 
 
         /*
-         * Current compatibility check.
-         *
-         * This will later be replaced by Firebase Authentication.
+         * Email verification is required
+         * before normal Admin access.
          */
 
         if (
-            String(
-                libraryData.adminPass || ""
-            ) !==
-            pass
+            !user.emailVerified
         ) {
 
             return {
 
                 success: false,
 
+                requiresEmailVerification:
+                    true,
+
+                user:
+                    user,
+
                 message:
-                    "Login Failed: Invalid Library ID or Password."
+                    "Please verify your email address before accessing the Admin Dashboard."
 
             };
 
         }
 
 
-        clearLibManageSession();
+        /*
+         * Verify the authenticated UID
+         * against the selected library.
+         */
+
+        const authorization =
+            await getAdminAuthorization(
+                user,
+                id
+            );
 
 
-        localStorage.setItem(
-            SESSION_KEYS.role,
-            "admin"
-        );
+        if (
+            !authorization.authorized
+        ) {
+
+            await firebase
+                .auth()
+                .signOut();
 
 
-        localStorage.setItem(
-            SESSION_KEYS.libraryId,
-            libraryData.libraryId ||
-            id
-        );
+            let message =
+                "Access Denied: Admin authorization failed.";
 
 
-        localStorage.setItem(
-            SESSION_KEYS.libraryName,
-            libraryData.name ||
-            "Library"
-        );
+            if (
+                authorization.reason ===
+                "ADMIN_NOT_FOUND"
+            ) {
+
+                message =
+                    "Access Denied: This account is not registered as an Admin for this library.";
+
+            }
+            else if (
+                authorization.reason ===
+                "INVALID_ROLE"
+            ) {
+
+                message =
+                    "Access Denied: Invalid Admin role.";
+
+            }
+            else if (
+                authorization.reason ===
+                "LIBRARY_MISMATCH"
+            ) {
+
+                message =
+                    "Access Denied: This Admin is not authorized for this library.";
+
+            }
+            else if (
+                authorization.reason ===
+                "ADMIN_DISABLED"
+            ) {
+
+                message =
+                    "Access Denied: This Admin account is disabled.";
+
+            }
+
+
+            return {
+
+                success: false,
+
+                message:
+                    message
+
+            };
+
+        }
+
+
+        /*
+         * Create local convenience session.
+         *
+         * Firebase Auth remains the real authentication
+         * session.
+         */
+
+        const session =
+            createAdminSession(
+
+                user,
+
+                id,
+
+                authorization.library,
+
+                authorization.admin
+
+            );
 
 
         return {
 
             success: true,
 
+            user:
+                user,
+
+            admin:
+                authorization.admin,
+
             library:
-                libraryData
+                authorization.library,
+
+            session:
+                session
 
         };
 
-
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
-            "[LibManage] Admin login error:",
+            "[LibControl] Admin Firebase login error:",
             error
         );
+
+
+        let message =
+            "Login failed. Please try again.";
+
+
+        if (
+            error.code ===
+            "auth/invalid-credential"
+        ) {
+
+            message =
+                "Invalid email or password.";
+
+        }
+        else if (
+            error.code ===
+            "auth/user-not-found"
+        ) {
+
+            message =
+                "Invalid email or password.";
+
+        }
+        else if (
+            error.code ===
+            "auth/wrong-password"
+        ) {
+
+            message =
+                "Invalid email or password.";
+
+        }
+        else if (
+            error.code ===
+            "auth/too-many-requests"
+        ) {
+
+            message =
+                "Too many login attempts. Please try again later.";
+
+        }
+        else if (
+            error.code ===
+            "auth/network-request-failed"
+        ) {
+
+            message =
+                "Network error. Please check your internet connection.";
+
+        }
+        else if (
+            error.code ===
+            "auth/user-disabled"
+        ) {
+
+            message =
+                "This Firebase account has been disabled.";
+
+        }
+        else if (
+            error.code ===
+            "auth/operation-not-allowed"
+        ) {
+
+            message =
+                "Email/password authentication is not enabled in Firebase.";
+
+        }
+
 
         return {
 
             success: false,
 
             message:
-                "Cloud synchronization failed."
+                message,
+
+            error:
+                error
 
         };
 
@@ -1034,7 +1899,763 @@ window.adminLogin =
 
 
 /* ==========================================================================
-   13. GATEWAY LOGIN FORMS
+   17. ADMIN EMAIL VERIFICATION
+   ========================================================================== */
+
+async function resendAdminVerificationEmail() {
+
+    const user =
+        await waitForFirebaseAuthUser();
+
+
+    if (!user) {
+
+        return {
+
+            success: false,
+
+            message:
+                "Admin authentication session not found."
+
+        };
+
+    }
+
+
+    if (
+        user.emailVerified
+    ) {
+
+        return {
+
+            success: true,
+
+            alreadyVerified:
+                true,
+
+            message:
+                "Your email is already verified."
+
+        };
+
+    }
+
+
+    try {
+
+        await user
+            .sendEmailVerification();
+
+
+        return {
+
+            success: true,
+
+            message:
+                "Verification email sent successfully."
+
+        };
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl] Verification email error:",
+            error
+        );
+
+
+        let message =
+            "Unable to send verification email.";
+
+
+        if (
+            error.code ===
+            "auth/too-many-requests"
+        ) {
+
+            message =
+                "Too many requests. Please wait before requesting another verification email.";
+
+        }
+
+
+        return {
+
+            success: false,
+
+            message:
+                message,
+
+            error:
+                error
+
+        };
+
+    }
+
+}
+
+
+window.resendAdminVerificationEmail =
+    resendAdminVerificationEmail;
+
+
+/* ==========================================================================
+   18. FORGOT PASSWORD
+   ========================================================================== */
+
+async function sendAdminPasswordReset(
+    email
+) {
+
+    const normalizedEmail =
+        String(
+            email || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (!normalizedEmail) {
+
+        return {
+
+            success: false,
+
+            message:
+                "Please enter your Admin email address."
+
+        };
+
+    }
+
+
+    if (
+        typeof firebase ===
+        "undefined" ||
+        !firebase.auth
+    ) {
+
+        return {
+
+            success: false,
+
+            message:
+                "Firebase Authentication is unavailable."
+
+        };
+
+    }
+
+
+    try {
+
+        await firebase
+            .auth()
+            .sendPasswordResetEmail(
+                normalizedEmail
+            );
+
+
+        return {
+
+            success: true,
+
+            message:
+                "Password reset email sent. Please check your email."
+
+        };
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl] Password reset error:",
+            error
+        );
+
+
+        let message =
+            "Unable to send password reset email.";
+
+
+        if (
+            error.code ===
+            "auth/user-not-found"
+        ) {
+
+            /*
+             * Do not expose account existence
+             * unnecessarily in production.
+             */
+
+            message =
+                "If an account exists for this email, a password reset email has been sent.";
+
+        }
+        else if (
+            error.code ===
+            "auth/invalid-email"
+        ) {
+
+            message =
+                "Please enter a valid email address.";
+
+        }
+        else if (
+            error.code ===
+            "auth/too-many-requests"
+        ) {
+
+            message =
+                "Too many requests. Please try again later.";
+
+        }
+
+
+        return {
+
+            success: false,
+
+            message:
+                message,
+
+            error:
+                error
+
+        };
+
+    }
+
+}
+
+
+window.sendAdminPasswordReset =
+    sendAdminPasswordReset;
+
+
+/* ==========================================================================
+   19. CHANGE ADMIN PASSWORD
+   ========================================================================== */
+
+async function changeAdminPassword(
+    currentPassword,
+    newPassword
+) {
+
+    const user =
+        await waitForFirebaseAuthUser();
+
+
+    if (!user) {
+
+        return {
+
+            success: false,
+
+            message:
+                "Admin authentication session has expired."
+
+        };
+
+    }
+
+
+    const currentPass =
+        String(
+            currentPassword || ""
+        );
+
+
+    const newPass =
+        String(
+            newPassword || ""
+        );
+
+
+    if (
+        !currentPass ||
+        !newPass
+    ) {
+
+        return {
+
+            success: false,
+
+            message:
+                "Please enter current and new password."
+
+        };
+
+    }
+
+
+    if (
+        newPass.length <
+        8
+    ) {
+
+        return {
+
+            success: false,
+
+            message:
+                "New password must contain at least 8 characters."
+
+        };
+
+    }
+
+
+    if (
+        currentPass ===
+        newPass
+    ) {
+
+        return {
+
+            success: false,
+
+            message:
+                "New password must be different from current password."
+
+        };
+
+    }
+
+
+    try {
+
+        const credential =
+            firebase.auth
+                .EmailAuthProvider
+                .credential(
+                    user.email,
+                    currentPass
+                );
+
+
+        await user.reauthenticateWithCredential(
+            credential
+        );
+
+
+        await user.updatePassword(
+            newPass
+        );
+
+
+        return {
+
+            success: true,
+
+            message:
+                "Password changed successfully."
+
+        };
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl] Change password error:",
+            error
+        );
+
+
+        let message =
+            "Unable to change password.";
+
+
+        if (
+            error.code ===
+            "auth/wrong-password" ||
+            error.code ===
+            "auth/invalid-credential"
+        ) {
+
+            message =
+                "Current password is incorrect.";
+
+        }
+        else if (
+            error.code ===
+            "auth/weak-password"
+        ) {
+
+            message =
+                "New password is too weak.";
+
+        }
+        else if (
+            error.code ===
+            "auth/requires-recent-login"
+        ) {
+
+            message =
+                "Please log in again before changing your password.";
+
+        }
+
+
+        return {
+
+            success: false,
+
+            message:
+                message,
+
+            error:
+                error
+
+        };
+
+    }
+
+}
+
+
+window.changeAdminPassword =
+    changeAdminPassword;
+/* ==========================================================================
+   20. ADMIN AUTH SESSION RESTORE
+   ========================================================================== */
+
+/*
+ * Used by Admin Dashboard and other Admin pages.
+ *
+ * Firebase Auth is the real session authority.
+ * localStorage is only a convenience/session-routing layer.
+ */
+
+async function restoreAdminSession() {
+
+    const user =
+        await waitForFirebaseAuthUser();
+
+
+    if (!user) {
+
+        return {
+
+            success: false,
+
+            reason:
+                "NO_AUTH_USER"
+
+        };
+
+    }
+
+
+    if (
+        !user.emailVerified
+    ) {
+
+        return {
+
+            success: false,
+
+            reason:
+                "EMAIL_NOT_VERIFIED",
+
+            user:
+                user
+
+        };
+
+    }
+
+
+    const session =
+        getCurrentSession();
+
+
+    const libraryId =
+        normalizeLibraryId(
+            session.libraryId
+        );
+
+
+    if (!libraryId) {
+
+        return {
+
+            success: false,
+
+            reason:
+                "NO_LIBRARY_SESSION",
+
+            user:
+                user
+
+        };
+
+    }
+
+
+    const authorization =
+        await getAdminAuthorization(
+            user,
+            libraryId
+        );
+
+
+    if (
+        !authorization.authorized
+    ) {
+
+        return {
+
+            success: false,
+
+            reason:
+                authorization.reason,
+
+            user:
+                user
+
+        };
+
+    }
+
+
+    createAdminSession(
+
+        user,
+
+        libraryId,
+
+        authorization.library,
+
+        authorization.admin
+
+    );
+
+
+    return {
+
+        success: true,
+
+        user:
+            user,
+
+        admin:
+            authorization.admin,
+
+        library:
+            authorization.library
+
+    };
+
+}
+
+
+window.restoreAdminSession =
+    restoreAdminSession;
+
+
+/* ==========================================================================
+   21. ADMIN SESSION PROTECTION
+   ========================================================================== */
+
+async function requireAdminSession() {
+
+    const user =
+        await waitForFirebaseAuthUser();
+
+
+    if (!user) {
+
+        clearAdminSession();
+
+        window.location.href =
+            getRootIndexPath();
+
+        return false;
+
+    }
+
+
+    if (
+        !user.emailVerified
+    ) {
+
+        clearAdminSession();
+
+        window.location.href =
+            getRootIndexPath();
+
+        return false;
+
+    }
+
+
+    const session =
+        getCurrentSession();
+
+
+    if (
+        session.role !==
+        "admin" ||
+        !session.libraryId
+    ) {
+
+        clearAdminSession();
+
+        window.location.href =
+            getRootIndexPath();
+
+        return false;
+
+    }
+
+
+    const authorization =
+        await getAdminAuthorization(
+            user,
+            session.libraryId
+        );
+
+
+    if (
+        !authorization.authorized
+    ) {
+
+        console.warn(
+            "[LibControl] Admin session rejected:",
+            authorization.reason
+        );
+
+
+        try {
+
+            await firebase
+                .auth()
+                .signOut();
+
+        }
+        catch (error) {
+
+            console.error(
+                "[LibControl] Admin sign-out error:",
+                error
+            );
+
+        }
+
+
+        clearAdminSession();
+
+        window.location.href =
+            getRootIndexPath();
+
+        return false;
+
+    }
+
+
+    createAdminSession(
+
+        user,
+
+        session.libraryId,
+
+        authorization.library,
+
+        authorization.admin
+
+    );
+
+
+    return true;
+
+}
+
+
+window.requireAdminSession =
+    requireAdminSession;
+
+
+/* ==========================================================================
+   22. STUDENT SESSION PROTECTION
+   ========================================================================== */
+
+function requireStudentSession() {
+
+    const session =
+        getCurrentSession();
+
+
+    if (
+        session.role !==
+        "student" ||
+        !session.libraryId ||
+        !session.studentCode
+    ) {
+
+        clearLibManageSession();
+
+        window.location.href =
+            getRootIndexPath();
+
+        return false;
+
+    }
+
+
+    return true;
+
+}
+
+
+window.requireStudentSession =
+    requireStudentSession;
+
+
+/* ==========================================================================
+   23. MANAGER SESSION COMPATIBILITY
+   ========================================================================== */
+
+/*
+ * Manager authentication is handled by manager.js.
+ *
+ * Do not modify or interfere with Manager Firebase Auth here.
+ */
+
+function requireManagerSession() {
+
+    const role =
+        localStorage.getItem(
+            "session_role"
+        );
+
+
+    if (
+        role !==
+        "master_manager"
+    ) {
+
+        window.location.href =
+            "manager-login.html";
+
+        return false;
+
+    }
+
+
+    return true;
+
+}
+
+
+window.requireManagerSession =
+    requireManagerSession;
+
+
+/* ==========================================================================
+   24. GATEWAY AUTH PIPELINES
    ========================================================================== */
 
 function bindGatewayAuthPipelines() {
@@ -1052,10 +2673,17 @@ function bindGatewayAuthPipelines() {
 
 
     /* ----------------------------------------------------------------------
-       STUDENT
+       STUDENT LOGIN
     ---------------------------------------------------------------------- */
 
-    if (studentForm) {
+    if (
+        studentForm &&
+        !studentForm.dataset.authBound
+    ) {
+
+        studentForm.dataset.authBound =
+            "true";
+
 
         studentForm.addEventListener(
             "submit",
@@ -1092,12 +2720,17 @@ function bindGatewayAuthPipelines() {
 
                 const result =
                     await studentLogin(
+
                         libraryInput.value,
+
                         codeInput.value
+
                     );
 
 
-                if (!result.success) {
+                if (
+                    !result.success
+                ) {
 
                     alert(
                         result.message
@@ -1120,10 +2753,17 @@ function bindGatewayAuthPipelines() {
 
 
     /* ----------------------------------------------------------------------
-       ADMIN
+       ADMIN LOGIN
     ---------------------------------------------------------------------- */
 
-    if (adminForm) {
+    if (
+        adminForm &&
+        !adminForm.dataset.authBound
+    ) {
+
+        adminForm.dataset.authBound =
+            "true";
+
 
         adminForm.addEventListener(
             "submit",
@@ -1138,19 +2778,34 @@ function bindGatewayAuthPipelines() {
                     );
 
 
+                const emailInput =
+                    document.getElementById(
+                        "admin-email"
+                    );
+
+
                 const passwordInput =
                     document.getElementById(
                         "admin-password"
                     );
 
 
+                /*
+                 * Current gateway HTML must eventually
+                 * contain admin-email.
+                 *
+                 * We deliberately do not fall back to
+                 * adminPass or Firestore password.
+                 */
+
                 if (
                     !libraryInput ||
+                    !emailInput ||
                     !passwordInput
                 ) {
 
                     alert(
-                        "Admin login fields not found."
+                        "Admin login fields are incomplete. Admin Email field is required."
                     );
 
                     return;
@@ -1160,16 +2815,75 @@ function bindGatewayAuthPipelines() {
 
                 const result =
                     await adminLogin(
+
                         libraryInput.value,
+
+                        emailInput.value,
+
                         passwordInput.value
+
                     );
 
 
-                if (!result.success) {
+                if (
+                    !result.success
+                ) {
 
-                    alert(
-                        result.message
-                    );
+                    if (
+                        result.requiresEmailVerification
+                    ) {
+
+                        const resend =
+                            window.confirm(
+                                result.message +
+                                "\n\nWould you like us to send the verification email again?"
+                            );
+
+
+                        if (resend) {
+
+                            const verificationResult =
+                                await resendAdminVerificationEmail();
+
+
+                            alert(
+                                verificationResult.message
+                            );
+
+                        }
+
+                    }
+                    else {
+
+                        alert(
+                            result.message
+                        );
+
+                    }
+
+
+                    return;
+
+                }
+
+
+                /*
+                 * First-login password change.
+                 *
+                 * The actual screen will be handled by
+                 * the Admin Login UI in the next Admin file step.
+                 */
+
+                if (
+                    result.admin &&
+                    result.admin.mustChangePassword ===
+                    true
+                ) {
+
+                    window.location.href =
+                        getPagePath(
+                            "admin-login.html"
+                        );
 
                     return;
 
@@ -1189,8 +2903,141 @@ function bindGatewayAuthPipelines() {
 }
 
 
+window.bindGatewayAuthPipelines =
+    bindGatewayAuthPipelines;
+
+
 /* ==========================================================================
-   14. COMPONENT LOADER
+   25. LIBRARY NAVIGATION
+   ========================================================================== */
+
+function initializeLibraryNavigation() {
+
+    const element =
+        document.getElementById(
+            "nav-library-name"
+        );
+
+
+    if (!element) {
+
+        return;
+
+    }
+
+
+    const session =
+        getCurrentSession();
+
+
+    element.textContent =
+        session.libraryName ||
+        "Library";
+
+}
+
+
+/* ==========================================================================
+   26. LOGOUT
+   ========================================================================== */
+
+async function logoutAdmin() {
+
+    try {
+
+        if (
+            typeof firebase !==
+            "undefined" &&
+            firebase.auth
+        ) {
+
+            await firebase
+                .auth()
+                .signOut();
+
+        }
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl] Admin logout error:",
+            error
+        );
+
+    }
+
+
+    clearAdminSession();
+
+
+    sessionStorage.removeItem(
+        "libmanage_session"
+    );
+
+
+    window.location.href =
+        getRootIndexPath();
+
+}
+
+
+window.logoutAdmin =
+    logoutAdmin;
+
+
+/* ==========================================================================
+   27. GLOBAL LOGOUT HANDLER
+   ========================================================================== */
+
+document.addEventListener(
+    "click",
+    (event) => {
+
+        const logoutButton =
+            event.target.closest(
+                "#admin-logout-btn"
+            );
+
+
+        if (
+            logoutButton
+        ) {
+
+            logoutAdmin();
+
+            return;
+
+        }
+
+
+        const studentLogoutButton =
+            event.target.closest(
+                "#student-exit-btn"
+            );
+
+
+        if (
+            studentLogoutButton
+        ) {
+
+            clearLibManageSession();
+
+            sessionStorage.removeItem(
+                "libmanage_session"
+            );
+
+            window.location.href =
+                getRootIndexPath();
+
+        }
+
+    }
+);
+
+
+/* ==========================================================================
+   28. COMPONENT LOADER
    ========================================================================== */
 
 async function loadSaaSLayoutComponent(
@@ -1206,7 +3053,9 @@ async function loadSaaSLayoutComponent(
 
 
     if (!container) {
+
         return;
+
     }
 
 
@@ -1216,8 +3065,11 @@ async function loadSaaSLayoutComponent(
             await fetch(
                 componentUrl,
                 {
-                    method: "GET",
-                    cache: "no-store"
+                    method:
+                        "GET",
+
+                    cache:
+                        "no-store"
                 }
             );
 
@@ -1249,11 +3101,11 @@ async function loadSaaSLayoutComponent(
 
         }
 
-
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
-            "[LibManage Component Loader Error]",
+            "[LibControl Component Loader Error]",
             error
         );
 
@@ -1267,171 +3119,7 @@ window.loadSaaSLayoutComponent =
 
 
 /* ==========================================================================
-   15. PAGE SESSION PROTECTION
-   ========================================================================== */
-
-function requireAdminSession() {
-
-    const session =
-        getCurrentSession();
-
-
-    if (
-        session.role !== "admin" ||
-        !session.libraryId
-    ) {
-
-        clearLibManageSession();
-
-        window.location.href =
-            getRootIndexPath();
-
-        return false;
-
-    }
-
-
-    return true;
-
-}
-
-
-window.requireAdminSession =
-    requireAdminSession;
-
-
-function requireStudentSession() {
-
-    const session =
-        getCurrentSession();
-
-
-    if (
-        session.role !== "student" ||
-        !session.libraryId ||
-        !session.studentCode
-    ) {
-
-        clearLibManageSession();
-
-        window.location.href =
-            getRootIndexPath();
-
-        return false;
-
-    }
-
-
-    return true;
-
-}
-
-
-window.requireStudentSession =
-    requireStudentSession;
-
-
-function requireManagerSession() {
-
-    const session =
-        getCurrentSession();
-
-
-    if (
-        session.role !== "manager"
-    ) {
-
-        clearLibManageSession();
-
-        window.location.href =
-            getRootIndexPath();
-
-        return false;
-
-    }
-
-
-    return true;
-
-}
-
-
-window.requireManagerSession =
-    requireManagerSession;
-
-
-/* ==========================================================================
-   16. NAVBAR LIBRARY NAME
-   ========================================================================== */
-
-function initializeLibraryNavigation() {
-
-    const element =
-        document.getElementById(
-            "nav-library-name"
-        );
-
-
-    if (!element) {
-        return;
-    }
-
-
-    const session =
-        getCurrentSession();
-
-
-    element.textContent =
-        session.libraryName ||
-        "Library";
-
-}
-
-
-/* ==========================================================================
-   17. LOGOUT
-   ========================================================================== */
-
-document.addEventListener(
-    "click",
-    (event) => {
-
-        const logoutButton =
-            event.target.closest(
-                "#admin-logout-btn, #student-exit-btn, #manager-logout-btn"
-            );
-
-
-        if (!logoutButton) {
-            return;
-        }
-
-
-        clearLibManageSession();
-
-
-        /*
-         * Do NOT use localStorage.clear().
-         *
-         * That could destroy data belonging to another app
-         * running on the same origin.
-         */
-
-
-        sessionStorage.removeItem(
-            "libmanage_session"
-        );
-
-
-        window.location.href =
-            getRootIndexPath();
-
-    }
-);
-
-
-/* ==========================================================================
-   18. ADMIN NOTICE MODULE
+   29. ADMIN NOTICE MODULE
    ========================================================================== */
 
 let adminNoticeRealtimeUnsubscribe =
@@ -1446,70 +3134,60 @@ function initAdminNoticeModule() {
         );
 
 
+    const noticeContainer =
+        document.getElementById(
+            "dashboard-notification-list"
+        );
+
+
+    /*
+     * Current dashboard HTML uses:
+     *
+     * #notice-modal
+     * #notice-form
+     * #notice-title
+     * #notice-message
+     *
+     * This module is kept compatible with those IDs.
+     */
+
     const modal =
         document.getElementById(
-            "notice-modal-overlay"
+            "notice-modal"
+        );
+
+
+    const form =
+        document.getElementById(
+            "notice-form"
         );
 
 
     const closeButton =
         document.getElementById(
-            "notice-modal-close"
+            "close-notice-modal"
         );
 
 
     const cancelButton =
         document.getElementById(
-            "notice-cancel-btn"
-        );
-
-
-    const saveButton =
-        document.getElementById(
-            "notice-save-btn"
+            "cancel-notice-btn"
         );
 
 
     const titleInput =
         document.getElementById(
-            "notice-title-input"
+            "notice-title"
         );
 
 
     const messageInput =
         document.getElementById(
-            "notice-message-input"
-        );
-
-
-    const errorBox =
-        document.getElementById(
-            "notice-form-error"
-        );
-
-
-    const successBox =
-        document.getElementById(
-            "notice-form-success"
-        );
-
-
-    const noticeContainer =
-        document.getElementById(
-            "recent-notices-container"
+            "notice-message"
         );
 
 
     if (
-        !addButton ||
-        !modal ||
-        !closeButton ||
-        !cancelButton ||
-        !saveButton ||
-        !titleInput ||
-        !messageInput ||
-        !errorBox ||
-        !successBox ||
         !noticeContainer
     ) {
 
@@ -1523,7 +3201,8 @@ function initAdminNoticeModule() {
 
 
     if (
-        session.role !== "admin" ||
+        session.role !==
+        "admin" ||
         !session.libraryId ||
         !window.db
     ) {
@@ -1539,179 +3218,6 @@ function initAdminNoticeModule() {
         );
 
 
-    let editingNoticeId =
-        null;
-
-
-    let saving =
-        false;
-
-
-    let noticeMap =
-        {};
-
-
-    function clearMessages() {
-
-        errorBox.textContent =
-            "";
-
-        successBox.textContent =
-            "";
-
-        errorBox.classList.remove(
-            "active"
-        );
-
-        successBox.classList.remove(
-            "active"
-        );
-
-    }
-
-
-    function resetForm() {
-
-        titleInput.value =
-            "";
-
-        messageInput.value =
-            "";
-
-    }
-
-
-    function openModal(
-        mode = "add",
-        noticeId = null
-    ) {
-
-        clearMessages();
-
-
-        if (
-            mode === "edit" &&
-            noticeId &&
-            noticeMap[noticeId]
-        ) {
-
-            editingNoticeId =
-                noticeId;
-
-
-            titleInput.value =
-                noticeMap[
-                    noticeId
-                ].title || "";
-
-
-            messageInput.value =
-                noticeMap[
-                    noticeId
-                ].message || "";
-
-        } else {
-
-            editingNoticeId =
-                null;
-
-            resetForm();
-
-        }
-
-
-        modal.classList.add(
-            "active"
-        );
-
-
-        modal.setAttribute(
-            "aria-hidden",
-            "false"
-        );
-
-
-        setTimeout(
-            () => {
-
-                titleInput.focus();
-
-            },
-            40
-        );
-
-    }
-
-
-    function closeModal() {
-
-        modal.classList.remove(
-            "active"
-        );
-
-
-        modal.setAttribute(
-            "aria-hidden",
-            "true"
-        );
-
-
-        editingNoticeId =
-            null;
-
-        saving =
-            false;
-
-
-        resetForm();
-
-        clearMessages();
-
-    }
-
-
-    function showError(
-        message
-    ) {
-
-        errorBox.textContent =
-            message;
-
-        errorBox.classList.add(
-            "active"
-        );
-
-        successBox.textContent =
-            "";
-
-        successBox.classList.remove(
-            "active"
-        );
-
-    }
-
-
-    function showSuccess(
-        message
-    ) {
-
-        successBox.textContent =
-            message;
-
-        successBox.classList.add(
-            "active"
-        );
-
-        errorBox.textContent =
-            "";
-
-        errorBox.classList.remove(
-            "active"
-        );
-
-    }
-
-
     function escapeHtml(
         value
     ) {
@@ -1719,72 +3225,26 @@ function initAdminNoticeModule() {
         return String(
             value || ""
         )
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#39;"
-        );
-
-    }
-
-
-    function timestampToMillis(
-        value
-    ) {
-
-        if (!value) {
-            return null;
-        }
-
-
-        if (
-            typeof value.toMillis ===
-            "function"
-        ) {
-
-            return value.toMillis();
-
-        }
-
-
-        if (
-            typeof value.toDate ===
-            "function"
-        ) {
-
-            return value.toDate()
-                .getTime();
-
-        }
-
-
-        if (
-            typeof value.seconds ===
-            "number"
-        ) {
-
-            return value.seconds *
-                1000;
-
-        }
-
-
-        return null;
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#39;"
+            );
 
     }
 
@@ -1794,7 +3254,9 @@ function initAdminNoticeModule() {
     ) {
 
         if (!value) {
+
             return "Just now";
+
         }
 
 
@@ -1810,7 +3272,8 @@ function initAdminNoticeModule() {
             date =
                 value.toDate();
 
-        } else if (
+        }
+        else if (
             typeof value.seconds ===
             "number"
         ) {
@@ -1859,10 +3322,71 @@ function initAdminNoticeModule() {
     }
 
 
-    async function saveNotice() {
+    function openModal() {
 
-        if (saving) {
+        if (!modal) {
+
             return;
+
+        }
+
+
+        modal.classList.add(
+            "active"
+        );
+
+
+        modal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+    }
+
+
+    function closeModal() {
+
+        if (!modal) {
+
+            return;
+
+        }
+
+
+        modal.classList.remove(
+            "active"
+        );
+
+
+        modal.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+
+        if (form) {
+
+            form.reset();
+
+        }
+
+    }
+
+
+    async function saveNotice(
+        event
+    ) {
+
+        event.preventDefault();
+
+
+        if (
+            !titleInput ||
+            !messageInput
+        ) {
+
+            return;
+
         }
 
 
@@ -1874,16 +3398,11 @@ function initAdminNoticeModule() {
             messageInput.value.trim();
 
 
-        clearMessages();
-
-
         if (!title) {
 
-            showError(
+            alert(
                 "Please enter a notice title."
             );
-
-            titleInput.focus();
 
             return;
 
@@ -1892,156 +3411,102 @@ function initAdminNoticeModule() {
 
         if (!message) {
 
-            showError(
+            alert(
                 "Please enter a notice message."
             );
-
-            messageInput.focus();
 
             return;
 
         }
 
 
-        saving =
-            true;
-
-
-        saveButton.disabled =
-            true;
-
-
         try {
 
-            if (editingNoticeId) {
-
-                await noticeCollection
-                    .doc(
-                        editingNoticeId
-                    )
-                    .update({
-
-                        title:
-                            title,
-
-                        message:
-                            message,
-
-                        updatedAt:
-                            firebase.firestore
-                                .FieldValue
-                                .serverTimestamp()
-
-                    });
+            const currentUser =
+                await waitForFirebaseAuthUser();
 
 
-                showSuccess(
-                    "Notice updated successfully."
-                );
+            if (!currentUser) {
 
-            } else {
-
-                await noticeCollection
-                    .add({
-
-                        title:
-                            title,
-
-                        message:
-                            message,
-
-                        createdAt:
-                            firebase.firestore
-                                .FieldValue
-                                .serverTimestamp(),
-
-                        updatedAt:
-                            firebase.firestore
-                                .FieldValue
-                                .serverTimestamp(),
-
-                        createdBy:
-                            session.libraryId
-
-                    });
-
-
-                showSuccess(
-                    "Notice saved successfully."
+                throw new Error(
+                    "Admin authentication session expired."
                 );
 
             }
 
 
-            setTimeout(
-                closeModal,
-                450
-            );
+            if (
+                !currentUser.emailVerified
+            ) {
+
+                throw new Error(
+                    "Please verify your Admin email first."
+                );
+
+            }
 
 
-        } catch (error) {
+            const authorization =
+                await getAdminAuthorization(
 
-            console.error(
-                "[LibManage Notice Save Error]",
-                error
-            );
+                    currentUser,
 
+                    session.libraryId
 
-            showError(
-                "Unable to save notice. Please try again."
-            );
+                );
 
 
-            saving =
-                false;
+            if (
+                !authorization.authorized
+            ) {
 
+                throw new Error(
+                    "Admin authorization failed."
+                );
 
-            saveButton.disabled =
-                false;
+            }
 
-        }
-
-    }
-
-
-    async function deleteNotice(
-        noticeId
-    ) {
-
-        if (!noticeId) {
-            return;
-        }
-
-
-        if (
-            !window.confirm(
-                "Are you sure you want to delete this notice?"
-            )
-        ) {
-
-            return;
-
-        }
-
-
-        try {
 
             await noticeCollection
-                .doc(
-                    noticeId
-                )
-                .delete();
+                .add({
 
-        } catch (error) {
+                    title:
+                        title,
+
+                    message:
+                        message,
+
+                    createdAt:
+                        firebase.firestore
+                            .FieldValue
+                            .serverTimestamp(),
+
+                    updatedAt:
+                        firebase.firestore
+                            .FieldValue
+                            .serverTimestamp(),
+
+                    createdBy:
+                        currentUser.uid
+
+                });
+
+
+            closeModal();
+
+
+        }
+        catch (error) {
 
             console.error(
-                "[LibManage Notice Delete Error]",
+                "[LibControl Notice Save Error]",
                 error
             );
 
 
             alert(
-                "Unable to delete notice."
+                error.message ||
+                "Unable to save notice."
             );
 
         }
@@ -2049,221 +3514,100 @@ function initAdminNoticeModule() {
     }
 
 
-    function renderNotices(
-        documents
+    if (
+        addButton &&
+        !addButton.dataset.noticeBound
     ) {
 
-        noticeMap =
-            {};
+        addButton.dataset.noticeBound =
+            "true";
 
 
-        if (
-            !documents.length
-        ) {
+        addButton.addEventListener(
+            "click",
+            openModal
+        );
 
-            noticeContainer.innerHTML = `
-                <div class="notice-empty-state">
-                    No notices available right now.
-                </div>
-            `;
-
-            return;
-
-        }
+    }
 
 
-        let html =
-            "";
+    if (
+        closeButton &&
+        !closeButton.dataset.noticeBound
+    ) {
+
+        closeButton.dataset.noticeBound =
+            "true";
 
 
-        documents.forEach(
-            (doc) => {
+        closeButton.addEventListener(
+            "click",
+            closeModal
+        );
 
-                const data =
-                    doc.data();
-
-
-                noticeMap[
-                    doc.id
-                ] =
-                    data;
+    }
 
 
-                html += `
-                    <div
-                        class="notice-card"
-                        data-notice-id="${escapeHtml(doc.id)}"
-                    >
+    if (
+        cancelButton &&
+        !cancelButton.dataset.noticeBound
+    ) {
 
-                        <div class="notice-card-header">
-
-                            <h3 class="notice-card-title">
-                                ${escapeHtml(
-                                    data.title ||
-                                    "Untitled Notice"
-                                )}
-                            </h3>
-
-                        </div>
+        cancelButton.dataset.noticeBound =
+            "true";
 
 
-                        <p class="notice-card-message">
-                            ${escapeHtml(
-                                data.message ||
-                                ""
-                            )}
-                        </p>
+        cancelButton.addEventListener(
+            "click",
+            closeModal
+        );
+
+    }
 
 
-                        <div class="notice-card-footer">
+    if (
+        form &&
+        !form.dataset.noticeBound
+    ) {
 
-                            <span class="notice-card-date">
-                                ${escapeHtml(
-                                    formatDate(
-                                        data.createdAt ||
-                                        data.updatedAt
-                                    )
-                                )}
-                            </span>
+        form.dataset.noticeBound =
+            "true";
 
 
-                            <div class="notice-card-actions">
+        form.addEventListener(
+            "submit",
+            saveNotice
+        );
 
-                                <button
-                                    type="button"
-                                    class="notice-edit-btn"
-                                    data-notice-edit="${escapeHtml(doc.id)}"
-                                >
-                                    Edit
-                                </button>
+    }
 
 
-                                <button
-                                    type="button"
-                                    class="notice-delete-btn"
-                                    data-notice-delete="${escapeHtml(doc.id)}"
-                                >
-                                    Delete
-                                </button>
+    if (
+        modal &&
+        !modal.dataset.noticeBound
+    ) {
 
-                            </div>
+        modal.dataset.noticeBound =
+            "true";
 
-                        </div>
 
-                    </div>
-                `;
+        modal.addEventListener(
+            "click",
+            (event) => {
+
+                if (
+                    event.target ===
+                    modal
+                ) {
+
+                    closeModal();
+
+                }
 
             }
         );
 
-
-        noticeContainer.innerHTML =
-            html;
-
     }
-
-
-    addButton.addEventListener(
-        "click",
-        () => {
-
-            openModal(
-                "add"
-            );
-
-        }
-    );
-
-
-    closeButton.addEventListener(
-        "click",
-        closeModal
-    );
-
-
-    cancelButton.addEventListener(
-        "click",
-        closeModal
-    );
-
-
-    modal.addEventListener(
-        "click",
-        (event) => {
-
-            if (
-                event.target ===
-                modal
-            ) {
-
-                closeModal();
-
-            }
-
-        }
-    );
-
-
-    saveButton.addEventListener(
-        "click",
-        saveNotice
-    );
-
-
-    titleInput.addEventListener(
-        "input",
-        clearMessages
-    );
-
-
-    messageInput.addEventListener(
-        "input",
-        clearMessages
-    );
-
-
-    noticeContainer.addEventListener(
-        "click",
-        (event) => {
-
-            const edit =
-                event.target.closest(
-                    "[data-notice-edit]"
-                );
-
-
-            if (edit) {
-
-                openModal(
-                    "edit",
-                    edit.getAttribute(
-                        "data-notice-edit"
-                    )
-                );
-
-                return;
-
-            }
-
-
-            const remove =
-                event.target.closest(
-                    "[data-notice-delete]"
-                );
-
-
-            if (remove) {
-
-                deleteNotice(
-                    remove.getAttribute(
-                        "data-notice-delete"
-                    )
-                );
-
-            }
-
-        }
-    );
 
 
     if (
@@ -2281,11 +3625,11 @@ function initAdminNoticeModule() {
 
             (snapshot) => {
 
-                const docs =
+                const documents =
                     snapshot.docs.slice();
 
 
-                docs.sort(
+                documents.sort(
                     (a, b) => {
 
                         const aData =
@@ -2297,39 +3641,19 @@ function initAdminNoticeModule() {
 
 
                         const aTime =
-                            timestampToMillis(
-                                aData.createdAt ||
-                                aData.updatedAt
-                            );
+                            aData.createdAt &&
+                            typeof aData.createdAt.toMillis ===
+                            "function"
+                                ? aData.createdAt.toMillis()
+                                : 0;
 
 
                         const bTime =
-                            timestampToMillis(
-                                bData.createdAt ||
-                                bData.updatedAt
-                            );
-
-
-                        if (
-                            aTime === null &&
-                            bTime === null
-                        ) {
-                            return 0;
-                        }
-
-
-                        if (
-                            aTime === null
-                        ) {
-                            return 1;
-                        }
-
-
-                        if (
-                            bTime === null
-                        ) {
-                            return -1;
-                        }
+                            bData.createdAt &&
+                            typeof bData.createdAt.toMillis ===
+                            "function"
+                                ? bData.createdAt.toMillis()
+                                : 0;
 
 
                         return bTime -
@@ -2339,25 +3663,92 @@ function initAdminNoticeModule() {
                 );
 
 
-                renderNotices(
-                    docs
-                );
+                if (
+                    !documents.length
+                ) {
+
+                    noticeContainer.innerHTML = `
+
+                        <div class="empty-state-text">
+
+                            No notices available right now.
+
+                        </div>
+
+                    `;
+
+                    return;
+
+                }
+
+
+                noticeContainer.innerHTML =
+                    documents
+                        .map(
+                            (doc) => {
+
+                                const data =
+                                    doc.data();
+
+
+                                return `
+
+                                    <div
+                                        class="notification-item"
+                                    >
+
+                                        <div>
+
+                                            <strong>
+                                                ${escapeHtml(
+                                                    data.title ||
+                                                    "Untitled Notice"
+                                                )}
+                                            </strong>
+
+                                            <p>
+                                                ${escapeHtml(
+                                                    data.message ||
+                                                    ""
+                                                )}
+                                            </p>
+
+                                        </div>
+
+                                        <small>
+                                            ${escapeHtml(
+                                                formatDate(
+                                                    data.createdAt
+                                                )
+                                            )}
+                                        </small>
+
+                                    </div>
+
+                                `;
+
+                            }
+                        )
+                        .join("");
 
             },
-
 
             (error) => {
 
                 console.error(
-                    "[LibManage Notice Listener Error]",
+                    "[LibControl Notice Listener Error]",
                     error
                 );
 
 
                 noticeContainer.innerHTML = `
-                    <div class="notice-empty-state">
+
+                    <div class="empty-state-text">
+
                         Unable to load notices right now.
+
                     </div>
+
                 `;
 
             }
@@ -2367,8 +3758,12 @@ function initAdminNoticeModule() {
 }
 
 
+window.initAdminNoticeModule =
+    initAdminNoticeModule;
+
+
 /* ==========================================================================
-   19. DOM READY
+   30. DOM READY
    ========================================================================== */
 
 document.addEventListener(
@@ -2386,7 +3781,7 @@ document.addEventListener(
 
 
 /* ==========================================================================
-   20. GLOBAL CORE OBJECT
+   31. GLOBAL CORE OBJECT
    ========================================================================== */
 
 window.LibManageCore = {
@@ -2403,8 +3798,17 @@ window.LibManageCore = {
     clearSession:
         clearLibManageSession,
 
+    clearAdminSession:
+        clearAdminSession,
+
     library:
         libraryRef,
+
+    admins:
+        adminsRef,
+
+    admin:
+        adminRef,
 
     students:
         studentsRef,
@@ -2433,6 +3837,12 @@ window.LibManageCore = {
     adminLogin:
         adminLogin,
 
+    getAdminAuthorization:
+        getAdminAuthorization,
+
+    restoreAdminSession:
+        restoreAdminSession,
+
     requireAdmin:
         requireAdminSession,
 
@@ -2440,11 +3850,32 @@ window.LibManageCore = {
         requireStudentSession,
 
     requireManager:
-        requireManagerSession
+        requireManagerSession,
+
+    resendAdminVerificationEmail:
+        resendAdminVerificationEmail,
+
+    sendAdminPasswordReset:
+        sendAdminPasswordReset,
+
+    changeAdminPassword:
+        changeAdminPassword
 
 };
 
 
+/* ==========================================================================
+   32. FINAL STATUS
+   ========================================================================== */
+
 console.log(
-    "[LibManage] Shared dashboard.js loaded successfully."
+    "[LibControl] Shared dashboard.js loaded successfully."
+);
+
+console.log(
+    "[LibControl] Firebase Authentication Admin architecture enabled."
+);
+
+console.log(
+    "[LibControl] Firestore admin passwords are NOT used."
 );
