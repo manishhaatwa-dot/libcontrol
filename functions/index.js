@@ -740,3 +740,401 @@ exports.createLibraryAdmin =
 
         }
     );
+/* ==========================================================================
+   9. COMPLETE ADMIN PASSWORD CHANGE
+   ==========================================================================
+
+   Purpose:
+
+   Admin has already authenticated with Firebase Auth.
+
+   Client-side reauthentication verifies the current password.
+
+   This secure Cloud Function then:
+
+       Firebase Auth UID
+              ↓
+       Verify Admin record
+              ↓
+       Set new Firebase Auth password
+              ↓
+       mustChangePassword = false
+
+   IMPORTANT:
+
+   New password is NEVER stored in Firestore.
+
+   ========================================================================== */
+
+exports.completeAdminPasswordChange =
+    onCall(
+        async (request) => {
+
+            /*
+             * --------------------------------------------------------------
+             * STEP 1
+             * Verify Firebase Authentication session
+             * --------------------------------------------------------------
+             */
+
+            if (
+                !request.auth ||
+                !request.auth.uid
+            ) {
+
+                throw new HttpsError(
+                    "unauthenticated",
+                    "Admin authentication is required."
+                );
+
+            }
+
+
+            const adminUID =
+                request.auth.uid;
+
+
+            /*
+             * --------------------------------------------------------------
+             * STEP 2
+             * Read request data
+             * --------------------------------------------------------------
+             */
+
+            const data =
+                request.data || {};
+
+
+            const libraryId =
+                normalizeLibraryId(
+                    data.libraryId
+                );
+
+
+            const newPassword =
+                String(
+                    data.newPassword ||
+                    ""
+                );
+
+
+            /*
+             * --------------------------------------------------------------
+             * STEP 3
+             * Validate Library ID
+             * --------------------------------------------------------------
+             */
+
+            if (
+                !isValidLibraryId(
+                    libraryId
+                )
+            ) {
+
+                throw new HttpsError(
+                    "invalid-argument",
+                    "Invalid Library ID."
+                );
+
+            }
+
+
+            /*
+             * --------------------------------------------------------------
+             * STEP 4
+             * Validate New Password
+             * --------------------------------------------------------------
+             */
+
+            if (
+                newPassword.length <
+                8
+            ) {
+
+                throw new HttpsError(
+                    "invalid-argument",
+                    "New password must contain at least 8 characters."
+                );
+
+            }
+
+
+            /*
+             * --------------------------------------------------------------
+             * STEP 5
+             * Get Library
+             * --------------------------------------------------------------
+             */
+
+            const libraryReference =
+                adminDB
+                    .collection(
+                        COLLECTIONS.LIBRARIES
+                    )
+                    .doc(
+                        libraryId
+                    );
+
+
+            const librarySnapshot =
+                await libraryReference.get();
+
+
+            if (
+                !librarySnapshot.exists
+            ) {
+
+                throw new HttpsError(
+                    "not-found",
+                    "Library not found."
+                );
+
+            }
+
+
+            const libraryData =
+                librarySnapshot.data() || {};
+
+
+            /*
+             * Disabled Library cannot
+             * complete Admin password change.
+             */
+
+            if (
+                libraryData.enabled ===
+                false
+            ) {
+
+                throw new HttpsError(
+                    "failed-precondition",
+                    "This Library is disabled."
+                );
+
+            }
+
+
+            /*
+             * --------------------------------------------------------------
+             * STEP 6
+             * Verify Admin Authorization Record
+             * --------------------------------------------------------------
+             *
+             * IMPORTANT:
+             *
+             * Firebase UID comes from request.auth.
+             *
+             * The client cannot choose another UID.
+             *
+             */
+
+            const adminReference =
+                libraryReference
+                    .collection(
+                        "admins"
+                    )
+                    .doc(
+                        adminUID
+                    );
+
+
+            const adminSnapshot =
+                await adminReference.get();
+
+
+            if (
+                !adminSnapshot.exists
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Admin authorization record not found."
+                );
+
+            }
+
+
+            const adminData =
+                adminSnapshot.data() || {};
+
+
+            /*
+             * UID must match the Firebase Authentication identity.
+             */
+
+            if (
+                adminData.uid &&
+                adminData.uid !==
+                adminUID
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Admin UID verification failed."
+                );
+
+            }
+
+
+            /*
+             * Admin role must be correct.
+             */
+
+            if (
+                adminData.role !==
+                "admin"
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Invalid Admin role."
+                );
+
+            }
+
+
+            /*
+             * Admin must belong to this library.
+             */
+
+            if (
+                adminData.libraryId &&
+                normalizeLibraryId(
+                    adminData.libraryId
+                ) !==
+                libraryId
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Admin is not authorized for this library."
+                );
+
+            }
+
+
+            /*
+             * Disabled Admin cannot change password.
+             */
+
+            if (
+                adminData.enabled ===
+                false
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Admin account is disabled."
+                );
+
+            }
+
+
+            /*
+             * --------------------------------------------------------------
+             * STEP 7
+             * Update Firebase Authentication Password
+             * --------------------------------------------------------------
+             *
+             * IMPORTANT:
+             *
+             * Password goes directly to Firebase Authentication.
+             *
+             * It is NEVER written to Firestore.
+             *
+             */
+
+            try {
+
+                await adminAuth
+                    .updateUser(
+                        adminUID,
+                        {
+                            password:
+                                newPassword
+                        }
+                    );
+
+            }
+            catch (error) {
+
+                console.error(
+                    "[LibControl] Admin password update error:",
+                    error
+                );
+
+
+                if (
+                    error.code ===
+                    "auth/invalid-password"
+                ) {
+
+                    throw new HttpsError(
+                        "invalid-argument",
+                        "The new password does not meet Firebase requirements."
+                    );
+
+                }
+
+
+                throw new HttpsError(
+                    "internal",
+                    "Unable to update Admin password."
+                );
+
+            }
+
+
+            /*
+             * --------------------------------------------------------------
+             * STEP 8
+             * Complete First-Login State
+             * --------------------------------------------------------------
+             */
+
+            await adminReference.update({
+
+                mustChangePassword:
+                    false,
+
+                updatedAt:
+                    FieldValue
+                        .serverTimestamp()
+
+            });
+
+
+            /*
+             * --------------------------------------------------------------
+             * STEP 9
+             * Safe Response
+             * --------------------------------------------------------------
+             *
+             * NEVER return the password.
+             *
+             */
+
+            console.log(
+                "[LibControl] Admin password changed:",
+                {
+                    uid:
+                        adminUID,
+
+                    libraryId:
+                        libraryId
+                }
+            );
+
+
+            return {
+
+                success:
+                    true,
+
+                message:
+                    "Admin password changed successfully."
+
+            };
+
+        }
+    );
