@@ -1,2441 +1,1216 @@
-/**
- * ==========================================================================
- * LIBMANAGE - STUDENT DASHBOARD CORE MODULE
- * ==========================================================================
- *
- * NEW APP FIRESTORE STRUCTURE
- *
- * libmanage_secure_v2
- * └── libraries
- *     └── CURRENT_LIBRARY_ID
- *         ├── students
- *         │   └── STUDENT_CODE
- *         ├── notices
- *         │   └── NOTICE_ID
- *         ├── attendance
- *         │   └── ATTENDANCE_ID
- *         └── seats
- *             └── SEAT_ID
- *
- * IMPORTANT
- * --------------------------------------------------------------------------
- * 1. Old "saas_libraries" structure is NOT used.
- * 2. Student can only load the library stored in the current session.
- * 3. Student dashboard is READ-ONLY.
- * 4. No student data is created, edited or deleted from this module.
- * 5. Firestore Security Rules MUST enforce the real authorization.
- * ==========================================================================
- */
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
 
-/* ==========================================================================
-   1. MODULE STATE
-   ========================================================================== */
+    <meta charset="UTF-8">
 
-let studentDashboardData = null;
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-let studentDashboardLibrary = null;
+    <title>LibControl - Student Dashboard</title>
 
-let studentDashboardNoticeUnsubscribe = null;
 
-let studentDashboardAttendanceUnsubscribe = null;
+    <!-- Google Fonts -->
 
-let studentDashboardStudentUnsubscribe = null;
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
 
-let studentAttendanceRecords = [];
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+        crossorigin
+    >
 
-let studentCalendarDate = new Date();
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
 
 
-/* ==========================================================================
-   2. DOM HELPER
-   ========================================================================== */
+    <!-- Global CSS -->
 
-function studentDashboardEl(id) {
+    <link
+        rel="stylesheet"
+        href="../css/style.css"
+    >
 
-    return document.getElementById(id);
 
-}
+    <style>
 
+        /* =====================================================
+           LIBCONTROL STUDENT PORTAL
+           ===================================================== */
 
-/* ==========================================================================
-   3. SESSION HELPERS
-   ========================================================================== */
+        * {
+            box-sizing: border-box;
+        }
 
-function getStudentSessionRole() {
 
-    return (
-        localStorage.getItem(
-            "session_role"
-        ) || ""
-    ).trim().toLowerCase();
+        body {
+            margin: 0;
+            font-family: Inter, Arial, sans-serif;
+            background: #f5f7fb;
+            color: #0f172a;
+        }
 
-}
 
+        .student-dashboard {
 
-function getStudentSessionLibraryId() {
+            width: 100%;
 
-    return (
-        localStorage.getItem(
-            "session_library_id"
-        ) || ""
-    ).trim().toUpperCase();
+            min-height: 100vh;
 
-}
+            padding: 24px;
 
+            background:
+                linear-gradient(
+                    180deg,
+                    #f5f7fb 0%,
+                    #eef4ff 100%
+                );
+        }
 
-function getStudentSessionCode() {
 
-    return (
-        localStorage.getItem(
-            "session_student_code"
-        ) || ""
-    ).trim().toUpperCase();
+        /* =====================================================
+           TOP BAR
+           ===================================================== */
 
-}
+        .student-topbar {
 
+            display: flex;
 
-function getStudentSessionSeat() {
+            justify-content: space-between;
 
-    return (
-        localStorage.getItem(
-            "session_student_seat"
-        ) || ""
-    ).trim();
+            align-items: center;
 
-}
+            gap: 20px;
 
+            margin-bottom: 24px;
+        }
 
-/* ==========================================================================
-   4. SESSION VALIDATION
-   ========================================================================== */
 
-function validateStudentDashboardSession() {
+        .student-brand h1 {
 
-    const role =
-        getStudentSessionRole();
+            margin: 0;
 
-    const libraryId =
-        getStudentSessionLibraryId();
+            font-size: 1.7rem;
 
-    const studentCode =
-        getStudentSessionCode();
+            font-weight: 800;
 
+            color: #0f172a;
+        }
 
-    if (
-        role !== "student" ||
-        !libraryId ||
-        !studentCode
-    ) {
 
-        redirectStudentToGateway();
+        .student-brand p {
 
-        return false;
+            margin: 5px 0 0;
 
-    }
+            color: #64748b;
 
+            font-size: 0.9rem;
 
-    return true;
+            font-weight: 500;
+        }
 
-}
 
+        .student-exit-btn {
 
-/* ==========================================================================
-   5. SAFE REDIRECT
-   ========================================================================== */
+            border: none;
 
-function redirectStudentToGateway() {
+            padding: 11px 18px;
 
-    const currentPath =
-        window.location.pathname;
+            border-radius: 9px;
 
+            cursor: pointer;
 
-    if (
-        currentPath.includes(
-            "/pages/"
-        )
-    ) {
+            font-weight: 700;
 
-        window.location.href =
-            "../index.html";
+            font-size: 14px;
 
-    } else {
+            background: #ef4444;
 
-        window.location.href =
-            "index.html";
+            color: #ffffff;
 
-    }
+            transition: 0.2s ease;
+        }
 
-}
 
+        .student-exit-btn:hover {
 
-/* ==========================================================================
-   6. NEW APP LIBRARY REFERENCE
-   ========================================================================== */
+            background: #dc2626;
 
-function getStudentLibraryRef() {
+            transform: translateY(-1px);
+        }
 
-    if (
-        !window.db
-    ) {
-        return null;
-    }
 
+        /* =====================================================
+           LOGIN INFORMATION
+           ===================================================== */
 
-    const libraryId =
-        getStudentSessionLibraryId();
+        .student-id-bar {
 
+            display: grid;
 
-    if (!libraryId) {
-        return null;
-    }
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
 
+            gap: 14px;
 
-    return window.db
-        .collection(
-            "libmanage_secure_v2"
-        )
-        .collection(
-            "libraries"
-        )
-        .doc(
-            libraryId
-        );
+            margin-bottom: 20px;
+        }
 
-}
 
+        .student-id-box {
 
-/* ==========================================================================
-   7. CURRENT STUDENT REFERENCE
-   ========================================================================== */
+            padding: 16px 18px;
 
-function getCurrentStudentRef() {
+            border-radius: 14px;
 
-    const libraryRef =
-        getStudentLibraryRef();
+            background: #ffffff;
 
+            border: 1px solid #e5e7eb;
 
-    const studentCode =
-        getStudentSessionCode();
+            box-shadow:
+                0 8px 22px rgba(15,23,42,0.05);
+        }
 
 
-    if (
-        !libraryRef ||
-        !studentCode
-    ) {
-        return null;
-    }
+        .student-id-box span {
 
+            display: block;
 
-    return libraryRef
-        .collection(
-            "students"
-        )
-        .doc(
-            studentCode
-        );
+            font-size: 0.76rem;
 
-}
+            color: #64748b;
 
+            margin-bottom: 6px;
 
-/* ==========================================================================
-   8. HTML ESCAPE
-   ========================================================================== */
+            font-weight: 600;
 
-function escapeStudentDashboardHtml(
-    value
-) {
+            text-transform: uppercase;
 
-    return String(
-        value ?? ""
-    )
-    .replace(
-        /&/g,
-        "&amp;"
-    )
-    .replace(
-        /</g,
-        "&lt;"
-    )
-    .replace(
-        />/g,
-        "&gt;"
-    )
-    .replace(
-        /"/g,
-        "&quot;"
-    )
-    .replace(
-        /'/g,
-        "&#39;"
-    );
+            letter-spacing: 0.03em;
+        }
 
-}
 
+        .student-id-box strong {
 
-/* ==========================================================================
-   9. TEXT SETTER
-   ========================================================================== */
+            font-size: 0.96rem;
 
-function setStudentText(
-    elementId,
-    value,
-    fallback = "-"
-) {
+            color: #0f172a;
 
-    const element =
-        studentDashboardEl(
-            elementId
-        );
+            word-break: break-word;
+        }
 
 
-    if (!element) {
-        return;
-    }
+        /* =====================================================
+           STUDENT INFORMATION
+           ===================================================== */
 
+        .student-info-card {
 
-    const finalValue =
-        value === undefined ||
-        value === null ||
-        String(value).trim() === ""
-            ? fallback
-            : value;
+            background: #ffffff;
 
+            border-radius: 16px;
 
-    element.textContent =
-        finalValue;
+            padding: 22px;
 
-}
+            margin-bottom: 22px;
 
+            border: 1px solid #e5e7eb;
 
-/* ==========================================================================
-   10. INITIAL LIBRARY UI
-   ========================================================================== */
+            box-shadow:
+                0 10px 25px rgba(15,23,42,0.05);
+        }
 
-function initializeStudentLibraryHeader() {
 
-    const libraryName =
-        localStorage.getItem(
-            "session_library_name"
-        ) ||
-        "Library";
+        .student-info-card h2 {
 
+            margin: 0 0 18px;
 
-    const libraryId =
-        getStudentSessionLibraryId();
+            font-size: 1.2rem;
 
+            font-weight: 800;
 
-    const studentCode =
-        getStudentSessionCode();
+            color: #0f172a;
+        }
 
 
-    /*
-     * Existing IDs kept for compatibility.
-     */
+        .student-info-grid {
 
-    setStudentText(
-        "student-library-name",
-        libraryName,
-        "Library"
-    );
+            display: grid;
 
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
 
-    setStudentText(
-        "nav-library-name",
-        libraryName,
-        "Library"
-    );
+            gap: 14px;
+        }
 
 
-    setStudentText(
-        "student-library-title",
-        libraryName,
-        "Library"
-    );
+        .info-item {
 
+            padding: 14px;
 
-    /*
-     * Current student-dashboard.html IDs.
-     */
+            border-radius: 11px;
 
-    setStudentText(
-        "student-library-id-display",
-        libraryId,
-        "-"
-    );
+            background: #f8fafc;
 
+            border: 1px solid #eef2f7;
 
-    setStudentText(
-        "student-code-display",
-        studentCode,
-        "-"
-    );
+            min-width: 0;
+        }
 
-}
 
+        .info-item span {
 
-/* ==========================================================================
-   11. LOAD LIBRARY
-   ========================================================================== */
+            display: block;
 
-async function loadStudentLibrary() {
+            font-size: 0.74rem;
 
-    const libraryRef =
-        getStudentLibraryRef();
+            color: #64748b;
 
+            margin-bottom: 5px;
 
-    if (!libraryRef) {
-        return false;
-    }
+            font-weight: 600;
+        }
 
 
-    try {
+        .info-item strong {
 
-        const snapshot =
-            await libraryRef.get();
+            display: block;
 
+            color: #0f172a;
 
-        if (
-            !snapshot.exists
-        ) {
+            font-size: 0.92rem;
 
-            alert(
-                "Library account could not be found."
-            );
+            word-break: break-word;
+        }
 
-            redirectStudentToGateway();
 
-            return false;
+        #student-status {
+
+            color: #16a34a;
+        }
+
+
+        /* =====================================================
+           MAIN COLUMNS
+           ===================================================== */
+
+        .dashboard-columns {
+
+            display: grid;
+
+            grid-template-columns:
+                minmax(0, 1.35fr)
+                minmax(320px, 1fr);
+
+            gap: 22px;
+
+            align-items: start;
+        }
+
+
+        .dashboard-card {
+
+            background: #ffffff;
+
+            border-radius: 16px;
+
+            padding: 22px;
+
+            border: 1px solid #e5e7eb;
+
+            box-shadow:
+                0 10px 25px rgba(15,23,42,0.05);
+
+            min-width: 0;
+        }
+
+
+        .dashboard-card h2 {
+
+            margin: 0 0 18px;
+
+            font-size: 1.18rem;
+
+            font-weight: 800;
+
+            color: #0f172a;
+        }
+
+
+        /* =====================================================
+           ATTENDANCE SUMMARY
+           ===================================================== */
+
+        .attendance-summary {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+
+            gap: 14px;
+
+            margin-bottom: 20px;
+        }
+
+
+        .attendance-summary-box {
+
+            padding: 16px;
+
+            border-radius: 12px;
+
+            text-align: center;
+
+            background: #f8fafc;
+
+            border: 1px solid #eef2f7;
+        }
+
+
+        .attendance-summary-box span {
+
+            display: block;
+
+            font-size: 0.78rem;
+
+            color: #64748b;
+
+            margin-bottom: 6px;
+
+            font-weight: 600;
+        }
+
+
+        .attendance-summary-box strong {
+
+            font-size: 1.6rem;
+
+            font-weight: 800;
+
+            color: #0f172a;
+        }
+
+
+        #total-present {
+
+            color: #16a34a;
+        }
+
+
+        #total-absent {
+
+            color: #dc2626;
+        }
+
+
+        /* =====================================================
+           CALENDAR
+           ===================================================== */
+
+        .calendar-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            gap: 10px;
+
+            margin-bottom: 15px;
+        }
+
+
+        .calendar-header button {
+
+            width: 38px;
+
+            height: 38px;
+
+            border: 1px solid #dbe2ea;
+
+            background: #ffffff;
+
+            color: #0f172a;
+
+            border-radius: 9px;
+
+            cursor: pointer;
+
+            font-size: 20px;
+
+            font-weight: 700;
+
+            transition: 0.2s ease;
+        }
+
+
+        .calendar-header button:hover {
+
+            background: #eff6ff;
+
+            border-color: #93c5fd;
+        }
+
+
+        .calendar-month-title {
+
+            font-weight: 800;
+
+            font-size: 1rem;
+
+            color: #0f172a;
+
+            text-align: center;
+        }
+
+
+        .calendar-weekdays,
+        .calendar-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(7, minmax(0, 1fr));
+
+            gap: 6px;
+        }
+
+
+        .calendar-weekdays div {
+
+            text-align: center;
+
+            font-size: 0.7rem;
+
+            color: #64748b;
+
+            padding: 6px 0;
+
+            font-weight: 700;
+        }
+
+
+        .calendar-day {
+
+            min-height: 58px;
+
+            border-radius: 9px;
+
+            border: 1px solid #e5e7eb;
+
+            background: #fafafa;
+
+            padding: 7px;
+
+            position: relative;
+
+            overflow: hidden;
+        }
+
+
+        .calendar-day.empty {
+
+            background: transparent;
+
+            border: none;
+        }
+
+
+        .calendar-day-number {
+
+            font-size: 0.78rem;
+
+            font-weight: 800;
+
+            color: #334155;
+        }
+
+
+        .calendar-status {
+
+            display: block;
+
+            margin-top: 6px;
+
+            font-size: 0.63rem;
+
+            font-weight: 800;
+
+            text-align: center;
+
+            border-radius: 5px;
+
+            padding: 3px 2px;
+        }
+
+
+        .calendar-status.present {
+
+            background: #dcfce7;
+
+            color: #166534;
+        }
+
+
+        .calendar-status.absent {
+
+            background: #fee2e2;
+
+            color: #991b1b;
+        }
+
+
+        .calendar-day.today {
+
+            border:
+                2px solid #2563eb;
+
+            background:
+                #eff6ff;
+        }
+
+
+        /* =====================================================
+           NOTICE LIST
+           ===================================================== */
+
+        .notice-list {
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 12px;
+
+            max-height: 500px;
+
+            overflow-y: auto;
+
+            padding-right: 3px;
+        }
+
+
+        .notice-item {
+
+            padding: 15px;
+
+            border-radius: 11px;
+
+            background: #f8fafc;
+
+            border-left: 4px solid #2563eb;
+
+            border-top: 1px solid #eef2f7;
+
+            border-right: 1px solid #eef2f7;
+
+            border-bottom: 1px solid #eef2f7;
+        }
+
+
+        .notice-item h3 {
+
+            margin: 0 0 6px;
+
+            font-size: 0.98rem;
+
+            font-weight: 800;
+
+            color: #0f172a;
 
         }
 
 
-        studentDashboardLibrary =
-            snapshot.data() || {};
+        .notice-item p {
 
+            margin: 0;
 
-        if (
-            studentDashboardLibrary.enabled ===
-            false
-        ) {
+            color: #475569;
 
-            alert(
-                "Student access has been disabled for this library."
-            );
+            white-space: pre-wrap;
 
-            logoutStudentDashboard();
+            line-height: 1.5;
 
-            return false;
-
+            font-size: 0.88rem;
         }
 
 
-        if (
-            studentDashboardLibrary.status &&
-            String(
-                studentDashboardLibrary.status
-            ).toLowerCase() !==
-            "approved"
-        ) {
+        .notice-date {
 
-            alert(
-                "This library is currently not approved."
-            );
+            display: block;
 
-            logoutStudentDashboard();
+            margin-top: 9px;
 
-            return false;
+            color: #94a3b8;
 
+            font-size: 0.72rem;
+
+            font-weight: 500;
         }
 
 
-        const actualLibraryName =
-            studentDashboardLibrary.name ||
-            localStorage.getItem(
-                "session_library_name"
-            ) ||
-            "Library";
+        /* =====================================================
+           STATES
+           ===================================================== */
 
+        .empty-message {
 
-        localStorage.setItem(
-            "session_library_name",
-            actualLibraryName
-        );
+            text-align: center;
 
+            padding: 25px 10px;
 
-        initializeStudentLibraryHeader();
+            color: #64748b;
 
-
-        return true;
-
-    } catch (error) {
-
-        console.error(
-            "[Student Dashboard] Library loading error:",
-            error
-        );
-
-
-        showStudentDashboardError(
-            "Unable to load library information."
-        );
-
-
-        return false;
-
-    }
-
-}
-
-
-/* ==========================================================================
-   12. LOAD CURRENT STUDENT
-   ========================================================================== */
-
-async function loadCurrentStudent() {
-
-    const studentRef =
-        getCurrentStudentRef();
-
-
-    if (!studentRef) {
-
-        showStudentDashboardError(
-            "Student session information is missing."
-        );
-
-        return false;
-
-    }
-
-
-    try {
-
-        const snapshot =
-            await studentRef.get();
-
-
-        if (
-            !snapshot.exists
-        ) {
-
-            alert(
-                "Student account could not be found."
-            );
-
-            logoutStudentDashboard();
-
-            return false;
-
+            font-size: 14px;
         }
 
 
-        studentDashboardData =
-            {
-                id:
-                    snapshot.id,
+        .loading-message {
 
-                ...snapshot.data()
-            };
+            color: #64748b;
 
+            text-align: center;
 
-        renderStudentProfile(
-            studentDashboardData
-        );
+            padding: 20px;
 
+            font-size: 14px;
+        }
 
-        return true;
 
-    } catch (error) {
+        /* =====================================================
+           MOBILE
+           ===================================================== */
 
-        console.error(
-            "[Student Dashboard] Student loading error:",
-            error
-        );
+        @media (max-width: 900px) {
 
+            .dashboard-columns {
 
-        showStudentDashboardError(
-            "Unable to load student profile."
-        );
-
-
-        return false;
-
-    }
-
-}
-
-
-/* ==========================================================================
-   13. STUDENT PROFILE RENDER
-   ========================================================================== */
-
-function renderStudentProfile(
-    student
-) {
-
-    const studentName =
-        student.studentName ||
-        student.name ||
-        "";
-
-
-    const fatherName =
-        student.fatherName ||
-        student.father ||
-        "";
-
-
-    /*
-     * Support all existing class field names.
-     */
-
-    const studentClass =
-        student.className ||
-        student.class ||
-        student.studentClass ||
-        "";
-
-
-    const seatNumber =
-        student.seatNumber ||
-        student.seat ||
-        getStudentSessionSeat() ||
-        "";
-
-
-    const mobile =
-        student.mobile ||
-        student.mobileNumber ||
-        "";
-
-
-    const shift =
-        student.shift ||
-        "";
-
-
-    const status =
-        student.status ||
-        "";
-
-
-    const joiningDate =
-        student.joiningDate ||
-        student.joining ||
-        "";
-
-
-    const expiryDate =
-        student.expiryDate ||
-        student.expiry ||
-        "";
-
-
-    const studentCode =
-        student.studentCode ||
-        student.id ||
-        getStudentSessionCode();
-
-
-    /* ----------------------------------------------------------------------
-       Name
-    ---------------------------------------------------------------------- */
-
-    setStudentText(
-        "student-name",
-        studentName,
-        "Student"
-    );
-
-
-    setStudentText(
-        "dashboard-student-name",
-        studentName,
-        "Student"
-    );
-
-
-    setStudentText(
-        "welcome-student-name",
-        studentName,
-        "Student"
-    );
-
-
-    /* ----------------------------------------------------------------------
-       Student Code
-    ---------------------------------------------------------------------- */
-
-    setStudentText(
-        "student-code",
-        studentCode
-    );
-
-
-    setStudentText(
-        "dashboard-student-code",
-        studentCode
-    );
-
-
-    setStudentText(
-        "student-code-display",
-        studentCode
-    );
-
-
-    /* ----------------------------------------------------------------------
-       Father
-    ---------------------------------------------------------------------- */
-
-    setStudentText(
-        "student-father",
-        fatherName
-    );
-
-
-    setStudentText(
-        "student-father-name",
-        fatherName
-    );
-
-
-    /* ----------------------------------------------------------------------
-       Class
-    ---------------------------------------------------------------------- */
-
-    setStudentText(
-        "student-class",
-        studentClass
-    );
-
-
-    /* ----------------------------------------------------------------------
-       Seat
-    ---------------------------------------------------------------------- */
-
-    setStudentText(
-        "student-seat",
-        seatNumber
-    );
-
-
-    setStudentText(
-        "student-seat-number",
-        seatNumber
-    );
-
-
-    /* ----------------------------------------------------------------------
-       Mobile
-    ---------------------------------------------------------------------- */
-
-    setStudentText(
-        "student-mobile",
-        mobile
-    );
-
-
-    /* ----------------------------------------------------------------------
-       Shift
-    ---------------------------------------------------------------------- */
-
-    setStudentText(
-        "student-shift",
-        shift
-    );
-
-
-    /* ----------------------------------------------------------------------
-       Joining Date
-    ---------------------------------------------------------------------- */
-
-    const formattedJoiningDate =
-        formatStudentDate(
-            joiningDate
-        );
-
-
-    setStudentText(
-        "student-joining-date",
-        formattedJoiningDate
-    );
-
-
-    setStudentText(
-        "student-joining",
-        formattedJoiningDate
-    );
-
-
-    /* ----------------------------------------------------------------------
-       Expiry Date
-    ---------------------------------------------------------------------- */
-
-    const formattedExpiryDate =
-        formatStudentDate(
-            expiryDate
-        );
-
-
-    setStudentText(
-        "student-expiry-date",
-        formattedExpiryDate
-    );
-
-
-    setStudentText(
-        "student-expiry",
-        formattedExpiryDate
-    );
-
-
-    /* ----------------------------------------------------------------------
-       Status
-    ---------------------------------------------------------------------- */
-
-    setStudentStatus(
-        status
-    );
-
-}
-
-
-/* ==========================================================================
-   14. STATUS RENDER
-   ========================================================================== */
-
-function setStudentStatus(
-    status
-) {
-
-    const statusElements = [
-
-        studentDashboardEl(
-            "student-status"
-        ),
-
-        studentDashboardEl(
-            "dashboard-student-status"
-        )
-
-    ];
-
-
-    statusElements.forEach(
-        (element) => {
-
-            if (!element) {
-                return;
+                grid-template-columns: 1fr;
             }
 
 
-            const normalized =
-                String(
-                    status ||
-                    ""
-                ).toLowerCase();
+            .student-info-grid {
 
-
-            element.textContent =
-                status ||
-                "Unknown";
-
-
-            element.classList.remove(
-                "active",
-                "expired",
-                "pending",
-                "inactive"
-            );
-
-
-            if (
-                normalized ===
-                "active"
-            ) {
-
-                element.classList.add(
-                    "active"
-                );
-
-            } else if (
-                normalized ===
-                "expired"
-            ) {
-
-                element.classList.add(
-                    "expired"
-                );
-
-            } else if (
-                normalized ===
-                "pending"
-            ) {
-
-                element.classList.add(
-                    "pending"
-                );
-
-            } else {
-
-                element.classList.add(
-                    "inactive"
-                );
-
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
             }
 
         }
-    );
-
-}
 
 
-/* ==========================================================================
-   15. DATE FORMATTER
-   ========================================================================== */
+        @media (max-width: 600px) {
 
-function formatStudentDate(
-    value
-) {
+            .student-dashboard {
 
-    if (
-        !value
-    ) {
-        return "-";
-    }
-
-
-    if (
-        typeof value.toDate ===
-        "function"
-    ) {
-
-        const date =
-            value.toDate();
-
-
-        return date.toLocaleDateString(
-            "en-IN",
-            {
-                day: "2-digit",
-                month: "short",
-                year: "numeric"
+                padding: 14px;
             }
-        );
-
-    }
 
 
-    if (
-        value.seconds !== undefined
-    ) {
+            .student-topbar {
 
-        const date =
-            new Date(
-                value.seconds * 1000
-            );
+                align-items: flex-start;
+            }
 
 
-        if (
-            !Number.isNaN(
-                date.getTime()
-            )
-        ) {
+            .student-brand h1 {
 
-            return date.toLocaleDateString(
-                "en-IN",
-                {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric"
-                }
-            );
+                font-size: 1.35rem;
+            }
+
+
+            .student-brand p {
+
+                font-size: 0.82rem;
+            }
+
+
+            .student-exit-btn {
+
+                padding: 9px 13px;
+
+                font-size: 13px;
+            }
+
+
+            .student-id-bar {
+
+                grid-template-columns: 1fr;
+            }
+
+
+            .student-info-grid {
+
+                grid-template-columns: 1fr;
+            }
+
+
+            .dashboard-card,
+            .student-info-card {
+
+                padding: 16px;
+            }
+
+
+            .attendance-summary {
+
+                grid-template-columns: 1fr 1fr;
+
+                gap: 10px;
+            }
+
+
+            .calendar-day {
+
+                min-height: 50px;
+
+                padding: 5px;
+            }
+
+
+            .calendar-status {
+
+                font-size: 0.54rem;
+            }
+
+
+            .calendar-weekdays div {
+
+                font-size: 0.62rem;
+            }
 
         }
 
-    }
 
+        @media (max-width: 400px) {
 
-    const stringValue =
-        String(value).trim();
+            .attendance-summary {
 
-
-    if (
-        /^\d{2}\/\d{2}\/\d{4}$/
-            .test(
-                stringValue
-            )
-    ) {
-
-        return stringValue;
-
-    }
-
-
-    const parsed =
-        new Date(
-            stringValue
-        );
-
-
-    if (
-        !Number.isNaN(
-            parsed.getTime()
-        )
-    ) {
-
-        return parsed.toLocaleDateString(
-            "en-IN",
-            {
-                day: "2-digit",
-                month: "short",
-                year: "numeric"
+                grid-template-columns: 1fr;
             }
-        );
-
-    }
 
 
-    return stringValue;
+            .calendar-grid,
+            .calendar-weekdays {
 
-}
-
-
-/* ==========================================================================
-   16. LOAD NOTICES
-   ========================================================================== */
-
-function startStudentNoticeListener() {
-
-    const libraryRef =
-        getStudentLibraryRef();
+                gap: 4px;
+            }
 
 
-    const container =
-        studentDashboardEl(
-            "student-notices-container"
-        ) ||
-        studentDashboardEl(
-            "recent-notices-container"
-        ) ||
-        studentDashboardEl(
-            "student-notice-list"
-        );
+            .calendar-day {
+
+                min-height: 46px;
+
+                padding: 4px;
+            }
+
+        }
+
+    </style>
+
+</head>
 
 
-    if (
-        !libraryRef ||
-        !container
-    ) {
-        return;
-    }
+<body>
 
 
-    if (
-        typeof studentDashboardNoticeUnsubscribe ===
-        "function"
-    ) {
-
-        studentDashboardNoticeUnsubscribe();
-
-    }
+<div class="student-dashboard">
 
 
-    studentDashboardNoticeUnsubscribe =
-        libraryRef
-            .collection(
-                "notices"
-            )
-            .onSnapshot(
+    <!-- =====================================================
+         TOP BAR
+         ===================================================== -->
 
-                (snapshot) => {
-
-                    const notices =
-                        snapshot.docs.map(
-                            (doc) => ({
-
-                                id:
-                                    doc.id,
-
-                                ...doc.data()
-
-                            })
-                        );
+    <div class="student-topbar">
 
 
-                    notices.sort(
-                        (
-                            a,
-                            b
-                        ) => {
+        <div class="student-brand">
 
-                            return (
-                                getTimestampMillis(
-                                    b.createdAt
-                                ) -
-                                getTimestampMillis(
-                                    a.createdAt
-                                )
-                            );
+            <h1>
+                Student Dashboard
+            </h1>
 
-                        }
-                    );
+            <p>
+                Your Library Membership Portal
+            </p>
+
+        </div>
 
 
-                    renderStudentNotices(
-                        notices,
-                        container
-                    );
-
-                },
-
-                (error) => {
-
-                    console.error(
-                        "[Student Dashboard] Notice listener error:",
-                        error
-                    );
+        <button
+            type="button"
+            class="student-exit-btn"
+            id="student-exit-btn"
+        >
+            Exit Portal
+        </button>
 
 
-                    container.innerHTML = `
-                        <div class="empty-message">
-                            Unable to load notices right now.
-                        </div>
-                    `;
-
-                }
-
-            );
-
-}
+    </div>
 
 
-/* ==========================================================================
-   17. NOTICE RENDER
-   ========================================================================== */
+    <!-- =====================================================
+         LOGIN IDENTIFICATION
+         ===================================================== -->
 
-function renderStudentNotices(
-    notices,
-    container
-) {
+    <div class="student-id-bar">
 
-    if (
-        !notices.length
-    ) {
 
-        container.innerHTML = `
-            <div class="empty-message">
-                No notices available right now.
+        <div class="student-id-box">
+
+            <span>
+                Library ID
+            </span>
+
+            <strong
+                id="student-library-id-display"
+            >
+                Loading...
+            </strong>
+
+        </div>
+
+
+        <div class="student-id-box">
+
+            <span>
+                Student Login ID
+            </span>
+
+            <strong
+                id="student-code-display"
+            >
+                Loading...
+            </strong>
+
+        </div>
+
+
+    </div>
+
+
+    <!-- =====================================================
+         STUDENT PROFILE
+         ===================================================== -->
+
+    <div class="student-info-card">
+
+
+        <h2>
+            Student Details
+        </h2>
+
+
+        <div class="student-info-grid">
+
+
+            <div class="info-item">
+
+                <span>
+                    Student Name
+                </span>
+
+                <strong id="student-name">
+                    Loading...
+                </strong>
+
             </div>
-        `;
-
-        return;
-
-    }
 
 
-    let html =
-        "";
+            <div class="info-item">
+
+                <span>
+                    Father's Name
+                </span>
+
+                <strong id="student-father">
+                    Loading...
+                </strong>
+
+            </div>
 
 
-    notices.forEach(
-        (notice) => {
+            <div class="info-item">
 
-            html += `
-                <div class="notice-item">
+                <span>
+                    Mobile Number
+                </span>
 
-                    <h3>
-                        ${escapeStudentDashboardHtml(
-                            notice.title ||
-                            "Notice"
-                        )}
-                    </h3>
+                <strong id="student-mobile">
+                    Loading...
+                </strong>
 
-                    <p>
-                        ${escapeStudentDashboardHtml(
-                            notice.message ||
-                            ""
-                        )}
-                    </p>
+            </div>
 
-                    <span class="notice-date">
-                        ${escapeStudentDashboardHtml(
-                            formatStudentDateTime(
-                                notice.createdAt
-                            )
-                        )}
+
+            <div class="info-item">
+
+                <span>
+                    Class
+                </span>
+
+                <strong id="student-class">
+                    Loading...
+                </strong>
+
+            </div>
+
+
+            <div class="info-item">
+
+                <span>
+                    Seat Number
+                </span>
+
+                <strong id="student-seat">
+                    Loading...
+                </strong>
+
+            </div>
+
+
+            <div class="info-item">
+
+                <span>
+                    Shift
+                </span>
+
+                <strong id="student-shift">
+                    Loading...
+                </strong>
+
+            </div>
+
+
+            <div class="info-item">
+
+                <span>
+                    Joining Date
+                </span>
+
+                <strong id="student-joining">
+                    Loading...
+                </strong>
+
+            </div>
+
+
+            <div class="info-item">
+
+                <span>
+                    Expiry Date
+                </span>
+
+                <strong id="student-expiry">
+                    Loading...
+                </strong>
+
+            </div>
+
+
+            <div class="info-item">
+
+                <span>
+                    Status
+                </span>
+
+                <strong id="student-status">
+                    Loading...
+                </strong>
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
+    <!-- =====================================================
+         DASHBOARD COLUMNS
+         ===================================================== -->
+
+    <div class="dashboard-columns">
+
+
+        <!-- =================================================
+             ATTENDANCE
+             ================================================= -->
+
+        <div class="dashboard-card">
+
+
+            <h2>
+                Attendance History
+            </h2>
+
+
+            <div class="attendance-summary">
+
+
+                <div class="attendance-summary-box">
+
+                    <span>
+                        Total Present
                     </span>
 
-                </div>
-            `;
+                    <strong id="total-present">
+                        0
+                    </strong>
 
-        }
-    );
-
-
-    container.innerHTML =
-        html;
-
-}
-
-
-/* ==========================================================================
-   18. TIMESTAMP MILLIS
-   ========================================================================== */
-
-function getTimestampMillis(
-    value
-) {
-
-    if (
-        !value
-    ) {
-        return 0;
-    }
-
-
-    if (
-        typeof value.toMillis ===
-        "function"
-    ) {
-
-        return value.toMillis();
-
-    }
-
-
-    if (
-        typeof value.toDate ===
-        "function"
-    ) {
-
-        return value
-            .toDate()
-            .getTime();
-
-    }
-
-
-    if (
-        value.seconds !== undefined
-    ) {
-
-        return (
-            Number(
-                value.seconds
-            ) *
-            1000
-        );
-
-    }
-
-
-    /*
-     * Also support normal date strings.
-     */
-
-    if (
-        typeof value ===
-        "string"
-    ) {
-
-        const parsed =
-            new Date(value);
-
-
-        if (
-            !Number.isNaN(
-                parsed.getTime()
-            )
-        ) {
-
-            return parsed.getTime();
-
-        }
-
-    }
-
-
-    return 0;
-
-}
-
-
-/* ==========================================================================
-   19. DATE + TIME
-   ========================================================================== */
-
-function formatStudentDateTime(
-    value
-) {
-
-    const millis =
-        getTimestampMillis(
-            value
-        );
-
-
-    if (
-        !millis
-    ) {
-        return "Just now";
-    }
-
-
-    return new Date(
-        millis
-    ).toLocaleString(
-        "en-IN",
-        {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit"
-        }
-    );
-
-}
-
-
-/* ==========================================================================
-   20. ATTENDANCE LISTENER
-   ========================================================================== */
-
-function startStudentAttendanceListener() {
-
-    const libraryRef =
-        getStudentLibraryRef();
-
-
-    if (
-        !libraryRef
-    ) {
-        return;
-    }
-
-
-    if (
-        typeof studentDashboardAttendanceUnsubscribe ===
-        "function"
-    ) {
-
-        studentDashboardAttendanceUnsubscribe();
-
-    }
-
-
-    studentDashboardAttendanceUnsubscribe =
-        libraryRef
-            .collection(
-                "attendance"
-            )
-            .onSnapshot(
-
-                (snapshot) => {
-
-                    const studentCode =
-                        getStudentSessionCode();
-
-
-                    const records =
-                        snapshot.docs
-                            .map(
-                                (doc) => ({
-
-                                    id:
-                                        doc.id,
-
-                                    ...doc.data()
-
-                                })
-                            )
-                            .filter(
-                                (record) => {
-
-                                    const recordCode =
-                                        String(
-                                            record.studentCode ||
-                                            record.studentId ||
-                                            record.uid ||
-                                            ""
-                                        )
-                                        .trim()
-                                        .toUpperCase();
-
-
-                                    return (
-                                        recordCode ===
-                                        studentCode
-                                    );
-
-                                }
-                            );
-
-
-                    studentAttendanceRecords =
-                        records;
-
-
-                    calculateAttendanceSummary(
-                        records
-                    );
-
-
-                    renderStudentAttendance(
-                        records
-                    );
-
-                },
-
-                (error) => {
-
-                    console.error(
-                        "[Student Dashboard] Attendance listener error:",
-                        error
-                    );
-
-
-                    const calendar =
-                        studentDashboardEl(
-                            "attendance-calendar"
-                        );
-
-
-                    if (calendar) {
-
-                        calendar.innerHTML = `
-                            <div class="loading-message">
-                                Unable to load attendance right now.
-                            </div>
-                        `;
-
-                    }
-
-                }
-
-            );
-
-}
-
-
-/* ==========================================================================
-   21. ATTENDANCE RENDER
-   ========================================================================== */
-
-function renderStudentAttendance(
-    records
-) {
-
-    const calendar =
-        studentDashboardEl(
-            "attendance-calendar"
-        );
-
-
-    if (
-        !calendar
-    ) {
-        return;
-    }
-
-
-    /*
-     * Keep records available for month navigation.
-     */
-
-    studentAttendanceRecords =
-        records || [];
-
-
-    renderAttendanceCalendar();
-
-}
-
-
-/* ==========================================================================
-   22. ATTENDANCE DATE
-   ========================================================================== */
-
-function formatAttendanceDate(
-    record
-) {
-
-    const value =
-        record.date ||
-        record.attendanceDate ||
-        record.createdAt;
-
-
-    if (
-        typeof value ===
-        "string"
-    ) {
-
-        /*
-         * YYYY-MM-DD -> DD/MM/YYYY
-         */
-
-        if (
-            /^\d{4}-\d{2}-\d{2}$/
-                .test(value)
-        ) {
-
-            const parts =
-                value.split("-");
-
-
-            return (
-                parts[2] +
-                "/" +
-                parts[1] +
-                "/" +
-                parts[0]
-            );
-
-        }
-
-
-        return value;
-
-    }
-
-
-    return formatStudentDate(
-        value
-    );
-
-}
-
-
-/* ==========================================================================
-   23. ATTENDANCE SUMMARY
-   ========================================================================== */
-
-function calculateAttendanceSummary(
-    records
-) {
-
-    let present =
-        0;
-
-    let absent =
-        0;
-
-
-    records.forEach(
-        (record) => {
-
-            const status =
-                String(
-                    record.status ||
-                    record.attendance ||
-                    ""
-                ).toLowerCase();
-
-
-            if (
-                status ===
-                "present"
-            ) {
-
-                present++;
-
-            } else if (
-                status ===
-                "absent"
-            ) {
-
-                absent++;
-
-            }
-
-        }
-    );
-
-
-    const total =
-        present +
-        absent;
-
-
-    const percentage =
-        total > 0
-            ? Math.round(
-                (
-                    present /
-                    total
-                ) *
-                100
-            )
-            : 0;
-
-
-    /*
-     * Existing IDs
-     */
-
-    setStudentText(
-        "attendance-present",
-        present,
-        "0"
-    );
-
-
-    setStudentText(
-        "attendance-absent",
-        absent,
-        "0"
-    );
-
-
-    setStudentText(
-        "attendance-total",
-        total,
-        "0"
-    );
-
-
-    setStudentText(
-        "attendance-percentage",
-        percentage + "%",
-        "0%"
-    );
-
-
-    /*
-     * Current HTML IDs
-     */
-
-    setStudentText(
-        "total-present",
-        present,
-        "0"
-    );
-
-
-    setStudentText(
-        "total-absent",
-        absent,
-        "0"
-    );
-
-}
-
-
-/* ==========================================================================
-   24. CALENDAR HELPERS
-   ========================================================================== */
-
-function getAttendanceRecordDate(
-    record
-) {
-
-    const value =
-        record.date ||
-        record.attendanceDate ||
-        "";
-
-
-    if (
-        typeof value ===
-        "string"
-    ) {
-
-        /*
-         * Attendance is normally stored as YYYY-MM-DD.
-         */
-
-        if (
-            /^\d{4}-\d{2}-\d{2}$/
-                .test(value)
-        ) {
-
-            return value;
-
-        }
-
-
-        /*
-         * Also support DD/MM/YYYY.
-         */
-
-        if (
-            /^\d{2}\/\d{2}\/\d{4}$/
-                .test(value)
-        ) {
-
-            const parts =
-                value.split("/");
-
-
-            return (
-                parts[2] +
-                "-" +
-                parts[1] +
-                "-" +
-                parts[0]
-            );
-
-        }
-
-    }
-
-
-    if (value) {
-
-        const millis =
-            getTimestampMillis(
-                value
-            );
-
-
-        if (millis) {
-
-            const date =
-                new Date(
-                    millis
-                );
-
-
-            return (
-                date.getFullYear() +
-                "-" +
-                String(
-                    date.getMonth() + 1
-                ).padStart(
-                    2,
-                    "0"
-                ) +
-                "-" +
-                String(
-                    date.getDate()
-                ).padStart(
-                    2,
-                    "0"
-                )
-            );
-
-        }
-
-    }
-
-
-    return "";
-
-}
-
-
-function getTodayDateKey() {
-
-    const now =
-        new Date();
-
-
-    return (
-        now.getFullYear() +
-        "-" +
-        String(
-            now.getMonth() + 1
-        ).padStart(
-            2,
-            "0"
-        ) +
-        "-" +
-        String(
-            now.getDate()
-        ).padStart(
-            2,
-            "0"
-        )
-    );
-
-}
-
-
-/* ==========================================================================
-   25. RENDER ATTENDANCE CALENDAR
-   ========================================================================== */
-
-function renderAttendanceCalendar() {
-
-    const calendar =
-        studentDashboardEl(
-            "attendance-calendar"
-        );
-
-
-    const monthTitle =
-        studentDashboardEl(
-            "calendar-month-title"
-        );
-
-
-    if (
-        !calendar
-    ) {
-        return;
-    }
-
-
-    const year =
-        studentCalendarDate.getFullYear();
-
-
-    const month =
-        studentCalendarDate.getMonth();
-
-
-    if (monthTitle) {
-
-        monthTitle.textContent =
-            studentCalendarDate.toLocaleDateString(
-                "en-IN",
-                {
-                    month: "long",
-                    year: "numeric"
-                }
-            );
-
-    }
-
-
-    const firstDay =
-        new Date(
-            year,
-            month,
-            1
-        )
-        .getDay();
-
-
-    const daysInMonth =
-        new Date(
-            year,
-            month + 1,
-            0
-        )
-        .getDate();
-
-
-    const attendanceMap =
-        {};
-
-
-    studentAttendanceRecords.forEach(
-        (record) => {
-
-            const dateKey =
-                getAttendanceRecordDate(
-                    record
-                );
-
-
-            if (!dateKey) {
-                return;
-            }
-
-
-            attendanceMap[
-                dateKey
-            ] =
-                String(
-                    record.status ||
-                    record.attendance ||
-                    ""
-                ).toLowerCase();
-
-        }
-    );
-
-
-    let html =
-        "";
-
-
-    /*
-     * Empty cells before month start.
-     */
-
-    for (
-        let i = 0;
-        i < firstDay;
-        i++
-    ) {
-
-        html += `
-            <div class="calendar-day empty"></div>
-        `;
-
-    }
-
-
-    const todayKey =
-        getTodayDateKey();
-
-
-    for (
-        let day = 1;
-        day <= daysInMonth;
-        day++
-    ) {
-
-        const dateKey =
-            year +
-            "-" +
-            String(
-                month + 1
-            ).padStart(
-                2,
-                "0"
-            ) +
-            "-" +
-            String(
-                day
-            ).padStart(
-                2,
-                "0"
-            );
-
-
-        const status =
-            attendanceMap[
-                dateKey
-            ] || "";
-
-
-        const statusClass =
-            status === "present"
-                ? "present"
-                : status === "absent"
-                    ? "absent"
-                    : "";
-
-
-        const statusText =
-            status === "present"
-                ? "Present"
-                : status === "absent"
-                    ? "Absent"
-                    : "";
-
-
-        const todayClass =
-            dateKey === todayKey
-                ? "today"
-                : "";
-
-
-        html += `
-            <div
-                class="calendar-day ${todayClass}"
-            >
-
-                <div class="calendar-day-number">
-                    ${day}
                 </div>
 
-                ${
-                    statusText
-                        ? `
-                            <span
-                                class="calendar-status ${statusClass}"
-                            >
-                                ${statusText}
-                            </span>
-                        `
-                        : ""
-                }
+
+                <div class="attendance-summary-box">
+
+                    <span>
+                        Total Absent
+                    </span>
+
+                    <strong id="total-absent">
+                        0
+                    </strong>
+
+                </div>
+
 
             </div>
-        `;
 
-    }
 
+            <!-- Calendar Header -->
 
-    calendar.innerHTML =
-        html;
+            <div class="calendar-header">
 
-}
 
+                <button
+                    type="button"
+                    id="previous-month-btn"
+                    aria-label="Previous month"
+                >
+                    ‹
+                </button>
 
-/* ==========================================================================
-   26. CALENDAR NAVIGATION
-   ========================================================================== */
 
-function bindAttendanceCalendarNavigation() {
+                <div
+                    class="calendar-month-title"
+                    id="calendar-month-title"
+                >
+                    Loading...
+                </div>
 
-    const previousButton =
-        studentDashboardEl(
-            "previous-month-btn"
-        );
 
+                <button
+                    type="button"
+                    id="next-month-btn"
+                    aria-label="Next month"
+                >
+                    ›
+                </button>
 
-    const nextButton =
-        studentDashboardEl(
-            "next-month-btn"
-        );
 
+            </div>
 
-    if (previousButton) {
 
-        previousButton.addEventListener(
-            "click",
-            () => {
+            <!-- Weekdays -->
 
-                studentCalendarDate =
-                    new Date(
-                        studentCalendarDate.getFullYear(),
-                        studentCalendarDate.getMonth() - 1,
-                        1
-                    );
+            <div class="calendar-weekdays">
 
+                <div>Sun</div>
+                <div>Mon</div>
+                <div>Tue</div>
+                <div>Wed</div>
+                <div>Thu</div>
+                <div>Fri</div>
+                <div>Sat</div>
 
-                renderAttendanceCalendar();
+            </div>
 
-            }
-        );
 
-    }
+            <!-- Calendar -->
 
+            <div
+                class="calendar-grid"
+                id="attendance-calendar"
+            >
 
-    if (nextButton) {
+                <div class="loading-message">
+                    Loading attendance...
+                </div>
 
-        nextButton.addEventListener(
-            "click",
-            () => {
+            </div>
 
-                studentCalendarDate =
-                    new Date(
-                        studentCalendarDate.getFullYear(),
-                        studentCalendarDate.getMonth() + 1,
-                        1
-                    );
 
+        </div>
 
-                renderAttendanceCalendar();
 
-            }
-        );
+        <!-- =================================================
+             NOTICES
+             ================================================= -->
 
-    }
+        <div class="dashboard-card">
 
-}
 
+            <h2>
+                Library Notices
+            </h2>
 
-/* ==========================================================================
-   27. REALTIME STUDENT PROFILE
-   ========================================================================== */
 
-function startStudentProfileListener() {
+            <div
+                class="notice-list"
+                id="student-notice-list"
+            >
 
-    const studentRef =
-        getCurrentStudentRef();
+                <div class="loading-message">
+                    Loading notices...
+                </div>
 
+            </div>
 
-    if (!studentRef) {
-        return;
-    }
 
+        </div>
 
-    if (
-        typeof studentDashboardStudentUnsubscribe ===
-        "function"
-    ) {
 
-        studentDashboardStudentUnsubscribe();
+    </div>
 
-    }
 
+</div>
 
-    studentDashboardStudentUnsubscribe =
-        studentRef.onSnapshot(
 
-            (snapshot) => {
+<!-- =========================================================
+     FIREBASE SDK
+     ========================================================= -->
 
-                if (
-                    !snapshot.exists
-                ) {
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 
-                    alert(
-                        "Your student account is no longer available."
-                    );
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
-                    logoutStudentDashboard();
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-                    return;
 
-                }
+<!-- =========================================================
+     LIBCONTROL CORE ENGINE
+     ========================================================= -->
 
+<script src="../js/dashboard.js"></script>
 
-                studentDashboardData =
-                    {
-                        id:
-                            snapshot.id,
 
-                        ...snapshot.data()
-                    };
+<!-- =========================================================
+     STUDENT DASHBOARD ENGINE
+     ========================================================= -->
 
+<script src="../js/student-dashboard.js"></script>
 
-                renderStudentProfile(
-                    studentDashboardData
-                );
 
-            },
+</body>
 
-            (error) => {
-
-                console.error(
-                    "[Student Dashboard] Student realtime listener error:",
-                    error
-                );
-
-            }
-
-        );
-
-}
-
-
-/* ==========================================================================
-   28. STUDENT LOGOUT
-   ========================================================================== */
-
-function logoutStudentDashboard() {
-
-    if (
-        typeof studentDashboardNoticeUnsubscribe ===
-        "function"
-    ) {
-
-        studentDashboardNoticeUnsubscribe();
-
-    }
-
-
-    if (
-        typeof studentDashboardAttendanceUnsubscribe ===
-        "function"
-    ) {
-
-        studentDashboardAttendanceUnsubscribe();
-
-    }
-
-
-    if (
-        typeof studentDashboardStudentUnsubscribe ===
-        "function"
-    ) {
-
-        studentDashboardStudentUnsubscribe();
-
-    }
-
-
-    localStorage.removeItem(
-        "session_role"
-    );
-
-    localStorage.removeItem(
-        "session_student_code"
-    );
-
-    localStorage.removeItem(
-        "session_student_seat"
-    );
-
-    localStorage.removeItem(
-        "session_library_id"
-    );
-
-    localStorage.removeItem(
-        "session_library_name"
-    );
-
-
-    sessionStorage.clear();
-
-
-    redirectStudentToGateway();
-
-}
-
-
-/* ==========================================================================
-   29. LOGOUT BUTTON
-   ========================================================================== */
-
-function bindStudentLogout() {
-
-    document.addEventListener(
-        "click",
-        (event) => {
-
-            const button =
-                event.target.closest(
-                    "#student-exit-btn, #student-logout-btn"
-                );
-
-
-            if (!button) {
-                return;
-            }
-
-
-            logoutStudentDashboard();
-
-        }
-    );
-
-}
-
-
-/* ==========================================================================
-   30. ERROR DISPLAY
-   ========================================================================== */
-
-function showStudentDashboardError(
-    message
-) {
-
-    const containers = [
-
-        studentDashboardEl(
-            "student-dashboard-error"
-        ),
-
-        studentDashboardEl(
-            "dashboard-error"
-        )
-
-    ];
-
-
-    containers.forEach(
-        (container) => {
-
-            if (!container) {
-                return;
-            }
-
-
-            container.textContent =
-                message;
-
-
-            container.classList.add(
-                "active"
-            );
-
-        }
-    );
-
-}
-
-
-/* ==========================================================================
-   31. PREVENT UNAUTHORIZED FORM SUBMISSIONS
-   ========================================================================== */
-
-function protectStudentDashboardForms() {
-
-    document.addEventListener(
-        "submit",
-        (event) => {
-
-            const form =
-                event.target;
-
-
-            if (
-                !form
-            ) {
-                return;
-            }
-
-
-            const allowed =
-                form.id ===
-                    "student-search-form" ||
-                form.id ===
-                    "search-form";
-
-
-            if (
-                !allowed
-            ) {
-
-                event.preventDefault();
-
-            }
-
-        }
-    );
-
-}
-
-
-/* ==========================================================================
-   32. LOAD ALL DASHBOARD DATA
-   ========================================================================== */
-
-async function initializeStudentDashboard() {
-
-    if (
-        !validateStudentDashboardSession()
-    ) {
-        return;
-    }
-
-
-    if (
-        typeof firebase ===
-        "undefined"
-    ) {
-
-        console.error(
-            "[Student Dashboard] Firebase SDK not loaded."
-        );
-
-
-        showStudentDashboardError(
-            "Firebase SDK is not loaded."
-        );
-
-
-        return;
-
-    }
-
-
-    if (
-        !window.db
-    ) {
-
-        console.error(
-            "[Student Dashboard] Firestore unavailable."
-        );
-
-
-        showStudentDashboardError(
-            "Database connection unavailable."
-        );
-
-
-        return;
-
-    }
-
-
-    initializeStudentLibraryHeader();
-
-
-    bindAttendanceCalendarNavigation();
-
-
-    const libraryLoaded =
-        await loadStudentLibrary();
-
-
-    if (
-        !libraryLoaded
-    ) {
-        return;
-    }
-
-
-    const studentLoaded =
-        await loadCurrentStudent();
-
-
-    if (
-        !studentLoaded
-    ) {
-        return;
-    }
-
-
-    startStudentProfileListener();
-
-    startStudentNoticeListener();
-
-    startStudentAttendanceListener();
-
-    bindStudentLogout();
-
-    protectStudentDashboardForms();
-
-
-    console.log(
-        "[LibManage] Student Dashboard loaded successfully."
-    );
-
-}
-
-
-/* ==========================================================================
-   33. START
-   ========================================================================== */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        initializeStudentDashboard();
-
-    }
-);
-
-
-/* ==========================================================================
-   34. PUBLIC API
-   ========================================================================== */
-
-window.LibManageStudentDashboard = {
-
-    reload:
-        async function () {
-
-            await loadStudentLibrary();
-
-            await loadCurrentStudent();
-
-        },
-
-
-    logout:
-        logoutStudentDashboard,
-
-
-    getStudent:
-        function () {
-
-            return studentDashboardData
-                ? {
-                    ...studentDashboardData
-                }
-                : null;
-
-        },
-
-
-    getLibrary:
-        function () {
-
-            return studentDashboardLibrary
-                ? {
-                    ...studentDashboardLibrary
-                }
-                : null;
-
-        }
-
-};
-
-
-console.log(
-    "[LibManage] student-dashboard.js initialized."
-);
+</html>
