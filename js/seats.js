@@ -3,22 +3,19 @@
  * LIBMANAGE - SEAT MANAGEMENT MODULE
  * ==========================================================================
  *
- * NEW APP FIRESTORE STRUCTURE:
+ * CURRENT APP FIRESTORE STRUCTURE:
  *
- * libmanage_secure_v2
- *   └── libraries
- *       └── LIB-XXXXXX
- *           ├── capacity
- *           │   └── config
- *           │
- *           ├── seats
- *           │   └── SEAT-ID
- *           │
- *           └── students
- *               └── STUDENT-CODE
+ * libcontrol_libraries
+ *   └── LIB-XXXXXX
+ *       ├── configuration
+ *       │   └── seats
+ *       ├── students
+ *       │   └── STUDENT-CODE
+ *       └── ...
  *
  * IMPORTANT:
- * - Does NOT use old "saas_libraries"
+ * - Uses current LibControl Firestore structure
+ * - Does NOT use old "libmanage_secure_v2/libraries"
  * - Only works inside current library session
  * - No other library's data is loaded
  * ==========================================================================
@@ -70,32 +67,36 @@ function getSeatLibraryId() {
 
 
 /* ==========================================================================
-   4. NEW APP FIRESTORE ROOT
+   4. CURRENT APP FIRESTORE LIBRARY REFERENCE
    ========================================================================== */
 
 function getSeatLibraryRef() {
 
-    if (!window.db) {
+    if (!window.LibManageDB) {
         return null;
     }
 
+
     const libraryId =
         getSeatLibraryId();
+
 
     if (!libraryId) {
         return null;
     }
 
-    return window.db
-        .collection(
-            "libmanage_secure_v2"
-        )
-        .collection(
-            "libraries"
-        )
-        .doc(
-            libraryId
-        );
+
+    if (
+        typeof window.LibManageDB.library !==
+        "function"
+    ) {
+        return null;
+    }
+
+
+    return window.LibManageDB.library(
+        libraryId
+    );
 
 }
 
@@ -215,16 +216,35 @@ function getCapacityRef() {
     const libraryRef =
         getSeatLibraryRef();
 
+
     if (!libraryRef) {
         return null;
     }
 
+
+    const session =
+        getCurrentSession();
+
+
+    if (
+        session &&
+        typeof window.LibManageDB.seatConfig ===
+        "function"
+    ) {
+
+        return window.LibManageDB.seatConfig(
+            session.libraryId
+        );
+
+    }
+
+
     return libraryRef
         .collection(
-            "capacity"
+            "configuration"
         )
         .doc(
-            "config"
+            "seats"
         );
 
 }
@@ -761,8 +781,8 @@ async function loadSeatStudents() {
 
 
     const studentsRef =
-        libraryRef.collection(
-            "students"
+        window.LibManageDB.students(
+            getSeatLibraryId()
         );
 
 
@@ -2095,62 +2115,61 @@ function startSeatStudentListener() {
 
 
     seatsStudentUnsubscribe =
-        libraryRef
-            .collection(
-                "students"
-            )
-            .onSnapshot(
+        window.LibManageDB.students(
+            getSeatLibraryId()
+        )
+        .onSnapshot(
 
-                (snapshot) => {
+            (snapshot) => {
 
-                    seatsStudents =
-                        snapshot.docs.map(
-                            (doc) => ({
+                seatsStudents =
+                    snapshot.docs.map(
+                        (doc) => ({
 
-                                id:
-                                    doc.id,
+                            id:
+                                doc.id,
 
-                                ...doc.data()
+                            ...doc.data()
 
-                            })
-                        );
-
-
-                    seatsStudentMap =
-                        {};
-
-
-                    seatsStudents.forEach(
-                        (student) => {
-
-                            seatsStudentMap[
-                                student.studentCode ||
-                                student.id
-                            ] =
-                                student;
-
-                        }
+                        })
                     );
 
 
-                    renderSeatSummary();
+                seatsStudentMap =
+                    {};
 
-                    renderAvailableDetails();
 
-                    renderOccupiedDetails();
+                seatsStudents.forEach(
+                    (student) => {
 
-                },
+                        seatsStudentMap[
+                            student.studentCode ||
+                            student.id
+                        ] =
+                            student;
 
-                (error) => {
+                    }
+                );
 
-                    console.error(
-                        "[Seats] Realtime student listener error:",
-                        error
-                    );
 
-                }
+                renderSeatSummary();
 
-            );
+                renderAvailableDetails();
+
+                renderOccupiedDetails();
+
+            },
+
+            (error) => {
+
+                console.error(
+                    "[Seats] Realtime student listener error:",
+                    error
+                );
+
+            }
+
+        );
 
 }
 
