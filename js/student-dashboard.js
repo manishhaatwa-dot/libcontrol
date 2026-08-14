@@ -42,13 +42,19 @@ let studentDashboardAttendanceUnsubscribe = null;
 
 let studentDashboardStudentUnsubscribe = null;
 
+let studentAttendanceRecords = [];
+
+let studentCalendarDate = new Date();
+
 
 /* ==========================================================================
    2. DOM HELPER
    ========================================================================== */
 
 function studentDashboardEl(id) {
+
     return document.getElementById(id);
+
 }
 
 
@@ -125,6 +131,7 @@ function validateStudentDashboardSession() {
         redirectStudentToGateway();
 
         return false;
+
     }
 
 
@@ -168,31 +175,36 @@ function redirectStudentToGateway() {
 
 function getStudentLibraryRef() {
 
+    if (
+        !window.db
+    ) {
+        return null;
+    }
+
+
     const libraryId =
         getStudentSessionLibraryId();
 
 
-    if (
-        !libraryId ||
-        !window.LibManageDB
-    ) {
+    if (!libraryId) {
         return null;
     }
 
 
-    if (
-        typeof window.LibManageDB.library !==
-        "function"
-    ) {
-        return null;
-    }
-
-
-    return window.LibManageDB.library(
-        libraryId
-    );
+    return window.db
+        .collection(
+            "libmanage_secure_v2"
+        )
+        .collection(
+            "libraries"
+        )
+        .doc(
+            libraryId
+        );
 
 }
+
+
 /* ==========================================================================
    7. CURRENT STUDENT REFERENCE
    ========================================================================== */
@@ -309,6 +321,18 @@ function initializeStudentLibraryHeader() {
         "Library";
 
 
+    const libraryId =
+        getStudentSessionLibraryId();
+
+
+    const studentCode =
+        getStudentSessionCode();
+
+
+    /*
+     * Existing IDs kept for compatibility.
+     */
+
     setStudentText(
         "student-library-name",
         libraryName,
@@ -327,6 +351,24 @@ function initializeStudentLibraryHeader() {
         "student-library-title",
         libraryName,
         "Library"
+    );
+
+
+    /*
+     * Current student-dashboard.html IDs.
+     */
+
+    setStudentText(
+        "student-library-id-display",
+        libraryId,
+        "-"
+    );
+
+
+    setStudentText(
+        "student-code-display",
+        studentCode,
+        "-"
     );
 
 }
@@ -364,19 +406,12 @@ async function loadStudentLibrary() {
             redirectStudentToGateway();
 
             return false;
+
         }
 
 
         studentDashboardLibrary =
             snapshot.data() || {};
-
-
-        /*
-         * IMPORTANT:
-         *
-         * Client-side checks are only an additional layer.
-         * Firestore Security Rules must enforce the same restrictions.
-         */
 
 
         if (
@@ -391,6 +426,7 @@ async function loadStudentLibrary() {
             logoutStudentDashboard();
 
             return false;
+
         }
 
 
@@ -409,6 +445,7 @@ async function loadStudentLibrary() {
             logoutStudentDashboard();
 
             return false;
+
         }
 
 
@@ -438,11 +475,14 @@ async function loadStudentLibrary() {
             error
         );
 
+
         showStudentDashboardError(
             "Unable to load library information."
         );
 
+
         return false;
+
     }
 
 }
@@ -465,6 +505,7 @@ async function loadCurrentStudent() {
         );
 
         return false;
+
     }
 
 
@@ -485,6 +526,7 @@ async function loadCurrentStudent() {
             logoutStudentDashboard();
 
             return false;
+
         }
 
 
@@ -511,11 +553,14 @@ async function loadCurrentStudent() {
             error
         );
 
+
         showStudentDashboardError(
             "Unable to load student profile."
         );
 
+
         return false;
+
     }
 
 }
@@ -541,7 +586,12 @@ function renderStudentProfile(
         "";
 
 
+    /*
+     * Support all existing class field names.
+     */
+
     const studentClass =
+        student.className ||
         student.class ||
         student.studentClass ||
         "";
@@ -629,6 +679,12 @@ function renderStudentProfile(
     );
 
 
+    setStudentText(
+        "student-code-display",
+        studentCode
+    );
+
+
     /* ----------------------------------------------------------------------
        Father
     ---------------------------------------------------------------------- */
@@ -695,11 +751,21 @@ function renderStudentProfile(
        Joining Date
     ---------------------------------------------------------------------- */
 
-    setStudentText(
-        "student-joining-date",
+    const formattedJoiningDate =
         formatStudentDate(
             joiningDate
-        )
+        );
+
+
+    setStudentText(
+        "student-joining-date",
+        formattedJoiningDate
+    );
+
+
+    setStudentText(
+        "student-joining",
+        formattedJoiningDate
     );
 
 
@@ -707,11 +773,21 @@ function renderStudentProfile(
        Expiry Date
     ---------------------------------------------------------------------- */
 
-    setStudentText(
-        "student-expiry-date",
+    const formattedExpiryDate =
         formatStudentDate(
             expiryDate
-        )
+        );
+
+
+    setStudentText(
+        "student-expiry-date",
+        formattedExpiryDate
+    );
+
+
+    setStudentText(
+        "student-expiry",
+        formattedExpiryDate
     );
 
 
@@ -735,12 +811,15 @@ function setStudentStatus(
 ) {
 
     const statusElements = [
+
         studentDashboardEl(
             "student-status"
         ),
+
         studentDashboardEl(
             "dashboard-student-status"
         )
+
     ];
 
 
@@ -883,10 +962,6 @@ function formatStudentDate(
         String(value).trim();
 
 
-    /*
-     * Keep DD/MM/YYYY as it is.
-     */
-
     if (
         /^\d{2}\/\d{2}\/\d{4}$/
             .test(
@@ -944,6 +1019,9 @@ function startStudentNoticeListener() {
         ) ||
         studentDashboardEl(
             "recent-notices-container"
+        ) ||
+        studentDashboardEl(
+            "student-notice-list"
         );
 
 
@@ -1022,12 +1100,13 @@ function startStudentNoticeListener() {
 
 
                     container.innerHTML = `
-                        <div class="empty-state-text">
+                        <div class="empty-message">
                             Unable to load notices right now.
                         </div>
                     `;
 
                 }
+
             );
 
 }
@@ -1047,45 +1126,47 @@ function renderStudentNotices(
     ) {
 
         container.innerHTML = `
-            <div class="empty-state-text">
+            <div class="empty-message">
                 No notices available right now.
             </div>
         `;
 
         return;
+
     }
 
 
-    let html = "";
+    let html =
+        "";
 
 
     notices.forEach(
         (notice) => {
 
             html += `
-                <div class="notice-card">
+                <div class="notice-item">
 
-                    <div class="notice-title">
+                    <h3>
                         ${escapeStudentDashboardHtml(
                             notice.title ||
                             "Notice"
                         )}
-                    </div>
+                    </h3>
 
-                    <div class="notice-message">
+                    <p>
                         ${escapeStudentDashboardHtml(
                             notice.message ||
                             ""
                         )}
-                    </div>
+                    </p>
 
-                    <div class="notice-date">
+                    <span class="notice-date">
                         ${escapeStudentDashboardHtml(
                             formatStudentDateTime(
                                 notice.createdAt
                             )
                         )}
-                    </div>
+                    </span>
 
                 </div>
             `;
@@ -1151,6 +1232,32 @@ function getTimestampMillis(
     }
 
 
+    /*
+     * Also support normal date strings.
+     */
+
+    if (
+        typeof value ===
+        "string"
+    ) {
+
+        const parsed =
+            new Date(value);
+
+
+        if (
+            !Number.isNaN(
+                parsed.getTime()
+            )
+        ) {
+
+            return parsed.getTime();
+
+        }
+
+    }
+
+
     return 0;
 
 }
@@ -1195,23 +1302,7 @@ function formatStudentDateTime(
 
 /* ==========================================================================
    20. ATTENDANCE LISTENER
-   ==========================================================================
- *
- * Supports common attendance structures:
- *
- * A) attendance/{attendanceId}
- * B) attendance/{date}
- *
- * Expected fields may include:
- * studentCode
- * status
- * date
- * attendanceDate
- * createdAt
- *
- * The module filters records to the CURRENT STUDENT.
- * ==========================================================================
- */
+   ========================================================================== */
 
 function startStudentAttendanceListener() {
 
@@ -1219,18 +1310,8 @@ function startStudentAttendanceListener() {
         getStudentLibraryRef();
 
 
-    const container =
-        studentDashboardEl(
-            "student-attendance-container"
-        ) ||
-        studentDashboardEl(
-            "attendance-history-container"
-        );
-
-
     if (
-        !libraryRef ||
-        !container
+        !libraryRef
     ) {
         return;
     }
@@ -1294,13 +1375,16 @@ function startStudentAttendanceListener() {
                             );
 
 
-                    renderStudentAttendance(
-                        records,
-                        container
-                    );
+                    studentAttendanceRecords =
+                        records;
 
 
                     calculateAttendanceSummary(
+                        records
+                    );
+
+
+                    renderStudentAttendance(
                         records
                     );
 
@@ -1314,13 +1398,24 @@ function startStudentAttendanceListener() {
                     );
 
 
-                    container.innerHTML = `
-                        <div class="empty-state-text">
-                            Unable to load attendance right now.
-                        </div>
-                    `;
+                    const calendar =
+                        studentDashboardEl(
+                            "attendance-calendar"
+                        );
+
+
+                    if (calendar) {
+
+                        calendar.innerHTML = `
+                            <div class="loading-message">
+                                Unable to load attendance right now.
+                            </div>
+                        `;
+
+                    }
 
                 }
+
             );
 
 }
@@ -1331,103 +1426,31 @@ function startStudentAttendanceListener() {
    ========================================================================== */
 
 function renderStudentAttendance(
-    records,
-    container
+    records
 ) {
 
-    records.sort(
-        (a, b) => {
-
-            const aTime =
-                getTimestampMillis(
-                    a.date ||
-                    a.attendanceDate ||
-                    a.createdAt
-                );
-
-
-            const bTime =
-                getTimestampMillis(
-                    b.date ||
-                    b.attendanceDate ||
-                    b.createdAt
-                );
-
-
-            return bTime - aTime;
-
-        }
-    );
+    const calendar =
+        studentDashboardEl(
+            "attendance-calendar"
+        );
 
 
     if (
-        !records.length
+        !calendar
     ) {
-
-        container.innerHTML = `
-            <div class="empty-state-text">
-                No attendance records available.
-            </div>
-        `;
-
         return;
     }
 
 
-    let html = "";
+    /*
+     * Keep records available for month navigation.
+     */
+
+    studentAttendanceRecords =
+        records || [];
 
 
-    records.forEach(
-        (record) => {
-
-            const status =
-                String(
-                    record.status ||
-                    record.attendance ||
-                    ""
-                );
-
-
-            const normalizedStatus =
-                status.toLowerCase();
-
-
-            const statusClass =
-                normalizedStatus ===
-                "present"
-                    ? "present"
-                    : "absent";
-
-
-            html += `
-                <div class="student-attendance-row">
-
-                    <div class="attendance-date">
-                        ${escapeStudentDashboardHtml(
-                            formatAttendanceDate(
-                                record
-                            )
-                        )}
-                    </div>
-
-                    <div>
-                        <span class="history-status-pill ${statusClass}">
-                            ${escapeStudentDashboardHtml(
-                                status ||
-                                "Unknown"
-                            )}
-                        </span>
-                    </div>
-
-                </div>
-            `;
-
-        }
-    );
-
-
-    container.innerHTML =
-        html;
+    renderAttendanceCalendar();
 
 }
 
@@ -1450,6 +1473,30 @@ function formatAttendanceDate(
         typeof value ===
         "string"
     ) {
+
+        /*
+         * YYYY-MM-DD -> DD/MM/YYYY
+         */
+
+        if (
+            /^\d{4}-\d{2}-\d{2}$/
+                .test(value)
+        ) {
+
+            const parts =
+                value.split("-");
+
+
+            return (
+                parts[2] +
+                "/" +
+                parts[1] +
+                "/" +
+                parts[0]
+            );
+
+        }
+
 
         return value;
 
@@ -1526,6 +1573,10 @@ function calculateAttendanceSummary(
             : 0;
 
 
+    /*
+     * Existing IDs
+     */
+
     setStudentText(
         "attendance-present",
         present,
@@ -1553,11 +1604,429 @@ function calculateAttendanceSummary(
         "0%"
     );
 
+
+    /*
+     * Current HTML IDs
+     */
+
+    setStudentText(
+        "total-present",
+        present,
+        "0"
+    );
+
+
+    setStudentText(
+        "total-absent",
+        absent,
+        "0"
+    );
+
 }
 
 
 /* ==========================================================================
-   24. REALTIME STUDENT PROFILE
+   24. CALENDAR HELPERS
+   ========================================================================== */
+
+function getAttendanceRecordDate(
+    record
+) {
+
+    const value =
+        record.date ||
+        record.attendanceDate ||
+        "";
+
+
+    if (
+        typeof value ===
+        "string"
+    ) {
+
+        /*
+         * Attendance is normally stored as YYYY-MM-DD.
+         */
+
+        if (
+            /^\d{4}-\d{2}-\d{2}$/
+                .test(value)
+        ) {
+
+            return value;
+
+        }
+
+
+        /*
+         * Also support DD/MM/YYYY.
+         */
+
+        if (
+            /^\d{2}\/\d{2}\/\d{4}$/
+                .test(value)
+        ) {
+
+            const parts =
+                value.split("/");
+
+
+            return (
+                parts[2] +
+                "-" +
+                parts[1] +
+                "-" +
+                parts[0]
+            );
+
+        }
+
+    }
+
+
+    if (value) {
+
+        const millis =
+            getTimestampMillis(
+                value
+            );
+
+
+        if (millis) {
+
+            const date =
+                new Date(
+                    millis
+                );
+
+
+            return (
+                date.getFullYear() +
+                "-" +
+                String(
+                    date.getMonth() + 1
+                ).padStart(
+                    2,
+                    "0"
+                ) +
+                "-" +
+                String(
+                    date.getDate()
+                ).padStart(
+                    2,
+                    "0"
+                )
+            );
+
+        }
+
+    }
+
+
+    return "";
+
+}
+
+
+function getTodayDateKey() {
+
+    const now =
+        new Date();
+
+
+    return (
+        now.getFullYear() +
+        "-" +
+        String(
+            now.getMonth() + 1
+        ).padStart(
+            2,
+            "0"
+        ) +
+        "-" +
+        String(
+            now.getDate()
+        ).padStart(
+            2,
+            "0"
+        )
+    );
+
+}
+
+
+/* ==========================================================================
+   25. RENDER ATTENDANCE CALENDAR
+   ========================================================================== */
+
+function renderAttendanceCalendar() {
+
+    const calendar =
+        studentDashboardEl(
+            "attendance-calendar"
+        );
+
+
+    const monthTitle =
+        studentDashboardEl(
+            "calendar-month-title"
+        );
+
+
+    if (
+        !calendar
+    ) {
+        return;
+    }
+
+
+    const year =
+        studentCalendarDate.getFullYear();
+
+
+    const month =
+        studentCalendarDate.getMonth();
+
+
+    if (monthTitle) {
+
+        monthTitle.textContent =
+            studentCalendarDate.toLocaleDateString(
+                "en-IN",
+                {
+                    month: "long",
+                    year: "numeric"
+                }
+            );
+
+    }
+
+
+    const firstDay =
+        new Date(
+            year,
+            month,
+            1
+        )
+        .getDay();
+
+
+    const daysInMonth =
+        new Date(
+            year,
+            month + 1,
+            0
+        )
+        .getDate();
+
+
+    const attendanceMap =
+        {};
+
+
+    studentAttendanceRecords.forEach(
+        (record) => {
+
+            const dateKey =
+                getAttendanceRecordDate(
+                    record
+                );
+
+
+            if (!dateKey) {
+                return;
+            }
+
+
+            attendanceMap[
+                dateKey
+            ] =
+                String(
+                    record.status ||
+                    record.attendance ||
+                    ""
+                ).toLowerCase();
+
+        }
+    );
+
+
+    let html =
+        "";
+
+
+    /*
+     * Empty cells before month start.
+     */
+
+    for (
+        let i = 0;
+        i < firstDay;
+        i++
+    ) {
+
+        html += `
+            <div class="calendar-day empty"></div>
+        `;
+
+    }
+
+
+    const todayKey =
+        getTodayDateKey();
+
+
+    for (
+        let day = 1;
+        day <= daysInMonth;
+        day++
+    ) {
+
+        const dateKey =
+            year +
+            "-" +
+            String(
+                month + 1
+            ).padStart(
+                2,
+                "0"
+            ) +
+            "-" +
+            String(
+                day
+            ).padStart(
+                2,
+                "0"
+            );
+
+
+        const status =
+            attendanceMap[
+                dateKey
+            ] || "";
+
+
+        const statusClass =
+            status === "present"
+                ? "present"
+                : status === "absent"
+                    ? "absent"
+                    : "";
+
+
+        const statusText =
+            status === "present"
+                ? "Present"
+                : status === "absent"
+                    ? "Absent"
+                    : "";
+
+
+        const todayClass =
+            dateKey === todayKey
+                ? "today"
+                : "";
+
+
+        html += `
+            <div
+                class="calendar-day ${todayClass}"
+            >
+
+                <div class="calendar-day-number">
+                    ${day}
+                </div>
+
+                ${
+                    statusText
+                        ? `
+                            <span
+                                class="calendar-status ${statusClass}"
+                            >
+                                ${statusText}
+                            </span>
+                        `
+                        : ""
+                }
+
+            </div>
+        `;
+
+    }
+
+
+    calendar.innerHTML =
+        html;
+
+}
+
+
+/* ==========================================================================
+   26. CALENDAR NAVIGATION
+   ========================================================================== */
+
+function bindAttendanceCalendarNavigation() {
+
+    const previousButton =
+        studentDashboardEl(
+            "previous-month-btn"
+        );
+
+
+    const nextButton =
+        studentDashboardEl(
+            "next-month-btn"
+        );
+
+
+    if (previousButton) {
+
+        previousButton.addEventListener(
+            "click",
+            () => {
+
+                studentCalendarDate =
+                    new Date(
+                        studentCalendarDate.getFullYear(),
+                        studentCalendarDate.getMonth() - 1,
+                        1
+                    );
+
+
+                renderAttendanceCalendar();
+
+            }
+        );
+
+    }
+
+
+    if (nextButton) {
+
+        nextButton.addEventListener(
+            "click",
+            () => {
+
+                studentCalendarDate =
+                    new Date(
+                        studentCalendarDate.getFullYear(),
+                        studentCalendarDate.getMonth() + 1,
+                        1
+                    );
+
+
+                renderAttendanceCalendar();
+
+            }
+        );
+
+    }
+
+}
+
+
+/* ==========================================================================
+   27. REALTIME STUDENT PROFILE
    ========================================================================== */
 
 function startStudentProfileListener() {
@@ -1631,7 +2100,7 @@ function startStudentProfileListener() {
 
 
 /* ==========================================================================
-   25. STUDENT LOGOUT
+   28. STUDENT LOGOUT
    ========================================================================== */
 
 function logoutStudentDashboard() {
@@ -1696,7 +2165,7 @@ function logoutStudentDashboard() {
 
 
 /* ==========================================================================
-   26. LOGOUT BUTTON
+   29. LOGOUT BUTTON
    ========================================================================== */
 
 function bindStudentLogout() {
@@ -1725,7 +2194,7 @@ function bindStudentLogout() {
 
 
 /* ==========================================================================
-   27. ERROR DISPLAY
+   30. ERROR DISPLAY
    ========================================================================== */
 
 function showStudentDashboardError(
@@ -1768,7 +2237,7 @@ function showStudentDashboardError(
 
 
 /* ==========================================================================
-   28. PREVENT UNAUTHORIZED FORM SUBMISSIONS
+   31. PREVENT UNAUTHORIZED FORM SUBMISSIONS
    ========================================================================== */
 
 function protectStudentDashboardForms() {
@@ -1776,13 +2245,6 @@ function protectStudentDashboardForms() {
     document.addEventListener(
         "submit",
         (event) => {
-
-            /*
-             * Student dashboard is intended to be read-only.
-             *
-             * Existing search/filter forms are allowed.
-             * Any unknown form submission is stopped.
-             */
 
             const form =
                 event.target;
@@ -1817,7 +2279,7 @@ function protectStudentDashboardForms() {
 
 
 /* ==========================================================================
-   29. LOAD ALL DASHBOARD DATA
+   32. LOAD ALL DASHBOARD DATA
    ========================================================================== */
 
 async function initializeStudentDashboard() {
@@ -1838,11 +2300,14 @@ async function initializeStudentDashboard() {
             "[Student Dashboard] Firebase SDK not loaded."
         );
 
+
         showStudentDashboardError(
             "Firebase SDK is not loaded."
         );
 
+
         return;
+
     }
 
 
@@ -1854,15 +2319,21 @@ async function initializeStudentDashboard() {
             "[Student Dashboard] Firestore unavailable."
         );
 
+
         showStudentDashboardError(
             "Database connection unavailable."
         );
 
+
         return;
+
     }
 
 
     initializeStudentLibraryHeader();
+
+
+    bindAttendanceCalendarNavigation();
 
 
     const libraryLoaded =
@@ -1906,7 +2377,7 @@ async function initializeStudentDashboard() {
 
 
 /* ==========================================================================
-   30. START
+   33. START
    ========================================================================== */
 
 document.addEventListener(
@@ -1920,7 +2391,7 @@ document.addEventListener(
 
 
 /* ==========================================================================
-   31. PUBLIC API
+   34. PUBLIC API
    ========================================================================== */
 
 window.LibManageStudentDashboard = {
@@ -1934,8 +2405,10 @@ window.LibManageStudentDashboard = {
 
         },
 
+
     logout:
         logoutStudentDashboard,
+
 
     getStudent:
         function () {
@@ -1947,6 +2420,7 @@ window.LibManageStudentDashboard = {
                 : null;
 
         },
+
 
     getLibrary:
         function () {
