@@ -175,32 +175,49 @@ function redirectStudentToGateway() {
 
 function getStudentLibraryRef() {
 
+    const libraryId =
+        getStudentSessionLibraryId();
+
+
     if (
-        !window.db
+        !libraryId
     ) {
         return null;
     }
 
 
-    const libraryId =
-        getStudentSessionLibraryId();
+    if (
+        !window.LibManageDB ||
+        typeof window.LibManageDB.library !==
+        "function"
+    ) {
 
+        console.error(
+            "[Student Dashboard] Shared database engine unavailable."
+        );
 
-    if (!libraryId) {
         return null;
+
     }
 
 
-    return window.db
-        .collection(
-            "libmanage_secure_v2"
-        )
-        .collection(
-            "libraries"
-        )
-        .doc(
+    try {
+
+        return window.LibManageDB.library(
             libraryId
         );
+
+    }
+    catch (error) {
+
+        console.error(
+            "[Student Dashboard] Library reference error:",
+            error
+        );
+
+        return null;
+
+    }
 
 }
 
