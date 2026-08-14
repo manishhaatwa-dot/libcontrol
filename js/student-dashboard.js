@@ -485,11 +485,20 @@ async function loadStudentLibrary() {
 
         return true;
 
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
             "[Student Dashboard] Library loading error:",
             error
+        );
+
+
+        alert(
+            "Library data load error:\n\n" +
+            (error.code || "NO_CODE") +
+            "\n" +
+            (error.message || "Unknown error")
         );
 
 
@@ -563,11 +572,20 @@ async function loadCurrentStudent() {
 
         return true;
 
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
             "[Student Dashboard] Student loading error:",
             error
+        );
+
+
+        alert(
+            "Student data load error:\n\n" +
+            (error.code || "NO_CODE") +
+            "\n" +
+            (error.message || "Unknown error")
         );
 
 
@@ -877,7 +895,8 @@ function setStudentStatus(
                     "active"
                 );
 
-            } else if (
+            }
+            else if (
                 normalized ===
                 "expired"
             ) {
@@ -886,7 +905,8 @@ function setStudentStatus(
                     "expired"
                 );
 
-            } else if (
+            }
+            else if (
                 normalized ===
                 "pending"
             ) {
@@ -895,7 +915,8 @@ function setStudentStatus(
                     "pending"
                 );
 
-            } else {
+            }
+            else {
 
                 element.classList.add(
                     "inactive"
@@ -1560,7 +1581,8 @@ function calculateAttendanceSummary(
 
                 present++;
 
-            } else if (
+            }
+            else if (
                 status ===
                 "absent"
             ) {
@@ -1833,8 +1855,7 @@ function renderAttendanceCalendar() {
             year,
             month + 1,
             0
-        )
-        .getDate();
+        ).getDate();
 
 
     const attendanceMap =
