@@ -599,7 +599,7 @@ async function ensureLibControlApp() {
 
 
 /* ==========================================================================
-   8. CREATE LIBRARY
+   8. CREATE LIBRARY + CREATE FIREBASE ADMIN
    ========================================================================== */
 
 async function createLibraryRecord(
@@ -643,10 +643,78 @@ async function createLibraryRecord(
         ).trim();
 
 
+    const adminEmail =
+        safeText(
+            data.adminEmail
+        )
+        .trim()
+        .toLowerCase();
+
+
+    const adminPass =
+        String(
+            data.adminPass || ""
+        );
+
+
+    const totalSeats =
+        Number(
+            data.totalSeats || 0
+        );
+
+
+    const mobile =
+        safeText(
+            data.mobile
+        ).trim();
+
+
+    const joiningDate =
+        safeText(
+            data.joiningDate
+        );
+
+
+    const expiryDate =
+        safeText(
+            data.expiryDate
+        );
+
+
     if (!libraryName) {
 
         throw new Error(
             "Library name is required."
+        );
+
+    }
+
+
+    if (!adminEmail) {
+
+        throw new Error(
+            "Admin Email is required."
+        );
+
+    }
+
+
+    if (!adminPass || adminPass.length < 8) {
+
+        throw new Error(
+            "Temporary Admin Password must contain at least 8 characters."
+        );
+
+    }
+
+
+    if (
+        !Number.isFinite(totalSeats) ||
+        totalSeats < 5
+    ) {
+
+        throw new Error(
+            "Seat capacity must be at least 5."
         );
 
     }
@@ -676,7 +744,12 @@ async function createLibraryRecord(
 
 
     /*
-     * MAIN LIBRARY DOCUMENT
+     * IMPORTANT:
+     *
+     * ADMIN PASSWORD IS NEVER WRITTEN TO FIRESTORE.
+     *
+     * Only Admin Email is kept in the library document
+     * for Manager registry/display purposes.
      */
 
     await libraryRef.set({
@@ -691,24 +764,19 @@ async function createLibraryRecord(
             libraryName,
 
         adminEmail:
-            data.adminEmail || "",
-
-        adminPass:
-            data.adminPass || "",
+            adminEmail,
 
         mobile:
-            data.mobile || "",
+            mobile,
 
         totalSeats:
-            Number(
-                data.totalSeats || 0
-            ),
+            totalSeats,
 
         joiningDate:
-            data.joiningDate || "",
+            joiningDate,
 
         expiryDate:
-            data.expiryDate || "",
+            expiryDate,
 
         ownerManagerUID:
             managerUID,
@@ -755,14 +823,10 @@ async function createLibraryRecord(
                 appId,
 
             totalSeats:
-                Number(
-                    data.totalSeats || 0
-                ),
+                totalSeats,
 
             capacityConfigured:
-                Number(
-                    data.totalSeats || 0
-                ) > 0,
+                totalSeats > 0,
 
             createdAt:
                 firebase.firestore
@@ -800,9 +864,7 @@ async function createLibraryRecord(
                 0,
 
             fullDayCapacity:
-                Number(
-                    data.totalSeats || 0
-                ),
+                totalSeats,
 
             updatedAt:
                 firebase.firestore
@@ -845,10 +907,168 @@ async function createLibraryRecord(
         });
 
 
-    return libraryId;
+    /*
+     * ================================================================
+     * CREATE ADMIN THROUGH SECURE CLOUD FUNCTION
+     * ================================================================
+     *
+     * Password goes:
+     *
+     * Manager browser
+     *       ↓
+     * Firebase Callable Function
+     *       ↓
+     * Firebase Authentication
+     *
+     * It is NEVER stored in Firestore.
+     */
+
+    try {
+
+        if (
+            typeof firebase.functions !==
+            "function"
+        ) {
+
+            throw new Error(
+                "Firebase Functions SDK is not loaded."
+            );
+
+        }
+
+
+        const createAdmin =
+            firebase
+                .functions()
+                .httpsCallable(
+                    "createLibraryAdmin"
+                );
+
+
+        const adminResult =
+            await createAdmin({
+
+                libraryId:
+                    libraryId,
+
+                email:
+                    adminEmail,
+
+                temporaryPassword:
+                    adminPass
+
+            });
+
+
+        const resultData =
+            adminResult.data || {};
+
+
+        if (
+            resultData.success !==
+            true
+        ) {
+
+            throw new Error(
+                resultData.message ||
+                "Unable to create Admin account."
+            );
+
+        }
+
+
+        console.log(
+            "[LibControl] Firebase Admin account created:",
+            {
+                libraryId:
+                    libraryId,
+
+                uid:
+                    resultData.uid,
+
+                email:
+                    resultData.email
+            }
+        );
+
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl] Admin account creation failed:",
+            error
+        );
+
+
+        /*
+         * ROLLBACK LIBRARY INITIALIZATION
+         *
+         * If Firebase Auth Admin creation fails,
+         * do not leave an unusable library behind.
+         */
+
+        try {
+
+            await libraryRef
+                .collection(
+                    "settings"
+                )
+                .doc(
+                    "general"
+                )
+                .delete();
+
+
+            await libraryRef
+                .collection(
+                    "settings"
+                )
+                .doc(
+                    "shifts"
+                )
+                .delete();
+
+
+            await libraryRef
+                .collection(
+                    "metadata"
+                )
+                .doc(
+                    "system"
+                )
+                .delete();
+
+
+            await libraryRef.delete();
+
+        }
+        catch (rollbackError) {
+
+            console.error(
+                "[LibControl] Library rollback failed:",
+                rollbackError
+            );
+
+        }
+
+
+        throw new Error(
+            error.message ||
+            "Unable to create Admin account. Library creation was cancelled."
+        );
+
+    }
+
+
+    return {
+
+        libraryId:
+            libraryId
+
+    };
 
 }
-
 
 /* ==========================================================================
    9. LOAD LIBRARIES
