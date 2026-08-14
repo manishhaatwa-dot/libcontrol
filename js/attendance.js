@@ -1,36 +1,22 @@
 /**
  * ==========================================================================
- * LIBMANAGE - ATTENDANCE MANAGEMENT MODULE
+ * LIBCONTROL - ATTENDANCE MANAGEMENT MODULE
  * ==========================================================================
  *
  * Responsibilities:
  * - Load current library students
  * - Load attendance for selected date
+ * - Filter students by shift
  * - Search students
  * - Mark Present / Absent
  * - Save attendance
  * - Prevent cross-library data access
- * - Attendance history
  * - Student-wise attendance history
  *
- * FIRESTORE STRUCTURE
- *
- * libmanage_secure_v2
- *   └── libraries
- *       └── LIBRARY_ID
- *           ├── students
- *           │    └── STUDENT_CODE
- *           │
- *           └── attendance
- *                └── YYYY-MM-DD_STUDENT_CODE
- *
- * IMPORTANT:
- * This file NEVER uses:
- * - saas_libraries
- * - old LibManage collections
- * - another application's collections
  * ==========================================================================
  */
+
+"use strict";
 
 
 /* ==========================================================================
@@ -42,8 +28,6 @@ let attendanceStudents = [];
 let attendanceRecords = {};
 
 let attendanceSelectedDate = "";
-
-let attendanceHistoryUnsubscribe = null;
 
 let attendanceSaving = false;
 
@@ -69,7 +53,9 @@ function getAttendanceLibraryContext() {
         typeof getCurrentSession !==
         "function"
     ) {
+
         return null;
+
     }
 
 
@@ -78,7 +64,9 @@ function getAttendanceLibraryContext() {
 
 
     if (!session) {
+
         return null;
+
     }
 
 
@@ -86,7 +74,9 @@ function getAttendanceLibraryContext() {
         session.role !== "admin" ||
         !session.libraryId
     ) {
+
         return null;
+
     }
 
 
@@ -138,16 +128,14 @@ function getTodayAttendanceDate() {
 }
 
 
-/* --------------------------------------------------------------------------
-   Convert DD/MM/YYYY -> YYYY-MM-DD
--------------------------------------------------------------------------- */
-
 function convertIndianDateToISO(
     value
 ) {
 
     if (!value) {
+
         return "";
+
     }
 
 
@@ -162,49 +150,37 @@ function convertIndianDateToISO(
     if (
         parts.length !== 3
     ) {
+
         return "";
+
     }
 
 
-    const day =
-        parts[0].padStart(
-            2,
-            "0"
-        );
-
-
-    const month =
+    return (
+        parts[2] +
+        "-" +
         parts[1].padStart(
             2,
             "0"
-        );
-
-
-    const year =
-        parts[2];
-
-
-    return (
-        year +
+        ) +
         "-" +
-        month +
-        "-" +
-        day
+        parts[0].padStart(
+            2,
+            "0"
+        )
     );
 
 }
 
-
-/* --------------------------------------------------------------------------
-   Convert YYYY-MM-DD -> DD/MM/YYYY
--------------------------------------------------------------------------- */
 
 function formatAttendanceDate(
     isoDate
 ) {
 
     if (!isoDate) {
+
         return "";
+
     }
 
 
@@ -219,7 +195,9 @@ function formatAttendanceDate(
     if (
         parts.length !== 3
     ) {
+
         return isoDate;
+
     }
 
 
@@ -235,7 +213,7 @@ function formatAttendanceDate(
 
 
 /* ==========================================================================
-   5. FIND DATE INPUT
+   5. DATE INPUT
    ========================================================================== */
 
 function getAttendanceDateInput() {
@@ -244,15 +222,12 @@ function getAttendanceDateInput() {
         attendanceEl(
             "attendance-date"
         ) ||
-
         attendanceEl(
             "attendance-date-input"
         ) ||
-
         attendanceEl(
             "selected-attendance-date"
         ) ||
-
         attendanceEl(
             "date-input"
         )
@@ -261,10 +236,6 @@ function getAttendanceDateInput() {
 }
 
 
-/* ==========================================================================
-   6. SET DEFAULT DATE
-   ========================================================================== */
-
 function setDefaultAttendanceDate() {
 
     const input =
@@ -272,13 +243,13 @@ function setDefaultAttendanceDate() {
 
 
     if (!input) {
+
         return;
+
     }
 
 
-    if (
-        !input.value
-    ) {
+    if (!input.value) {
 
         input.value =
             getTodayAttendanceDate();
@@ -294,16 +265,14 @@ function setDefaultAttendanceDate() {
 }
 
 
-/* ==========================================================================
-   7. NORMALIZE DATE
-   ========================================================================== */
-
 function normalizeAttendanceDate(
     value
 ) {
 
     if (!value) {
+
         return getTodayAttendanceDate();
+
     }
 
 
@@ -343,7 +312,7 @@ function normalizeAttendanceDate(
 
 
 /* ==========================================================================
-   8. ESCAPE HTML
+   6. HTML SAFETY
    ========================================================================== */
 
 function escapeAttendanceHtml(
@@ -353,32 +322,32 @@ function escapeAttendanceHtml(
     return String(
         value ?? ""
     )
-    .replace(
-        /&/g,
-        "&amp;"
-    )
-    .replace(
-        /</g,
-        "&lt;"
-    )
-    .replace(
-        />/g,
-        "&gt;"
-    )
-    .replace(
-        /"/g,
-        "&quot;"
-    )
-    .replace(
-        /'/g,
-        "&#39;"
-    );
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#39;"
+        );
 
 }
 
 
 /* ==========================================================================
-   9. GET ATTENDANCE COLLECTION
+   7. FIRESTORE COLLECTIONS
    ========================================================================== */
 
 function getAttendanceCollection() {
@@ -391,14 +360,11 @@ function getAttendanceCollection() {
         !session ||
         !window.LibManageDB
     ) {
+
         return null;
+
     }
 
-
-    /*
-     * dashboard.js provides the isolated
-     * library-specific attendance reference.
-     */
 
     if (
         typeof window.LibManageDB.attendance ===
@@ -411,11 +377,6 @@ function getAttendanceCollection() {
 
     }
 
-
-    /*
-     * Safety fallback.
-     * Still remains inside the NEW project namespace.
-     */
 
     if (
         typeof window.LibManageDB.library ===
@@ -438,10 +399,6 @@ function getAttendanceCollection() {
 }
 
 
-/* ==========================================================================
-   10. GET STUDENTS COLLECTION
-   ========================================================================== */
-
 function getAttendanceStudentsCollection() {
 
     const session =
@@ -452,7 +409,9 @@ function getAttendanceStudentsCollection() {
         !session ||
         !window.LibManageDB
     ) {
+
         return null;
+
     }
 
 
@@ -474,25 +433,78 @@ function getAttendanceStudentsCollection() {
 
 
 /* ==========================================================================
-   11. LOAD STUDENTS
+   8. SEARCH
+   ========================================================================== */
+
+function getAttendanceSearchValue() {
+
+    const input =
+        attendanceEl(
+            "attendance-search-input"
+        );
+
+
+    return String(
+        input?.value ||
+        ""
+    )
+        .trim()
+        .toLowerCase();
+
+}
+
+
+/* ==========================================================================
+   9. SHIFT FILTER
+   ========================================================================== */
+
+function getAttendanceShiftValue() {
+
+    const input =
+        attendanceEl(
+            "attendance-shift"
+        );
+
+
+    return String(
+        input?.value ||
+        ""
+    )
+        .trim()
+        .toLowerCase();
+
+}
+
+
+function normalizeStudentShift(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+        .trim()
+        .toLowerCase();
+
+}
+
+
+/* ==========================================================================
+   10. LOAD STUDENTS
    ========================================================================== */
 
 async function loadAttendanceStudents() {
 
     const tableBody =
         attendanceEl(
-            "attendance-table-rows"
-        ) ||
-        attendanceEl(
-            "students-table-rows"
-        ) ||
-        attendanceEl(
-            "attendance-student-rows"
+            "attendance-table-body"
         );
 
 
     if (!tableBody) {
+
         return;
+
     }
 
 
@@ -503,14 +515,18 @@ async function loadAttendanceStudents() {
     if (!session) {
 
         tableBody.innerHTML = `
+
             <tr>
+
                 <td
-                    colspan="8"
+                    colspan="5"
                     class="attendance-empty-state"
                 >
                     Session expired. Please login again.
                 </td>
+
             </tr>
+
         `;
 
         return;
@@ -525,14 +541,18 @@ async function loadAttendanceStudents() {
     if (!studentsRef) {
 
         tableBody.innerHTML = `
+
             <tr>
+
                 <td
-                    colspan="8"
+                    colspan="5"
                     class="attendance-empty-state"
                 >
                     Student database is unavailable.
                 </td>
+
             </tr>
+
         `;
 
         return;
@@ -559,12 +579,17 @@ async function loadAttendanceStudents() {
             );
 
 
+        /*
+         * Sort alphabetically by student name.
+         */
+
         attendanceStudents.sort(
             (a, b) => {
 
                 const aName =
                     String(
                         a.studentName ||
+                        a.name ||
                         ""
                     ).toLowerCase();
 
@@ -572,6 +597,7 @@ async function loadAttendanceStudents() {
                 const bName =
                     String(
                         b.studentName ||
+                        b.name ||
                         ""
                     ).toLowerCase();
 
@@ -587,7 +613,8 @@ async function loadAttendanceStudents() {
         await loadAttendanceForSelectedDate();
 
 
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
             "[Attendance] Student loading error:",
@@ -596,14 +623,18 @@ async function loadAttendanceStudents() {
 
 
         tableBody.innerHTML = `
+
             <tr>
+
                 <td
-                    colspan="8"
+                    colspan="5"
                     class="attendance-empty-state"
                 >
                     Unable to load students.
                 </td>
+
             </tr>
+
         `;
 
     }
@@ -612,7 +643,7 @@ async function loadAttendanceStudents() {
 
 
 /* ==========================================================================
-   12. LOAD ATTENDANCE FOR DATE
+   11. LOAD ATTENDANCE FOR SELECTED DATE
    ========================================================================== */
 
 async function loadAttendanceForSelectedDate() {
@@ -634,7 +665,9 @@ async function loadAttendanceForSelectedDate() {
 
 
     if (!attendanceRef) {
+
         return;
+
     }
 
 
@@ -643,11 +676,6 @@ async function loadAttendanceForSelectedDate() {
 
 
     try {
-
-        /*
-         * We intentionally use a date field query.
-         * This keeps records isolated by library.
-         */
 
         const snapshot =
             await attendanceRef
@@ -694,7 +722,8 @@ async function loadAttendanceForSelectedDate() {
         updateAttendanceSummary();
 
 
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
             "[Attendance] Attendance loading error:",
@@ -710,53 +739,21 @@ async function loadAttendanceForSelectedDate() {
 
 
 /* ==========================================================================
-   13. SEARCH
-   ========================================================================== */
-
-function getAttendanceSearchValue() {
-
-    const input =
-        attendanceEl(
-            "attendance-search-input"
-        ) ||
-        attendanceEl(
-            "student-search-input"
-        ) ||
-        attendanceEl(
-            "search-attendance-input"
-        );
-
-
-    return String(
-        input?.value ||
-        ""
-    )
-    .trim()
-    .toLowerCase();
-
-}
-
-
-/* ==========================================================================
-   14. RENDER ATTENDANCE TABLE
+   12. RENDER ATTENDANCE TABLE
    ========================================================================== */
 
 function renderAttendanceTable() {
 
     const tableBody =
         attendanceEl(
-            "attendance-table-rows"
-        ) ||
-        attendanceEl(
-            "students-table-rows"
-        ) ||
-        attendanceEl(
-            "attendance-student-rows"
+            "attendance-table-body"
         );
 
 
     if (!tableBody) {
+
         return;
+
     }
 
 
@@ -764,12 +761,47 @@ function renderAttendanceTable() {
         getAttendanceSearchValue();
 
 
+    const selectedShift =
+        getAttendanceShiftValue();
+
+
     const filteredStudents =
         attendanceStudents.filter(
             (student) => {
 
+                /*
+                 * ----------------------------------------------------------
+                 * SHIFT FILTER
+                 * ----------------------------------------------------------
+                 */
+
+                const studentShift =
+                    normalizeStudentShift(
+                        student.shift
+                    );
+
+
+                if (
+                    selectedShift &&
+                    studentShift !==
+                    selectedShift
+                ) {
+
+                    return false;
+
+                }
+
+
+                /*
+                 * ----------------------------------------------------------
+                 * SEARCH FILTER
+                 * ----------------------------------------------------------
+                 */
+
                 if (!searchValue) {
+
                     return true;
+
                 }
 
 
@@ -780,17 +812,23 @@ function renderAttendanceTable() {
 
                         student.studentName,
 
+                        student.name,
+
                         student.fatherName,
 
                         student.seatNumber,
 
+                        student.seat,
+
                         student.className,
+
+                        student.class,
 
                         student.shift
 
                     ]
-                    .join(" ")
-                    .toLowerCase();
+                        .join(" ")
+                        .toLowerCase();
 
 
                 return searchable.includes(
@@ -806,18 +844,22 @@ function renderAttendanceTable() {
     ) {
 
         tableBody.innerHTML = `
+
             <tr>
+
                 <td
-                    colspan="8"
+                    colspan="5"
                     class="attendance-empty-state"
                 >
                     ${
                         searchValue
                             ? "No matching students found."
-                            : "No students registered."
+                            : "No students found for this shift."
                     }
                 </td>
+
             </tr>
+
         `;
 
         return;
@@ -837,7 +879,9 @@ function renderAttendanceTable() {
                     student.studentCode ||
                     student.firestoreId ||
                     ""
-                ).toUpperCase();
+                )
+                    .trim()
+                    .toUpperCase();
 
 
             const existing =
@@ -863,26 +907,42 @@ function renderAttendanceTable() {
                     : "";
 
 
+            const studentName =
+                student.studentName ||
+                student.name ||
+                "-";
+
+
+            const seatNumber =
+                student.seatNumber ||
+                student.seat ||
+                "-";
+
+
             html += `
+
                 <tr>
 
-                    <td class="cell-strong">
+                    <td>
+
                         ${escapeAttendanceHtml(
-                            student.studentCode ||
+                            code ||
                             "-"
                         )}
+
                     </td>
 
 
-                    <td class="cell-strong">
+                    <td>
+
                         ${escapeAttendanceHtml(
-                            student.seatNumber ||
-                            "-"
+                            seatNumber
                         )}
+
                     </td>
 
 
-                    <td class="cell-name">
+                    <td>
 
                         <button
                             type="button"
@@ -892,35 +952,10 @@ function renderAttendanceTable() {
                             )}"
                         >
                             ${escapeAttendanceHtml(
-                                student.studentName ||
-                                "-"
+                                studentName
                             )}
                         </button>
 
-                    </td>
-
-
-                    <td>
-                        ${escapeAttendanceHtml(
-                            student.fatherName ||
-                            "-"
-                        )}
-                    </td>
-
-
-                    <td>
-                        ${escapeAttendanceHtml(
-                            student.className ||
-                            "-"
-                        )}
-                    </td>
-
-
-                    <td>
-                        ${escapeAttendanceHtml(
-                            student.shift ||
-                            "-"
-                        )}
                     </td>
 
 
@@ -978,6 +1013,7 @@ function renderAttendanceTable() {
                     </td>
 
                 </tr>
+
             `;
 
         }
@@ -991,7 +1027,7 @@ function renderAttendanceTable() {
 
 
 /* ==========================================================================
-   15. UPDATE SUMMARY
+   13. ATTENDANCE SUMMARY
    ========================================================================== */
 
 function updateAttendanceSummary() {
@@ -1000,24 +1036,24 @@ function updateAttendanceSummary() {
         Object.values(
             attendanceRecords
         )
-        .filter(
-            (record) =>
-                record.status ===
-                "Present"
-        )
-        .length;
+            .filter(
+                (record) =>
+                    record.status ===
+                    "Present"
+            )
+            .length;
 
 
     const absent =
         Object.values(
             attendanceRecords
         )
-        .filter(
-            (record) =>
-                record.status ===
-                "Absent"
-        )
-        .length;
+            .filter(
+                (record) =>
+                    record.status ===
+                    "Absent"
+            )
+            .length;
 
 
     const presentElement =
@@ -1063,7 +1099,7 @@ function updateAttendanceSummary() {
 
 
 /* ==========================================================================
-   16. COLLECT CURRENT ATTENDANCE
+   14. COLLECT CURRENT ATTENDANCE
    ========================================================================== */
 
 function collectAttendanceData() {
@@ -1072,7 +1108,82 @@ function collectAttendanceData() {
         [];
 
 
-    attendanceStudents.forEach(
+    /*
+     * Collect only students currently displayed
+     * in the selected shift/search result.
+     */
+
+    const searchValue =
+        getAttendanceSearchValue();
+
+
+    const selectedShift =
+        getAttendanceShiftValue();
+
+
+    const visibleStudents =
+        attendanceStudents.filter(
+            (student) => {
+
+                const studentShift =
+                    normalizeStudentShift(
+                        student.shift
+                    );
+
+
+                if (
+                    selectedShift &&
+                    studentShift !==
+                    selectedShift
+                ) {
+
+                    return false;
+
+                }
+
+
+                if (!searchValue) {
+
+                    return true;
+
+                }
+
+
+                const searchable =
+                    [
+
+                        student.studentCode,
+
+                        student.studentName,
+
+                        student.name,
+
+                        student.fatherName,
+
+                        student.seatNumber,
+
+                        student.seat,
+
+                        student.className,
+
+                        student.class,
+
+                        student.shift
+
+                    ]
+                        .join(" ")
+                        .toLowerCase();
+
+
+                return searchable.includes(
+                    searchValue
+                );
+
+            }
+        );
+
+
+    visibleStudents.forEach(
         (student) => {
 
             const code =
@@ -1080,11 +1191,15 @@ function collectAttendanceData() {
                     student.studentCode ||
                     student.firestoreId ||
                     ""
-                ).toUpperCase();
+                )
+                    .trim()
+                    .toUpperCase();
 
 
             if (!code) {
+
                 return;
+
             }
 
 
@@ -1095,7 +1210,9 @@ function collectAttendanceData() {
 
 
             if (!selected) {
+
                 return;
+
             }
 
 
@@ -1106,10 +1223,12 @@ function collectAttendanceData() {
 
                 studentName:
                     student.studentName ||
+                    student.name ||
                     "",
 
                 seatNumber:
                     student.seatNumber ||
+                    student.seat ||
                     "",
 
                 status:
@@ -1130,13 +1249,15 @@ function collectAttendanceData() {
 
 
 /* ==========================================================================
-   17. SAVE ATTENDANCE
+   15. SAVE ATTENDANCE
    ========================================================================== */
 
 async function saveAttendance() {
 
     if (attendanceSaving) {
+
         return;
+
     }
 
 
@@ -1275,7 +1396,8 @@ async function saveAttendance() {
         await loadAttendanceForSelectedDate();
 
 
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
             "[Attendance] Save error:",
@@ -1287,8 +1409,8 @@ async function saveAttendance() {
             "Unable to save attendance. Please try again."
         );
 
-
-    } finally {
+    }
+    finally {
 
         attendanceSaving =
             false;
@@ -1310,7 +1432,7 @@ async function saveAttendance() {
 
 
 /* ==========================================================================
-   18. SEARCH EVENT
+   16. SEARCH EVENT
    ========================================================================== */
 
 function bindAttendanceSearch() {
@@ -1318,30 +1440,61 @@ function bindAttendanceSearch() {
     const input =
         attendanceEl(
             "attendance-search-input"
-        ) ||
-        attendanceEl(
-            "student-search-input"
-        ) ||
-        attendanceEl(
-            "search-attendance-input"
         );
 
 
     if (!input) {
+
         return;
+
     }
 
 
     input.addEventListener(
         "input",
-        renderAttendanceTable
+        () => {
+
+            renderAttendanceTable();
+
+        }
     );
 
 }
 
 
 /* ==========================================================================
-   19. DATE EVENT
+   17. SHIFT EVENT
+   ========================================================================== */
+
+function bindAttendanceShift() {
+
+    const input =
+        attendanceEl(
+            "attendance-shift"
+        );
+
+
+    if (!input) {
+
+        return;
+
+    }
+
+
+    input.addEventListener(
+        "change",
+        () => {
+
+            renderAttendanceTable();
+
+        }
+    );
+
+}
+
+
+/* ==========================================================================
+   18. DATE EVENT
    ========================================================================== */
 
 function bindAttendanceDate() {
@@ -1351,7 +1504,9 @@ function bindAttendanceDate() {
 
 
     if (!input) {
+
         return;
+
     }
 
 
@@ -1374,7 +1529,7 @@ function bindAttendanceDate() {
 
 
 /* ==========================================================================
-   20. SAVE BUTTON
+   19. SAVE BUTTON
    ========================================================================== */
 
 function bindAttendanceSave() {
@@ -1386,7 +1541,9 @@ function bindAttendanceSave() {
 
 
     if (!button) {
+
         return;
+
     }
 
 
@@ -1399,25 +1556,21 @@ function bindAttendanceSave() {
 
 
 /* ==========================================================================
-   21. STUDENT ROW CLICK
+   20. STUDENT HISTORY
    ========================================================================== */
 
 function bindAttendanceStudentActions() {
 
     const tableBody =
         attendanceEl(
-            "attendance-table-rows"
-        ) ||
-        attendanceEl(
-            "students-table-rows"
-        ) ||
-        attendanceEl(
-            "attendance-student-rows"
+            "attendance-table-body"
         );
 
 
     if (!tableBody) {
+
         return;
+
     }
 
 
@@ -1432,7 +1585,9 @@ function bindAttendanceStudentActions() {
 
 
             if (!studentButton) {
+
                 return;
+
             }
 
 
@@ -1452,10 +1607,6 @@ function bindAttendanceStudentActions() {
 }
 
 
-/* ==========================================================================
-   22. STUDENT ATTENDANCE HISTORY
-   ========================================================================== */
-
 async function openStudentAttendanceHistory(
     studentCode
 ) {
@@ -1465,7 +1616,9 @@ async function openStudentAttendanceHistory(
 
 
     if (!session) {
+
         return;
+
     }
 
 
@@ -1476,15 +1629,19 @@ async function openStudentAttendanceHistory(
                     item.studentCode ||
                     item.firestoreId ||
                     ""
-                ).toUpperCase() ===
+                )
+                    .toUpperCase() ===
                 String(
                     studentCode
-                ).toUpperCase()
+                )
+                    .toUpperCase()
         );
 
 
     if (!student) {
+
         return;
+
     }
 
 
@@ -1493,7 +1650,9 @@ async function openStudentAttendanceHistory(
 
 
     if (!attendanceRef) {
+
         return;
+
     }
 
 
@@ -1506,7 +1665,8 @@ async function openStudentAttendanceHistory(
                     "==",
                     String(
                         studentCode
-                    ).toUpperCase()
+                    )
+                        .toUpperCase()
                 )
                 .get();
 
@@ -1514,9 +1674,12 @@ async function openStudentAttendanceHistory(
         const records =
             snapshot.docs.map(
                 (doc) => ({
+
                     id:
                         doc.id,
+
                     ...doc.data()
+
                 })
             );
 
@@ -1525,11 +1688,12 @@ async function openStudentAttendanceHistory(
             (a, b) =>
                 String(
                     b.date || ""
-                ).localeCompare(
-                    String(
-                        a.date || ""
-                    )
                 )
+                    .localeCompare(
+                        String(
+                            a.date || ""
+                        )
+                    )
         );
 
 
@@ -1538,7 +1702,8 @@ async function openStudentAttendanceHistory(
                 (record) =>
                     record.status ===
                     "Present"
-            ).length;
+            )
+                .length;
 
 
         const absent =
@@ -1546,15 +1711,13 @@ async function openStudentAttendanceHistory(
                 (record) =>
                     record.status ===
                     "Absent"
-            ).length;
+            )
+                .length;
 
 
         const modal =
             attendanceEl(
                 "attendance-history-modal"
-            ) ||
-            attendanceEl(
-                "student-attendance-history-modal"
             );
 
 
@@ -1569,51 +1732,65 @@ async function openStudentAttendanceHistory(
         }
 
 
-        const nameElement =
+        const summary =
             attendanceEl(
-                "history-student-name"
-            );
-
-
-        const presentElement =
-            attendanceEl(
-                "history-present-count"
-            );
-
-
-        const absentElement =
-            attendanceEl(
-                "history-absent-count"
+                "attendance-history-summary"
             );
 
 
         const tableBody =
             attendanceEl(
-                "attendance-history-rows"
+                "attendance-history-body"
             );
 
 
-        if (nameElement) {
+        if (summary) {
 
-            nameElement.textContent =
-                student.studentName ||
-                "-";
+            summary.innerHTML = `
 
-        }
+                <div class="attendance-stat-card">
+
+                    <span>
+                        Student
+                    </span>
+
+                    <strong>
+                        ${escapeAttendanceHtml(
+                            student.studentName ||
+                            student.name ||
+                            "-"
+                        )}
+                    </strong>
+
+                </div>
 
 
-        if (presentElement) {
+                <div class="attendance-stat-card">
 
-            presentElement.textContent =
-                present;
+                    <span>
+                        Present
+                    </span>
 
-        }
+                    <strong>
+                        ${present}
+                    </strong>
+
+                </div>
 
 
-        if (absentElement) {
+                <div class="attendance-stat-card">
 
-            absentElement.textContent =
-                absent;
+                    <span>
+                        Absent
+                    </span>
+
+                    <strong>
+                        ${absent}
+                    </strong>
+
+                </div>
+
+            `;
 
         }
 
@@ -1623,17 +1800,22 @@ async function openStudentAttendanceHistory(
             if (!records.length) {
 
                 tableBody.innerHTML = `
+
                     <tr>
+
                         <td
                             colspan="3"
                             class="attendance-empty-state"
                         >
                             No attendance history available.
                         </td>
+
                     </tr>
+
                 `;
 
-            } else {
+            }
+            else {
 
                 tableBody.innerHTML =
                     records.map(
@@ -1647,6 +1829,7 @@ async function openStudentAttendanceHistory(
 
 
                             return `
+
                                 <tr>
 
                                     <td>
@@ -1657,29 +1840,38 @@ async function openStudentAttendanceHistory(
                                         )}
                                     </td>
 
+
                                     <td>
                                         ${escapeAttendanceHtml(
-                                            record.status ||
+                                            record.shift ||
                                             "-"
                                         )}
                                     </td>
 
+
                                     <td>
+
                                         <span
-                                            class="history-status-pill ${statusClass}"
+                                            class="
+                                                history-status-pill
+                                                ${statusClass}
+                                            "
                                         >
                                             ${escapeAttendanceHtml(
                                                 record.status ||
                                                 "-"
                                             )}
                                         </span>
+
                                     </td>
 
                                 </tr>
+
                             `;
 
                         }
-                    ).join("");
+                    )
+                        .join("");
 
             }
 
@@ -1691,7 +1883,14 @@ async function openStudentAttendanceHistory(
         );
 
 
-    } catch (error) {
+        modal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+
+    }
+    catch (error) {
 
         console.error(
             "[Attendance] Student history error:",
@@ -1709,7 +1908,7 @@ async function openStudentAttendanceHistory(
 
 
 /* ==========================================================================
-   23. HISTORY MODAL CLOSE
+   21. HISTORY MODAL CLOSE
    ========================================================================== */
 
 function bindHistoryModal() {
@@ -1717,20 +1916,19 @@ function bindHistoryModal() {
     const modal =
         attendanceEl(
             "attendance-history-modal"
-        ) ||
-        attendanceEl(
-            "student-attendance-history-modal"
         );
 
 
     if (!modal) {
+
         return;
+
     }
 
 
     const closeButton =
-        modal.querySelector(
-            ".close-modal-btn"
+        attendanceEl(
+            "close-attendance-history-modal"
         );
 
 
@@ -1742,6 +1940,11 @@ function bindHistoryModal() {
 
                 modal.classList.remove(
                     "active"
+                );
+
+                modal.setAttribute(
+                    "aria-hidden",
+                    "true"
                 );
 
             }
@@ -1763,6 +1966,11 @@ function bindHistoryModal() {
                     "active"
                 );
 
+                modal.setAttribute(
+                    "aria-hidden",
+                    "true"
+                );
+
             }
 
         }
@@ -1772,36 +1980,41 @@ function bindHistoryModal() {
 
 
 /* ==========================================================================
-   24. INITIALIZE
+   22. INITIALIZE
    ========================================================================== */
 
 async function initializeAttendanceModule() {
 
     const tableBody =
         attendanceEl(
-            "attendance-table-rows"
-        ) ||
-        attendanceEl(
-            "students-table-rows"
-        ) ||
-        attendanceEl(
-            "attendance-student-rows"
+            "attendance-table-body"
         );
 
 
     if (!tableBody) {
+
         return;
+
     }
 
+
+    /*
+     * IMPORTANT:
+     *
+     * requireAdminSession() is asynchronous.
+     * Wait for Firebase Auth before continuing.
+     */
 
     if (
         typeof requireAdminSession ===
         "function"
     ) {
 
-        if (
-            !requireAdminSession()
-        ) {
+        const authenticated =
+            await requireAdminSession();
+
+
+        if (!authenticated) {
 
             return;
 
@@ -1813,6 +2026,8 @@ async function initializeAttendanceModule() {
     setDefaultAttendanceDate();
 
     bindAttendanceSearch();
+
+    bindAttendanceShift();
 
     bindAttendanceDate();
 
@@ -1829,7 +2044,7 @@ async function initializeAttendanceModule() {
 
 
 /* ==========================================================================
-   25. START MODULE
+   23. START
    ========================================================================== */
 
 document.addEventListener(
@@ -1843,7 +2058,7 @@ document.addEventListener(
 
 
 /* ==========================================================================
-   26. PUBLIC API
+   24. PUBLIC API
    ========================================================================== */
 
 window.LibManageAttendance = {
@@ -1864,5 +2079,5 @@ window.LibManageAttendance = {
 
 
 console.log(
-    "[LibManage] Attendance module loaded successfully."
+    "[LibControl] Attendance module loaded successfully."
 );
