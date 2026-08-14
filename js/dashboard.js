@@ -1467,7 +1467,435 @@ function createAdminSession(
 window.createAdminSession =
     createAdminSession;
 
+/* ==========================================================================
+   15A. FIRST LOGIN PASSWORD CHANGE UI
+   ========================================================================== */
 
+function showFirstLoginPasswordChange(
+    libraryId
+) {
+
+    const existing =
+        document.getElementById(
+            "libcontrol-first-password-modal"
+        );
+
+
+    if (existing) {
+
+        existing.remove();
+
+    }
+
+
+    const overlay =
+        document.createElement(
+            "div"
+        );
+
+
+    overlay.id =
+        "libcontrol-first-password-modal";
+
+
+    overlay.style.cssText = `
+        position:fixed;
+        inset:0;
+        z-index:99999;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding:20px;
+        background:rgba(0,0,0,0.65);
+        backdrop-filter:blur(6px);
+    `;
+
+
+    overlay.innerHTML = `
+
+        <div
+            style="
+                width:100%;
+                max-width:430px;
+                background:#ffffff;
+                border-radius:16px;
+                padding:28px;
+                box-sizing:border-box;
+                box-shadow:0 20px 60px rgba(0,0,0,0.25);
+            "
+        >
+
+            <h2
+                style="
+                    margin:0 0 8px;
+                    font-size:1.35rem;
+                "
+            >
+                Create Your New Password
+            </h2>
+
+
+            <p
+                style="
+                    margin:0 0 20px;
+                    color:#64748b;
+                    line-height:1.5;
+                    font-size:0.9rem;
+                "
+            >
+                This is your first login. Please create
+                a new password before entering the
+                Admin Dashboard.
+            </p>
+
+
+            <div style="margin-bottom:14px;">
+
+                <label
+                    for="libcontrol-new-admin-password"
+                    style="
+                        display:block;
+                        margin-bottom:6px;
+                        font-weight:600;
+                    "
+                >
+                    New Password
+                </label>
+
+
+                <input
+                    type="password"
+                    id="libcontrol-new-admin-password"
+                    minlength="8"
+                    autocomplete="new-password"
+                    placeholder="Enter new password"
+                    style="
+                        width:100%;
+                        box-sizing:border-box;
+                        padding:12px;
+                        border:1px solid #cbd5e1;
+                        border-radius:8px;
+                    "
+                >
+
+            </div>
+
+
+            <div style="margin-bottom:16px;">
+
+                <label
+                    for="libcontrol-confirm-admin-password"
+                    style="
+                        display:block;
+                        margin-bottom:6px;
+                        font-weight:600;
+                    "
+                >
+                    Confirm Password
+                </label>
+
+
+                <input
+                    type="password"
+                    id="libcontrol-confirm-admin-password"
+                    minlength="8"
+                    autocomplete="new-password"
+                    placeholder="Confirm new password"
+                    style="
+                        width:100%;
+                        box-sizing:border-box;
+                        padding:12px;
+                        border:1px solid #cbd5e1;
+                        border-radius:8px;
+                    "
+                >
+
+            </div>
+
+
+            <div
+                id="libcontrol-first-password-message"
+                style="
+                    display:none;
+                    margin-bottom:14px;
+                    padding:10px;
+                    border-radius:8px;
+                    font-size:0.85rem;
+                    font-weight:600;
+                "
+            ></div>
+
+
+            <button
+                type="button"
+                id="libcontrol-save-first-password"
+                style="
+                    width:100%;
+                    border:none;
+                    border-radius:9px;
+                    padding:13px;
+                    cursor:pointer;
+                    font-weight:700;
+                    font-size:0.95rem;
+                "
+            >
+                Save New Password
+            </button>
+
+        </div>
+
+    `;
+
+
+    document.body.appendChild(
+        overlay
+    );
+
+
+    const newPasswordInput =
+        document.getElementById(
+            "libcontrol-new-admin-password"
+        );
+
+
+    const confirmPasswordInput =
+        document.getElementById(
+            "libcontrol-confirm-admin-password"
+        );
+
+
+    const messageBox =
+        document.getElementById(
+            "libcontrol-first-password-message"
+        );
+
+
+    const saveButton =
+        document.getElementById(
+            "libcontrol-save-first-password"
+        );
+
+
+    function showError(
+        message
+    ) {
+
+        if (!messageBox) {
+
+            return;
+
+        }
+
+
+        messageBox.textContent =
+            message;
+
+
+        messageBox.style.display =
+            "block";
+
+
+        messageBox.style.background =
+            "#fee2e2";
+
+
+        messageBox.style.color =
+            "#991b1b";
+
+    }
+
+
+    if (saveButton) {
+
+        saveButton.addEventListener(
+            "click",
+            async () => {
+
+                const newPassword =
+                    newPasswordInput
+                        ? newPasswordInput.value
+                        : "";
+
+
+                const confirmPassword =
+                    confirmPasswordInput
+                        ? confirmPasswordInput.value
+                        : "";
+
+
+                if (
+                    newPassword.length <
+                    8
+                ) {
+
+                    showError(
+                        "New password must contain at least 8 characters."
+                    );
+
+                    return;
+
+                }
+
+
+                if (
+                    newPassword !==
+                    confirmPassword
+                ) {
+
+                    showError(
+                        "Passwords do not match."
+                    );
+
+                    return;
+
+                }
+
+
+                const currentUser =
+                    await waitForFirebaseAuthUser();
+
+
+                if (!currentUser) {
+
+                    showError(
+                        "Admin authentication session has expired. Please log in again."
+                    );
+
+                    return;
+
+                }
+
+
+                if (
+                    !currentUser.emailVerified
+                ) {
+
+                    showError(
+                        "Please verify your email before changing your password."
+                    );
+
+                    return;
+
+                }
+
+
+                if (
+                    typeof firebase.functions !==
+                    "function"
+                ) {
+
+                    showError(
+                        "Secure password service is unavailable."
+                    );
+
+                    return;
+
+                }
+
+
+                saveButton.disabled =
+                    true;
+
+
+                saveButton.textContent =
+                    "Updating Password...";
+
+
+                try {
+
+                    const completePasswordChange =
+                        firebase
+                            .functions()
+                            .httpsCallable(
+                                "completeAdminPasswordChange"
+                            );
+
+
+                    const result =
+                        await completePasswordChange({
+
+                            libraryId:
+                                normalizeLibraryId(
+                                    libraryId
+                                ),
+
+                            newPassword:
+                                newPassword
+
+                        });
+
+
+                    if (
+                        !result ||
+                        !result.data ||
+                        result.data.success !==
+                        true
+                    ) {
+
+                        throw new Error(
+                            "Unable to complete password change."
+                        );
+
+                    }
+
+
+                    localStorage.setItem(
+                        SESSION_KEYS.adminMustChangePassword,
+                        "false"
+                    );
+
+
+                    alert(
+                        "Password changed successfully. Welcome to LibControl."
+                    );
+
+
+                    window.location.href =
+                        getPagePath(
+                            "admin-dashboard.html"
+                        );
+
+                }
+                catch (error) {
+
+                    console.error(
+                        "[LibControl] First-login password change error:",
+                        error
+                    );
+
+
+                    showError(
+                        error.message ||
+                        "Unable to change password."
+                    );
+
+
+                    saveButton.disabled =
+                        false;
+
+
+                    saveButton.textContent =
+                        "Save New Password";
+
+                }
+
+            }
+        );
+
+    }
+
+
+    if (newPasswordInput) {
+
+        newPasswordInput.focus();
+
+    }
+
+}
+
+
+window.showFirstLoginPasswordChange =
+    showFirstLoginPasswordChange;
 /* ==========================================================================
    16. ADMIN LOGIN
    ========================================================================== */
@@ -2874,21 +3302,19 @@ function bindGatewayAuthPipelines() {
                  * the Admin Login UI in the next Admin file step.
                  */
 
-                if (
-                    result.admin &&
-                    result.admin.mustChangePassword ===
-                    true
-                ) {
+               if (
+    result.admin &&
+    result.admin.mustChangePassword ===
+    true
+) {
 
-                    window.location.href =
-                        getPagePath(
-                            "admin-login.html"
-                        );
+    showFirstLoginPasswordChange(
+        id
+    );
 
-                    return;
+    return;
 
-                }
-
+}
 
                 window.location.href =
                     getPagePath(
