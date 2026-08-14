@@ -168,36 +168,31 @@ function redirectStudentToGateway() {
 
 function getStudentLibraryRef() {
 
+    const libraryId =
+        getStudentSessionLibraryId();
+
+
     if (
-        !window.db
+        !libraryId ||
+        !window.LibManageDB
     ) {
         return null;
     }
 
 
-    const libraryId =
-        getStudentSessionLibraryId();
-
-
-    if (!libraryId) {
+    if (
+        typeof window.LibManageDB.library !==
+        "function"
+    ) {
         return null;
     }
 
 
-    return window.db
-        .collection(
-            "libmanage_secure_v2"
-        )
-        .collection(
-            "libraries"
-        )
-        .doc(
-            libraryId
-        );
+    return window.LibManageDB.library(
+        libraryId
+    );
 
 }
-
-
 /* ==========================================================================
    7. CURRENT STUDENT REFERENCE
    ========================================================================== */
