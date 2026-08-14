@@ -3302,14 +3302,16 @@ function bindGatewayAuthPipelines() {
                  * the Admin Login UI in the next Admin file step.
                  */
 
-               if (
+           if (
     result.admin &&
     result.admin.mustChangePassword ===
     true
 ) {
 
     showFirstLoginPasswordChange(
-        id
+        normalizeLibraryId(
+            libraryInput.value
+        )
     );
 
     return;
