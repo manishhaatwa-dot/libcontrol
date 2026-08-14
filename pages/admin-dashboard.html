@@ -13,7 +13,9 @@
     <title>LibControl - Admin Dashboard</title>
 
 
-    <!-- Google Fonts -->
+    <!-- =====================================================
+         GOOGLE FONTS
+         ===================================================== -->
 
     <link
         rel="preconnect"
@@ -32,28 +34,295 @@
     >
 
 
-    <!-- Global -->
+    <!-- =====================================================
+         LIBCONTROL CSS
+         ===================================================== -->
 
     <link
         rel="stylesheet"
         href="../css/style.css"
     >
 
-
-    <!-- Layout -->
-
     <link
         rel="stylesheet"
         href="../css/layout.css"
     >
 
-
-    <!-- Dashboard -->
-
     <link
         rel="stylesheet"
         href="../css/dashboard.css"
     >
+
+
+    <style>
+
+        /* =====================================================
+           LIBRARY INFORMATION
+           ===================================================== */
+
+        .library-information-card {
+
+            margin-bottom: 24px;
+
+        }
+
+
+        .library-information-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(
+                    3,
+                    minmax(
+                        0,
+                        1fr
+                    )
+                );
+
+            gap: 24px;
+
+        }
+
+
+        .library-information-item {
+
+            display: flex;
+
+            align-items: flex-start;
+
+            gap: 14px;
+
+            padding: 18px;
+
+            border-radius: 14px;
+
+            background:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.7
+                );
+
+            border:
+                1px solid
+                rgba(
+                    0,
+                    0,
+                    0,
+                    0.06
+                );
+
+        }
+
+
+        .library-information-icon {
+
+            width: 44px;
+
+            height: 44px;
+
+            min-width: 44px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            border-radius: 12px;
+
+            font-size: 20px;
+
+            font-weight: 700;
+
+        }
+
+
+        .library-information-icon.id {
+
+            background:
+                #e8f0ff;
+
+            color:
+                #2563eb;
+
+        }
+
+
+        .library-information-icon.name {
+
+            background:
+                #e8f8ef;
+
+            color:
+                #16a34a;
+
+        }
+
+
+        .library-information-icon.address {
+
+            background:
+                #f3e8ff;
+
+            color:
+                #9333ea;
+
+        }
+
+
+        .library-information-content {
+
+            min-width: 0;
+
+        }
+
+
+        .library-information-label {
+
+            margin: 0 0 6px;
+
+            font-size: 0.82rem;
+
+            color: #6b7280;
+
+            font-weight: 500;
+
+        }
+
+
+        .library-information-value {
+
+            margin: 0;
+
+            font-size: 1.05rem;
+
+            font-weight: 700;
+
+            color: #111827;
+
+            word-break: break-word;
+
+        }
+
+
+        /* =====================================================
+           QUICK ACTIONS
+           ===================================================== */
+
+        .dashboard-quick-actions {
+
+            margin-bottom: 24px;
+
+        }
+
+
+        .dashboard-action-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(
+                    3,
+                    minmax(
+                        0,
+                        1fr
+                    )
+                );
+
+            gap: 18px;
+
+        }
+
+
+        .dashboard-action-button {
+
+            min-height: 72px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            text-decoration: none;
+
+            border-radius: 12px;
+
+            color: #ffffff;
+
+            font-weight: 700;
+
+            transition:
+                transform 0.15s ease,
+                opacity 0.15s ease;
+
+        }
+
+
+        .dashboard-action-button:hover {
+
+            transform:
+                translateY(-2px);
+
+            opacity: 0.94;
+
+        }
+
+
+        .dashboard-action-students {
+
+            background:
+                #2563eb;
+
+        }
+
+
+        .dashboard-action-attendance {
+
+            background:
+                #16a34a;
+
+        }
+
+
+        .dashboard-action-seats {
+
+            background:
+                #db2777;
+
+        }
+
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+
+        @media (
+            max-width: 900px
+        ) {
+
+            .library-information-grid {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+
+            .dashboard-action-grid {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+        }
+
+
+    </style>
 
 </head>
 
@@ -68,7 +337,9 @@
          SIDEBAR
          ===================================================== -->
 
-    <div id="sidebar-container"></div>
+    <div
+        id="sidebar-container"
+    ></div>
 
 
     <div class="main-content">
@@ -78,7 +349,9 @@
              NAVBAR
              ================================================= -->
 
-        <div id="navbar-container"></div>
+        <div
+            id="navbar-container"
+        ></div>
 
 
         <!-- =================================================
@@ -89,360 +362,276 @@
 
 
             <!-- =================================================
-                 DASHBOARD HEADER
+                 LIBRARY INFORMATION
                  ================================================= -->
 
-            <section class="dashboard-header">
+            <section
+                class="panel-card library-information-card"
+            >
 
-                <div class="welcome-text">
+                <h2>
+                    Library Information
+                </h2>
 
-                    <h1>
-                        Welcome Back
-                    </h1>
 
-                    <p>
-                        Manage your library operations from one place.
-                    </p>
+                <div
+                    class="library-information-grid"
+                >
+
+
+                    <!-- =========================================
+                         LIBRARY ID
+                         ========================================= -->
+
+                    <div
+                        class="library-information-item"
+                    >
+
+                        <div
+                            class="
+                                library-information-icon
+                                id
+                            "
+                        >
+                            ID
+                        </div>
+
+
+                        <div
+                            class="
+                                library-information-content
+                            "
+                        >
+
+                            <p
+                                class="
+                                    library-information-label
+                                "
+                            >
+                                Library ID
+                            </p>
+
+
+                            <p
+                                class="
+                                    library-information-value
+                                "
+                                id="dashboard-library-id"
+                            >
+                                Loading...
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =========================================
+                         LIBRARY NAME
+                         ========================================= -->
+
+                    <div
+                        class="library-information-item"
+                    >
+
+                        <div
+                            class="
+                                library-information-icon
+                                name
+                            "
+                        >
+                            L
+                        </div>
+
+
+                        <div
+                            class="
+                                library-information-content
+                            "
+                        >
+
+                            <p
+                                class="
+                                    library-information-label
+                                "
+                            >
+                                Library Name
+                            </p>
+
+
+                            <p
+                                class="
+                                    library-information-value
+                                "
+                                id="dashboard-library-name"
+                            >
+                                Loading...
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =========================================
+                         ADDRESS
+                         ========================================= -->
+
+                    <div
+                        class="library-information-item"
+                    >
+
+                        <div
+                            class="
+                                library-information-icon
+                                address
+                            "
+                        >
+                            📍
+                        </div>
+
+
+                        <div
+                            class="
+                                library-information-content
+                            "
+                        >
+
+                            <p
+                                class="
+                                    library-information-label
+                                "
+                            >
+                                Address
+                            </p>
+
+
+                            <p
+                                class="
+                                    library-information-value
+                                "
+                                id="dashboard-library-address"
+                            >
+                                Loading...
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 QUICK ACTIONS
+                 ================================================= -->
+
+            <section
+                class="
+                    panel-card
+                    dashboard-quick-actions
+                "
+            >
+
+                <h2>
+                    Quick Actions
+                </h2>
+
+
+                <div
+                    class="
+                        dashboard-action-grid
+                    "
+                >
+
+
+                    <a
+                        href="students.html"
+                        class="
+                            dashboard-action-button
+                            dashboard-action-students
+                        "
+                    >
+                        Manage Students
+                    </a>
+
+
+                    <a
+                        href="attendance.html"
+                        class="
+                            dashboard-action-button
+                            dashboard-action-attendance
+                        "
+                    >
+                        Mark Attendance
+                    </a>
+
+
+                    <a
+                        href="seats.html"
+                        class="
+                            dashboard-action-button
+                            dashboard-action-seats
+                        "
+                    >
+                        Seat Matrix Map
+                    </a>
+
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 LIBRARY NOTICES
+                 ================================================= -->
+
+            <section
+                class="panel-card"
+            >
+
+                <div
+                    style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        gap:12px;
+                        margin-bottom:20px;
+                    "
+                >
+
+                    <h2
+                        style="margin-bottom:0;"
+                    >
+                        Recent Notice Updates
+                    </h2>
+
+
+                    <button
+                        type="button"
+                        id="btn-add-notice"
+                        class="add-notice-btn"
+                    >
+                        + Add Notice
+                    </button>
 
                 </div>
 
 
                 <div
-                    class="date-badge"
-                    id="dashboard-date"
+                    class="notification-list"
+                    id="dashboard-notification-list"
                 >
-                    Loading...
-                </div>
 
-            </section>
-
-
-            <!-- =================================================
-                 TOP STATISTICS
-                 ================================================= -->
-
-            <section class="stats-grid">
-
-
-                <!-- Library Strength -->
-
-                <div class="stat-card">
-
-                    <div class="stat-icon strength"></div>
-
-                    <div class="stat-info">
-
-                        <h3>
-                            Total Students
-                        </h3>
-
-                        <div
-                            class="strength-control-wrapper"
-                        >
-
-                            <div
-                                class="stat-number"
-                                id="stat-strength"
-                            >
-                                0
-                            </div>
-
-
-                            <button
-                                type="button"
-                                id="trigger-strength-edit-btn"
-                            >
-                                Edit
-                            </button>
-
-                        </div>
-
-
-                        <!-- Inline Strength Editor -->
-
-                        <form
-                            id="strength-modifier-inline-form"
-                            style="display:none;"
-                        >
-
-                            <input
-                                type="number"
-                                id="input-manual-strength"
-                                min="0"
-                                placeholder="0"
-                            >
-
-                            <button type="submit">
-                                Save
-                            </button>
-
-                        </form>
-
+                    <div class="empty-state-text">
+                        Loading notices...
                     </div>
 
                 </div>
-
-
-                <!-- Present -->
-
-                <div class="stat-card">
-
-                    <div class="stat-icon present"></div>
-
-                    <div class="stat-info">
-
-                        <h3>
-                            Present Today
-                        </h3>
-
-                        <div
-                            class="stat-number"
-                            id="stat-present"
-                        >
-                            0
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- Absent -->
-
-                <div class="stat-card">
-
-                    <div class="stat-icon absent"></div>
-
-                    <div class="stat-info">
-
-                        <h3>
-                            Absent Today
-                        </h3>
-
-                        <div
-                            class="stat-number"
-                            id="stat-absent"
-                        >
-                            0
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- Seats -->
-
-                <div class="stat-card">
-
-                    <div class="stat-icon seats"></div>
-
-                    <div class="stat-info">
-
-                        <h3>
-                            Available Seats
-                        </h3>
-
-                        <div
-                            class="stat-number"
-                            id="stat-available-seats"
-                        >
-                            0
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-            </section>
-
-
-            <!-- =================================================
-                 DASHBOARD SPLIT
-                 ================================================= -->
-
-            <section class="dashboard-split">
-
-
-                <!-- =================================================
-                     LEFT COLUMN
-                     ================================================= -->
-
-                <div class="split-left">
-
-
-                    <!-- QUICK ACTIONS -->
-
-                    <div class="panel-card">
-
-                        <h2>
-                            Quick Actions
-                        </h2>
-
-
-                        <div class="action-buttons-grid">
-
-
-                            <a
-                                href="students.html"
-                                class="action-btn btn-primary"
-                            >
-                                Students
-                            </a>
-
-
-                            <a
-                                href="attendance.html"
-                                class="action-btn btn-secondary"
-                            >
-                                Attendance
-                            </a>
-
-
-                            <a
-                                href="seats.html"
-                                class="action-btn btn-accent"
-                            >
-                                Seat Matrix
-                            </a>
-
-
-                        </div>
-
-                    </div>
-
-
-                    <!-- =================================================
-                         ATTENDANCE LOG
-                         ================================================= -->
-
-                    <div class="panel-card">
-
-                        <h2>
-                            Today's Attendance
-                        </h2>
-
-
-                        <div class="log-table-wrapper">
-
-                            <table class="dashboard-table">
-
-
-                                <thead>
-
-                                    <tr>
-
-                                        <th>
-                                            Student Code
-                                        </th>
-
-                                        <th>
-                                            Student Name
-                                        </th>
-
-                                        <th>
-                                            Seat
-                                        </th>
-
-                                        <th>
-                                            Shift
-                                        </th>
-
-                                        <th>
-                                            Status
-                                        </th>
-
-                                    </tr>
-
-                                </thead>
-
-
-                                <tbody
-                                    id="dashboard-attendance-body"
-                                >
-
-                                    <tr>
-
-                                        <td
-                                            colspan="5"
-                                            class="table-empty"
-                                        >
-                                            Loading attendance...
-                                        </td>
-
-                                    </tr>
-
-                                </tbody>
-
-
-                            </table>
-
-                        </div>
-
-                    </div>
-
-
-                </div>
-
-
-                <!-- =================================================
-                     RIGHT COLUMN
-                     ================================================= -->
-
-                <div class="split-right">
-
-
-                    <!-- =================================================
-                         LIBRARY NOTICES
-                         ================================================= -->
-
-                    <div class="panel-card">
-
-                        <div
-                            style="
-                                display:flex;
-                                justify-content:space-between;
-                                align-items:center;
-                                gap:12px;
-                                margin-bottom:20px;
-                            "
-                        >
-
-                            <h2
-                                style="margin-bottom:0;"
-                            >
-                                Library Notices
-                            </h2>
-
-
-                            <button
-                                type="button"
-                                id="btn-add-notice"
-                                class="add-notice-btn"
-                            >
-                                Add Notice
-                            </button>
-
-                        </div>
-
-
-                        <div
-                            class="notification-list"
-                            id="dashboard-notification-list"
-                        >
-
-                            <div class="empty-state-text">
-                                Loading notices...
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-                </div>
-
 
             </section>
 
@@ -454,7 +643,9 @@
              FOOTER
              ================================================= -->
 
-        <div id="footer-container"></div>
+        <div
+            id="footer-container"
+        ></div>
 
 
     </div>
@@ -510,14 +701,19 @@
         </div>
 
 
-        <form id="notice-form">
+        <form
+            id="notice-form"
+        >
 
 
             <div class="form-group">
 
-                <label for="notice-title">
+                <label
+                    for="notice-title"
+                >
                     Notice Title
                 </label>
+
 
                 <input
                     type="text"
@@ -532,9 +728,12 @@
 
             <div class="form-group">
 
-                <label for="notice-message">
+                <label
+                    for="notice-message"
+                >
                     Notice Message
                 </label>
+
 
                 <textarea
                     id="notice-message"
@@ -601,6 +800,287 @@
      ========================================================= -->
 
 <script src="../js/dashboard.js"></script>
+
+
+<!-- =========================================================
+     ADMIN DASHBOARD INITIALIZATION
+     ========================================================= -->
+
+<script>
+
+(function () {
+
+    "use strict";
+
+
+    async function initializeAdminDashboard() {
+
+        /*
+         * ------------------------------------------------------
+         * Wait for Firebase Admin session
+         * ------------------------------------------------------
+         */
+
+        const authenticated =
+            await requireAdminSession();
+
+
+        if (!authenticated) {
+
+            return;
+
+        }
+
+
+        /*
+         * ------------------------------------------------------
+         * Load shared layout components
+         * ------------------------------------------------------
+         */
+
+        await Promise.all([
+
+            loadSaaSLayoutComponent(
+                "sidebar-container",
+                "../components/sidebar.html"
+            ),
+
+            loadSaaSLayoutComponent(
+                "navbar-container",
+                "../components/navbar.html"
+            ),
+
+            loadSaaSLayoutComponent(
+                "footer-container",
+                "../components/footer.html"
+            )
+
+        ]);
+
+
+        /*
+         * ------------------------------------------------------
+         * Read current Admin session
+         * ------------------------------------------------------
+         */
+
+        const session =
+            getCurrentSession();
+
+
+        const libraryId =
+            normalizeLibraryId(
+                session.libraryId
+            );
+
+
+        const libraryIdElement =
+            document.getElementById(
+                "dashboard-library-id"
+            );
+
+
+        const libraryNameElement =
+            document.getElementById(
+                "dashboard-library-name"
+            );
+
+
+        const addressElement =
+            document.getElementById(
+                "dashboard-library-address"
+            );
+
+
+        if (libraryIdElement) {
+
+            libraryIdElement.textContent =
+                libraryId ||
+                "—";
+
+        }
+
+
+        /*
+         * ------------------------------------------------------
+         * Get latest Library document
+         * ------------------------------------------------------
+         */
+
+        if (
+            !libraryId ||
+            !window.db
+        ) {
+
+            if (libraryNameElement) {
+
+                libraryNameElement.textContent =
+                    session.libraryName ||
+                    "Library";
+
+            }
+
+
+            if (addressElement) {
+
+                addressElement.textContent =
+                    "—";
+
+            }
+
+
+            return;
+
+        }
+
+
+        try {
+
+            const snapshot =
+                await libraryRef(
+                    libraryId
+                )
+                .get();
+
+
+            if (
+                !snapshot.exists
+            ) {
+
+                if (libraryNameElement) {
+
+                    libraryNameElement.textContent =
+                        session.libraryName ||
+                        "Library";
+
+                }
+
+
+                if (addressElement) {
+
+                    addressElement.textContent =
+                        "—";
+
+                }
+
+
+                return;
+
+            }
+
+
+            const library =
+                snapshot.data() || {};
+
+
+            /*
+             * --------------------------------------------------
+             * Library Name
+             * --------------------------------------------------
+             */
+
+            const libraryName =
+                library.name ||
+                library.libraryName ||
+                session.libraryName ||
+                "Library";
+
+
+            if (libraryNameElement) {
+
+                libraryNameElement.textContent =
+                    libraryName;
+
+            }
+
+
+            /*
+             * --------------------------------------------------
+             * Library Address
+             *
+             * Manager-created records may use different
+             * address field names. Use the existing value
+             * without changing the Firestore structure.
+             * --------------------------------------------------
+             */
+
+            const address =
+                library.address ||
+                library.libraryAddress ||
+                library.addressLine ||
+                library.fullAddress ||
+                library.location ||
+                "Address not available";
+
+
+            if (addressElement) {
+
+                addressElement.textContent =
+                    String(
+                        address
+                    );
+
+            }
+
+
+            /*
+             * Keep session name synchronized
+             * with the latest library document.
+             */
+
+            localStorage.setItem(
+                "session_library_name",
+                libraryName
+            );
+
+
+            /*
+             * Navigation component may display
+             * the library name.
+             */
+
+            initializeLibraryNavigation();
+
+
+        }
+        catch (error) {
+
+            console.error(
+                "[LibControl] Admin dashboard library information error:",
+                error
+            );
+
+
+            if (libraryNameElement) {
+
+                libraryNameElement.textContent =
+                    session.libraryName ||
+                    "Library";
+
+            }
+
+
+            if (addressElement) {
+
+                addressElement.textContent =
+                    "Unable to load address";
+
+            }
+
+        }
+
+    }
+
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        initializeAdminDashboard
+    );
+
+
+})();
+
+</script>
 
 
 </body>
