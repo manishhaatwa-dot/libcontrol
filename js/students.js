@@ -893,7 +893,46 @@ function resetStudentForm() {
         studentCode.value = "";
     }
 
+const emailInput =
+        studentElement(
+            "std-email"
+        );
 
+    const passwordInput =
+        studentElement(
+            "std-password"
+        );
+
+
+    if (emailInput) {
+
+        emailInput.value =
+            "";
+
+        emailInput.disabled =
+            false;
+
+        emailInput.required =
+            true;
+
+    }
+
+
+    if (passwordInput) {
+
+        passwordInput.value =
+            "";
+
+        passwordInput.disabled =
+            false;
+
+        passwordInput.required =
+            true;
+
+        passwordInput.placeholder =
+            "Enter temporary password";
+
+    }
     const codeBlock =
         studentElement(
             "modal-code-display-block"
@@ -951,7 +990,40 @@ function openAddStudentModal() {
 
 
     resetStudentForm();
+const emailInput =
+        studentElement(
+            "std-email"
+        );
 
+    const passwordInput =
+        studentElement(
+            "std-password"
+        );
+
+
+    if (emailInput) {
+
+        emailInput.disabled =
+            false;
+
+        emailInput.required =
+            true;
+
+    }
+
+
+    if (passwordInput) {
+
+        passwordInput.disabled =
+            false;
+
+        passwordInput.required =
+            true;
+
+        passwordInput.placeholder =
+            "Enter temporary password";
+
+    }
 
     const title =
         studentElement(
@@ -1124,7 +1196,41 @@ function openEditStudentModal(
         "form-student-code"
     ).value =
         student.studentCode || "";
+   
+const emailInput =
+    studentElement(
+        "std-email"
+    );
 
+const passwordInput =
+    studentElement(
+        "std-password"
+    );
+
+
+if (emailInput) {
+
+    emailInput.value =
+        student.email || "";
+
+    emailInput.disabled =
+        true;
+
+}
+
+
+if (passwordInput) {
+
+    passwordInput.value =
+        "";
+
+    passwordInput.disabled =
+        true;
+
+    passwordInput.placeholder =
+        "Password cannot be changed here";
+
+}
 
     studentElement(
         "std-name"
@@ -1256,61 +1362,42 @@ function closeStudentModal() {
 function validateStudentForm() {
 
     const name =
-        studentElement(
-            "std-name"
-        ).value.trim();
+        studentElement("std-name").value.trim();
 
+    const email =
+        studentElement("std-email").value.trim().toLowerCase();
+
+    const password =
+        studentElement("std-password").value;
 
     const father =
-        studentElement(
-            "std-father"
-        ).value.trim();
-
+        studentElement("std-father")?.value.trim() || "";
 
     const className =
-        studentElement(
-            "std-class"
-        ).value.trim();
-
+        studentElement("std-class").value.trim();
 
     const seat =
-        studentElement(
-            "std-seat"
-        ).value.trim();
-
+        studentElement("std-seat").value.trim();
 
     const mobile =
-        studentElement(
-            "std-mobile"
-        ).value.trim();
-
+        studentElement("std-mobile").value.trim();
 
     const shift =
-        studentElement(
-            "std-shift"
-        ).value;
-
+        studentElement("std-shift").value;
 
     const status =
-        studentElement(
-            "std-status"
-        ).value;
-
+        studentElement("std-status").value;
 
     const joining =
-        studentElement(
-            "std-joining"
-        ).value.trim();
-
+        studentElement("std-joining").value.trim();
 
     const expiry =
-        studentElement(
-            "std-expiry"
-        ).value.trim();
+        studentElement("std-expiry").value.trim();
 
 
     if (
         !name ||
+        !email ||
         !father ||
         !className ||
         !seat ||
@@ -1325,6 +1412,43 @@ function validateStudentForm() {
             valid: false,
             message:
                 "Please fill all required fields."
+        };
+
+    }
+
+
+    if (
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+            email
+        )
+    ) {
+
+        return {
+            valid: false,
+            message:
+                "Please enter a valid student email address."
+        };
+
+    }
+
+
+    /*
+     * Temporary password is required ONLY
+     * while creating a new student account.
+     *
+     * During Edit mode the existing Firebase
+     * password is not requested or exposed.
+     */
+
+    if (
+        !studentEditMode &&
+        password.length < 8
+    ) {
+
+        return {
+            valid: false,
+            message:
+                "Temporary Password must contain at least 8 characters."
         };
 
     }
@@ -1380,7 +1504,6 @@ function validateStudentForm() {
             joining
         );
 
-
     const expiryDate =
         parseIndianDate(
             expiry
@@ -1410,6 +1533,9 @@ function validateStudentForm() {
             studentName:
                 name,
 
+            email:
+                email,
+
             fatherName:
                 father,
 
@@ -1434,13 +1560,14 @@ function validateStudentForm() {
             expiryDate:
                 expiry
 
-        }
+        },
+
+        temporaryPassword:
+            password
 
     };
 
 }
-
-
 /* ==========================================================================
    17. SAVE STUDENT
    ========================================================================== */
