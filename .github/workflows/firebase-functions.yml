@@ -1,4 +1,4 @@
-name: Deploy Firebase Functions
+name: Deploy LibControl Firebase Functions
 
 on:
   push:
@@ -23,9 +23,9 @@ jobs:
 
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
 
       - name: Install Firebase CLI
@@ -43,5 +43,8 @@ jobs:
           credentials_json: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
 
 
-      - name: Deploy Firebase Functions
-        run: firebase deploy --only functions --project appointment-app-cb979
+      - name: Deploy LibControl Functions
+        run: |
+          firebase deploy \
+            --only functions:createLibraryAdmin,functions:completeAdminPasswordChange \
+            --project appointment-app-cb979
