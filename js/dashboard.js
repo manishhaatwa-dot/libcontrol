@@ -159,6 +159,19 @@ const LIBMANAGE_SCHEMA_VERSION =
 
         window.auth =
             firebase.auth();
+       /*
+         * ------------------------------------------------------
+         * Firebase App Check
+         * ------------------------------------------------------
+         */
+
+        window.appCheck =
+            firebase.appCheck();
+
+        window.appCheck.activate(
+            "6LfQKYktAAAAADvsEzpykajTAXF_zOKhcSIwXuG3",
+            true
+        );
 
 
         window.firebaseConfig =
