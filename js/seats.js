@@ -55,13 +55,36 @@ function seatEl(id) {
 
 function getSeatLibraryId() {
 
-    return (
-        localStorage.getItem(
-            "session_library_id"
-        ) || ""
+    if (
+        typeof getCurrentSession !==
+        "function"
+    ) {
+
+        return "";
+
+    }
+
+
+    const session =
+        getCurrentSession();
+
+
+    if (
+        !session ||
+        session.role !== "admin" ||
+        !session.libraryId
+    ) {
+
+        return "";
+
+    }
+
+
+    return String(
+        session.libraryId
     )
-    .trim()
-    .toUpperCase();
+        .trim()
+        .toUpperCase();
 
 }
 
@@ -107,28 +130,40 @@ function getSeatLibraryRef() {
 
 function validateSeatSession() {
 
-    const role =
-        localStorage.getItem(
-            "session_role"
-        );
-
-    const libraryId =
-        getSeatLibraryId();
-
     if (
-        role !== "admin" ||
-        !libraryId
+        typeof getCurrentSession !==
+        "function"
     ) {
 
         window.location.href =
             "../index.html";
 
         return false;
+
     }
 
-    return true;
-}
 
+    const session =
+        getCurrentSession();
+
+
+    if (
+        !session ||
+        session.role !== "admin" ||
+        !session.libraryId
+    ) {
+
+        window.location.href =
+            "../index.html";
+
+        return false;
+
+    }
+
+
+    return true;
+
+}
 
 /* ==========================================================================
    6. HTML ESCAPE
@@ -225,18 +260,17 @@ function getCapacityRef() {
     const session =
         getCurrentSession();
 
+if (
+    typeof window.LibManageDB.seatConfig ===
+    "function"
+) {
 
-    if (
-        session &&
-        typeof window.LibManageDB.seatConfig ===
-        "function"
-    ) {
+    return window.LibManageDB.seatConfig(
+        getSeatLibraryId()
+    );
 
-        return window.LibManageDB.seatConfig(
-            session.libraryId
-        );
-
-    }
+}
+   
 
 
     return libraryRef
@@ -780,11 +814,22 @@ async function loadSeatStudents() {
     }
 
 
-    const studentsRef =
-        window.LibManageDB.students(
-            getSeatLibraryId()
-        );
+   const studentsRef =
+    window.LibManageDB.students(
+        getSeatLibraryId()
+    );
 
+
+if (!studentsRef) {
+
+    showSeatAlert(
+        "Student database unavailable.",
+        "error"
+    );
+
+    return;
+
+}
 
     try {
 
@@ -2114,10 +2159,25 @@ function startSeatStudentListener() {
     }
 
 
-    seatsStudentUnsubscribe =
+   const studentsRef =
         window.LibManageDB.students(
             getSeatLibraryId()
-        )
+        );
+
+
+    if (!studentsRef) {
+
+        console.error(
+            "[Seats] Student database reference unavailable."
+        );
+
+        return;
+
+    }
+
+
+    seatsStudentUnsubscribe =
+        studentsRef
         .onSnapshot(
 
             (snapshot) => {
