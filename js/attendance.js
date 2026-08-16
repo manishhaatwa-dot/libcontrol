@@ -1216,28 +1216,32 @@ function collectAttendanceData() {
             }
 
 
-            records.push({
+           records.push({
 
-                studentCode:
-                    code,
+    studentCode:
+        code,
 
-                studentName:
-                    student.studentName ||
-                    student.name ||
-                    "",
+    studentName:
+        student.studentName ||
+        student.name ||
+        "",
 
-                seatNumber:
-                    student.seatNumber ||
-                    student.seat ||
-                    "",
+    seatNumber:
+        student.seatNumber ||
+        student.seat ||
+        "",
 
-                status:
-                    selected.value,
+    shift:
+        student.shift ||
+        "",
 
-                date:
-                    attendanceSelectedDate
+    status:
+        selected.value,
 
-            });
+    date:
+        attendanceSelectedDate
+
+});
 
         }
     );
@@ -1348,39 +1352,41 @@ async function saveAttendance() {
                     );
 
 
-                batch.set(
-                    documentRef,
-                    {
+             batch.set(
+    documentRef,
+    {
 
-                        studentCode:
-                            record.studentCode,
+        studentCode:
+            record.studentCode,
 
-                        studentName:
-                            record.studentName,
+        studentName:
+            record.studentName,
 
-                        seatNumber:
-                            record.seatNumber,
+        seatNumber:
+            record.seatNumber,
 
-                        date:
-                            record.date,
+        shift:
+            record.shift,
 
-                        status:
-                            record.status,
+        date:
+            record.date,
 
-                        libraryId:
-                            session.libraryId,
+        status:
+            record.status,
 
-                        updatedAt:
-                            firebase.firestore
-                                .FieldValue
-                                .serverTimestamp()
+        libraryId:
+            session.libraryId,
 
-                    },
-                    {
-                        merge: true
-                    }
-                );
+        updatedAt:
+            firebase.firestore
+                .FieldValue
+                .serverTimestamp()
 
+    },
+    {
+        merge: true
+    }
+);   
             }
         );
 
