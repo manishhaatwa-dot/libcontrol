@@ -630,7 +630,96 @@
         })();
 
     </script>
+<!-- =====================================================
+     STUDENT PASSWORD RESET UI
+     ===================================================== -->
 
+<script>
+
+    (function () {
+
+        "use strict";
+
+
+        const forgotButton =
+            document.getElementById(
+                "student-forgot-password-btn"
+            );
+
+
+        const emailInput =
+            document.getElementById(
+                "student-email"
+            );
+
+
+        if (forgotButton) {
+
+            forgotButton.addEventListener(
+                "click",
+                async function () {
+
+                    const email =
+                        emailInput
+                            ? emailInput.value.trim()
+                            : "";
+
+
+                    if (!email) {
+
+                        alert(
+                            "Enter your Student Email first."
+                        );
+
+
+                        if (emailInput) {
+
+                            emailInput.focus();
+
+                        }
+
+
+                        return;
+
+                    }
+
+
+                    try {
+
+                        const result =
+                            await sendStudentPasswordReset(
+                                email
+                            );
+
+
+                        alert(
+                            result.message
+                        );
+
+                    }
+                    catch (error) {
+
+                        console.error(
+                            "[LibControl] Student password reset UI error:",
+                            error
+                        );
+
+
+                        alert(
+                            "Unable to send password reset email."
+                        );
+
+                    }
+
+                }
+            );
+
+        }
+
+
+    })();
+
+</script>
 
     <!-- =====================================================
          ADMIN LOGIN UI HELPERS
