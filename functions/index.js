@@ -3,13 +3,11 @@
  * LIBCONTROL - SECURE ADMIN CLOUD FUNCTIONS
  * ==========================================================================
  *
- * Purpose:
- *
  * Master Manager
  *      ↓
  * Secure Cloud Function
  *      ↓
- * Firebase Authentication Admin User
+ * Firebase Authentication
  *      ↓
  * Firebase UID
  *      ↓
@@ -19,8 +17,8 @@
  *
  * Passwords are NEVER stored in Firestore.
  *
- * This function creates the Firebase Authentication account
- * using Firebase Admin SDK.
+ * CORS is explicitly enabled for Firebase Callable Functions
+ * because LibControl frontend is hosted on GitHub Pages.
  *
  * ==========================================================================
  */
@@ -29,7 +27,7 @@
 
 
 /* ==========================================================================
-   1. FIREBASE ADMIN SDK
+   1. FIREBASE FUNCTIONS
    ========================================================================== */
 
 const {
@@ -39,6 +37,10 @@ const {
     "firebase-functions/v2/https"
 );
 
+
+/* ==========================================================================
+   2. FIREBASE ADMIN SDK
+   ========================================================================== */
 
 const {
     initializeApp
@@ -63,7 +65,7 @@ const {
 
 
 /* ==========================================================================
-   2. INITIALIZE FIREBASE ADMIN
+   3. INITIALIZE FIREBASE ADMIN
    ========================================================================== */
 
 initializeApp();
@@ -78,7 +80,7 @@ const adminDB =
 
 
 /* ==========================================================================
-   3. COLLECTION NAMES
+   4. COLLECTION NAMES
    ========================================================================== */
 
 const COLLECTIONS = {
@@ -93,7 +95,7 @@ const COLLECTIONS = {
 
 
 /* ==========================================================================
-   4. NORMALIZATION HELPERS
+   5. NORMALIZATION HELPERS
    ========================================================================== */
 
 function normalizeLibraryId(
@@ -127,24 +129,22 @@ function normalizeEmail(
 
 
 /* ==========================================================================
-   5. LIBRARY ID VALIDATION
+   6. LIBRARY ID VALIDATION
    ==========================================================================
-   
-   Final format:
-
-       LIB-XXXXXX
-
-   "LIB-" is fixed.
-
-   Exactly 6 alphanumeric characters after LIB-.
-
-   Examples:
-
-       LIB-4DNL12
-       LIB-A82K7P
-       LIB-X9M4Q2
-
-   ========================================================================== */
+ *
+ * Format:
+ *
+ *     LIB-XXXXXX
+ *
+ * Exactly 6 alphanumeric characters after LIB-
+ *
+ * Examples:
+ *
+ *     LIB-4DNL12
+ *     LIB-A82K7P
+ *     LIB-X9M4Q2
+ *
+ * ========================================================================== */
 
 function isValidLibraryId(
     libraryId
@@ -158,7 +158,7 @@ function isValidLibraryId(
 
 
 /* ==========================================================================
-   6. EMAIL VALIDATION
+   7. EMAIL VALIDATION
    ========================================================================== */
 
 function isValidEmail(
@@ -173,17 +173,12 @@ function isValidEmail(
 
 
 /* ==========================================================================
-   7. MASTER MANAGER AUTHORIZATION
+   8. MASTER MANAGER AUTHORIZATION
    ========================================================================== */
 
 async function verifyMasterManager(
     request
 ) {
-
-    /*
-     * Firebase Callable Functions automatically
-     * provide the authenticated user in request.auth.
-     */
 
     if (
         !request.auth ||
@@ -201,12 +196,6 @@ async function verifyMasterManager(
     const managerUID =
         request.auth.uid;
 
-
-    /*
-     * Master Manager document:
-     *
-     * master_managers/{UID}
-     */
 
     const managerReference =
         adminDB
@@ -280,30 +269,14 @@ async function verifyMasterManager(
 
 
 /* ==========================================================================
-   8. CREATE ADMIN ACCOUNT
-   ==========================================================================
-   
-   INPUT:
-
-       {
-           libraryId,
-           email,
-           temporaryPassword
-       }
-
-   OUTPUT:
-
-       {
-           success: true,
-           uid,
-           libraryId,
-           email
-       }
-
+   9. CREATE ADMIN ACCOUNT
    ========================================================================== */
 
 exports.createLibraryAdmin =
     onCall(
+        {
+            cors: true
+        },
         async (request) => {
 
             /*
@@ -396,13 +369,6 @@ exports.createLibraryAdmin =
              * STEP 5
              * Validate Temporary Password
              * --------------------------------------------------------------
-             *
-             * Firebase Authentication requires at least 6 characters.
-             *
-             * We keep LibControl's Admin minimum at 8 characters.
-             *
-             * The password is NEVER written to Firestore.
-             *
              */
 
             if (
@@ -458,7 +424,7 @@ exports.createLibraryAdmin =
             /*
              * --------------------------------------------------------------
              * STEP 7
-             * Verify Manager owns this Library
+             * Verify Manager owns Library
              * --------------------------------------------------------------
              */
 
@@ -474,10 +440,6 @@ exports.createLibraryAdmin =
 
             }
 
-
-            /*
-             * Disabled Library cannot receive a new Admin.
-             */
 
             if (
                 libraryData.enabled ===
@@ -497,18 +459,6 @@ exports.createLibraryAdmin =
              * STEP 8
              * Create Firebase Authentication User
              * --------------------------------------------------------------
-             *
-             * IMPORTANT:
-             *
-             * The password goes directly to Firebase Authentication.
-             *
-             * It is NOT stored in:
-             *
-             *     Firestore
-             *     library document
-             *     admin document
-             *     logs
-             *
              */
 
             let createdUser =
@@ -583,16 +533,6 @@ exports.createLibraryAdmin =
              * STEP 9
              * Create Firestore Admin Record
              * --------------------------------------------------------------
-             *
-             * Path:
-             *
-             * libcontrol_libraries/
-             *     {libraryId}/
-             *         admins/
-             *             {UID}
-             *
-             * NO PASSWORD FIELD.
-             *
              */
 
             try {
@@ -646,7 +586,6 @@ exports.createLibraryAdmin =
 
                 });
 
-
             }
             catch (error) {
 
@@ -655,15 +594,6 @@ exports.createLibraryAdmin =
                     error
                 );
 
-
-                /*
-                 * ROLLBACK
-                 *
-                 * If Firestore admin record cannot be created,
-                 * remove the Firebase Authentication user.
-                 *
-                 * This prevents an orphan Auth account.
-                 */
 
                 try {
 
@@ -690,16 +620,6 @@ exports.createLibraryAdmin =
 
             }
 
-
-            /*
-             * --------------------------------------------------------------
-             * STEP 10
-             * Return Safe Result
-             * --------------------------------------------------------------
-             *
-             * NEVER return the password.
-             *
-             */
 
             console.log(
                 "[LibControl] Admin account created:",
@@ -740,34 +660,17 @@ exports.createLibraryAdmin =
 
         }
     );
+
+
 /* ==========================================================================
-   9. COMPLETE ADMIN PASSWORD CHANGE
-   ==========================================================================
-
-   Purpose:
-
-   Admin has already authenticated with Firebase Auth.
-
-   Client-side reauthentication verifies the current password.
-
-   This secure Cloud Function then:
-
-       Firebase Auth UID
-              ↓
-       Verify Admin record
-              ↓
-       Set new Firebase Auth password
-              ↓
-       mustChangePassword = false
-
-   IMPORTANT:
-
-   New password is NEVER stored in Firestore.
-
+   10. COMPLETE ADMIN PASSWORD CHANGE
    ========================================================================== */
 
 exports.completeAdminPasswordChange =
     onCall(
+        {
+            cors: true
+        },
         async (request) => {
 
             /*
@@ -842,7 +745,7 @@ exports.completeAdminPasswordChange =
             /*
              * --------------------------------------------------------------
              * STEP 4
-             * Validate New Password
+             * Validate Password
              * --------------------------------------------------------------
              */
 
@@ -896,11 +799,6 @@ exports.completeAdminPasswordChange =
                 librarySnapshot.data() || {};
 
 
-            /*
-             * Disabled Library cannot
-             * complete Admin password change.
-             */
-
             if (
                 libraryData.enabled ===
                 false
@@ -917,15 +815,8 @@ exports.completeAdminPasswordChange =
             /*
              * --------------------------------------------------------------
              * STEP 6
-             * Verify Admin Authorization Record
+             * Verify Admin Authorization
              * --------------------------------------------------------------
-             *
-             * IMPORTANT:
-             *
-             * Firebase UID comes from request.auth.
-             *
-             * The client cannot choose another UID.
-             *
              */
 
             const adminReference =
@@ -958,10 +849,6 @@ exports.completeAdminPasswordChange =
                 adminSnapshot.data() || {};
 
 
-            /*
-             * UID must match the Firebase Authentication identity.
-             */
-
             if (
                 adminData.uid &&
                 adminData.uid !==
@@ -976,10 +863,6 @@ exports.completeAdminPasswordChange =
             }
 
 
-            /*
-             * Admin role must be correct.
-             */
-
             if (
                 adminData.role !==
                 "admin"
@@ -992,10 +875,6 @@ exports.completeAdminPasswordChange =
 
             }
 
-
-            /*
-             * Admin must belong to this library.
-             */
 
             if (
                 adminData.libraryId &&
@@ -1012,10 +891,6 @@ exports.completeAdminPasswordChange =
 
             }
 
-
-            /*
-             * Disabled Admin cannot change password.
-             */
 
             if (
                 adminData.enabled ===
@@ -1035,13 +910,6 @@ exports.completeAdminPasswordChange =
              * STEP 7
              * Update Firebase Authentication Password
              * --------------------------------------------------------------
-             *
-             * IMPORTANT:
-             *
-             * Password goes directly to Firebase Authentication.
-             *
-             * It is NEVER written to Firestore.
-             *
              */
 
             try {
@@ -1088,7 +956,7 @@ exports.completeAdminPasswordChange =
             /*
              * --------------------------------------------------------------
              * STEP 8
-             * Complete First-Login State
+             * Complete First Login State
              * --------------------------------------------------------------
              */
 
@@ -1103,16 +971,6 @@ exports.completeAdminPasswordChange =
 
             });
 
-
-            /*
-             * --------------------------------------------------------------
-             * STEP 9
-             * Safe Response
-             * --------------------------------------------------------------
-             *
-             * NEVER return the password.
-             *
-             */
 
             console.log(
                 "[LibControl] Admin password changed:",
@@ -1139,30 +997,16 @@ exports.completeAdminPasswordChange =
         }
     );
 
+
 /* ==========================================================================
-   10. CREATE STUDENT AUTHENTICATION ACCOUNT
-   ==========================================================================
-
-   Purpose:
-
-   Admin
-      ↓
-   Secure Cloud Function
-      ↓
-   Firebase Authentication Student Account
-      ↓
-   Firebase UID
-      ↓
-   libcontrol_libraries/{libraryId}/students/{studentCode}
-
-   IMPORTANT:
-
-   Student password is NEVER stored in Firestore.
-
+   11. CREATE STUDENT AUTHENTICATION ACCOUNT
    ========================================================================== */
 
 exports.createLibraryStudent =
     onCall(
+        {
+            cors: true
+        },
         async (request) => {
 
             /*
@@ -1399,6 +1243,20 @@ exports.createLibraryStudent =
 
 
             if (
+                adminData.uid &&
+                adminData.uid !==
+                adminUID
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Admin UID verification failed."
+                );
+
+            }
+
+
+            if (
                 adminData.role !==
                 "admin"
             ) {
@@ -1478,7 +1336,8 @@ exports.createLibraryStudent =
 
 
             /*
-             * Prevent replacing an existing student account.
+             * Prevent replacing an existing
+             * Firebase student account.
              */
 
             if (
@@ -1498,11 +1357,6 @@ exports.createLibraryStudent =
              * STEP 10
              * Create Firebase Authentication Account
              * --------------------------------------------------------------
-             *
-             * Password goes directly to Firebase Authentication.
-             *
-             * NEVER stored in Firestore.
-             *
              */
 
             let createdUser =
@@ -1577,9 +1431,6 @@ exports.createLibraryStudent =
              * STEP 11
              * Attach Firebase UID to Student Record
              * --------------------------------------------------------------
-             *
-             * Password is NOT written here.
-             *
              */
 
             try {
@@ -1657,9 +1508,6 @@ exports.createLibraryStudent =
              * STEP 12
              * Safe Response
              * --------------------------------------------------------------
-             *
-             * Password is NEVER returned.
-             *
              */
 
             console.log(
