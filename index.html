@@ -152,24 +152,42 @@
                     </div>
 
 
-                    <div class="form-group">
+                   <div class="form-group">
 
-                        <label for="student-uid">
-                            Unique Student Code
-                        </label>
+    <label for="student-email">
+        Student Email
+    </label>
 
 
-                        <input
-                            type="text"
-                            id="student-uid"
-                            placeholder="e.g. LIB001"
-                            autocomplete="off"
-                            autocapitalize="characters"
-                            spellcheck="false"
-                            required
-                        >
+    <input
+        type="email"
+        id="student-email"
+        placeholder="student@example.com"
+        autocomplete="username"
+        spellcheck="false"
+        required
+    >
 
-                    </div>
+</div>
+
+
+<div class="form-group">
+
+    <label for="student-password">
+        Password
+    </label>
+
+
+    <input
+        type="password"
+        id="student-password"
+        placeholder="Enter your password"
+        autocomplete="current-password"
+        minlength="8"
+        required
+    >
+
+</div>
 
 
                     <button
