@@ -120,7 +120,7 @@ const LIBMANAGE_SCHEMA_VERSION =
             firebase.appCheck();
 
         window.appCheck.activate(
-            "6LfQKYktAAAAADvsEzpykajTAXF_zOKhcSIwXuG3",
+            "6LdJToktAAAAAMRoE0D5b6d8qSFooJ2PMDKYzQ2l",
             true
         );
 
