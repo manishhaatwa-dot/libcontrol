@@ -2390,7 +2390,7 @@ function bindStudentSearch() {
 
 document.addEventListener(
     "DOMContentLoaded",
-    () => {
+    async () => {
 
         if (
             !studentElement(
@@ -2408,9 +2408,11 @@ document.addEventListener(
             "function"
         ) {
 
-            if (
-                !requireAdminSession()
-            ) {
+            const authenticated =
+                await requireAdminSession();
+
+
+            if (!authenticated) {
 
                 return;
 
@@ -2429,7 +2431,6 @@ document.addEventListener(
 
     }
 );
-
 
 /* ==========================================================================
    24. GLOBAL MODULE API
