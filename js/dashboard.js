@@ -2639,6 +2639,133 @@ async function sendAdminPasswordReset(
 
 window.sendAdminPasswordReset =
     sendAdminPasswordReset;
+/* ==========================================================================
+   STUDENT PASSWORD RESET
+   ========================================================================== */
+
+async function sendStudentPasswordReset(
+    email
+) {
+
+    const normalizedEmail =
+        String(
+            email || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (!normalizedEmail) {
+
+        return {
+
+            success: false,
+
+            message:
+                "Please enter your Student email address."
+
+        };
+
+    }
+
+
+    if (
+        typeof firebase ===
+        "undefined" ||
+        !firebase.auth
+    ) {
+
+        return {
+
+            success: false,
+
+            message:
+                "Firebase Authentication is unavailable."
+
+        };
+
+    }
+
+
+    try {
+
+        await firebase
+            .auth()
+            .sendPasswordResetEmail(
+                normalizedEmail
+            );
+
+
+        return {
+
+            success: true,
+
+            message:
+                "Password reset email sent. Please check your email."
+
+        };
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl] Student password reset error:",
+            error
+        );
+
+
+        let message =
+            "Unable to send password reset email.";
+
+
+        if (
+            error.code ===
+            "auth/user-not-found"
+        ) {
+
+            message =
+                "If an account exists for this email, a password reset email has been sent.";
+
+        }
+        else if (
+            error.code ===
+            "auth/invalid-email"
+        ) {
+
+            message =
+                "Please enter a valid email address.";
+
+        }
+        else if (
+            error.code ===
+            "auth/too-many-requests"
+        ) {
+
+            message =
+                "Too many requests. Please try again later.";
+
+        }
+
+
+        return {
+
+            success: false,
+
+            message:
+                message,
+
+            error:
+                error
+
+        };
+
+    }
+
+}
+
+
+window.sendStudentPasswordReset =
+    sendStudentPasswordReset;
 
 
 /* ==========================================================================
