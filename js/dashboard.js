@@ -921,7 +921,8 @@ window.validateLibrary =
 
 async function studentLogin(
     libraryId,
-    studentCode
+    studentEmail,
+   studentPassword
 ) {
 
     const id =
@@ -929,29 +930,36 @@ async function studentLogin(
             libraryId
         );
 
-    const code =
-        normalizeStudentCode(
-            studentCode
-        );
+    const email =
+    String(
+        studentEmail || ""
+    )
+        .trim()
+        .toLowerCase();
 
 
-    if (
-        !id ||
-        !code
-    ) {
-
-        return {
-
-            success: false,
-
-            message:
-                "Please enter Library ID and Student Code."
-
-        };
-
-    }
+const password =
+    String(
+        studentPassword || ""
+    );
 
 
+if (
+    !id ||
+    !email ||
+    !password
+) {
+
+    return {
+
+        success: false,
+
+        message:
+            "Please enter Library ID, Student Email and Password."
+
+    };
+
+}
     if (!window.db) {
 
         return {
@@ -1039,33 +1047,103 @@ async function studentLogin(
         }
 
 
-        const studentSnapshot =
-            await studentRef(
-                id,
-                code
-            )
-            .get();
+        /* =========================================================
+ * STUDENT FIREBASE AUTHENTICATION
+ * ========================================================= */
+
+let authenticatedUser = null;
 
 
-        if (!studentSnapshot.exists) {
+try {
 
-            return {
-
-                success: false,
-
-                message:
-                    "Login Failed: Invalid Library ID or Student Code."
-
-            };
-
-        }
+    const authResult =
+        await firebase
+            .auth()
+            .signInWithEmailAndPassword(
+                email,
+                password
+            );
 
 
-        const studentData =
-            studentSnapshot.data() || {};
+    authenticatedUser =
+        authResult.user;
+
+}
+catch (authError) {
+
+    console.error(
+        "[LibControl] Student Firebase Authentication error:",
+        authError
+    );
 
 
-        if (
+    return {
+
+        success: false,
+
+        message:
+            "Login Failed: Invalid Student Email or Password."
+
+    };
+
+}
+
+
+/* =========================================================
+ * FIND STUDENT INSIDE THIS LIBRARY
+ * ========================================================= */
+
+const studentsSnapshot =
+    await window.db
+        .collection(
+            "libcontrol_libraries"
+        )
+        .doc(
+            id
+        )
+        .collection(
+            "students"
+        )
+        .where(
+            "uid",
+            "==",
+            authenticatedUser.uid
+        )
+        .limit(
+            1
+        )
+        .get();
+
+
+if (
+    studentsSnapshot.empty
+) {
+
+    await firebase
+        .auth()
+        .signOut();
+
+
+    return {
+
+        success: false,
+
+        message:
+            "This student account is not registered in this library."
+
+    };
+
+}
+
+
+const studentSnapshot =
+    studentsSnapshot.docs[0];
+
+
+const studentData =
+    studentSnapshot.data() || {};
+
+            if (
             String(
                 studentData.status || ""
             ).toLowerCase() ===
@@ -1114,7 +1192,7 @@ async function studentLogin(
         localStorage.setItem(
             SESSION_KEYS.studentCode,
             studentData.studentCode ||
-            code
+            studentSnapshot.id
         );
 
 
