@@ -3126,34 +3126,42 @@ function bindGatewayAuthPipelines() {
                     );
 
 
-                const codeInput =
-                    document.getElementById(
-                        "student-uid"
-                    );
+               const emailInput =
+    document.getElementById(
+        "student-email"
+    );
 
 
-                if (
-                    !libraryInput ||
-                    !codeInput
-                ) {
-
-                    alert(
-                        "Student login fields not found."
-                    );
-
-                    return;
-
-                }
+const passwordInput =
+    document.getElementById(
+        "student-password"
+    );
 
 
-                const result =
-                    await studentLogin(
+if (
+    !libraryInput ||
+    !emailInput ||
+    !passwordInput
+) {
 
-                        libraryInput.value,
+    alert(
+        "Student login fields not found."
+    );
 
-                        codeInput.value
+    return;
 
-                    );
+}
+
+
+const result =
+    await studentLogin(
+
+        libraryInput.value,
+
+        emailInput.value,
+
+        passwordInput.value
+    );
 
 
                 if (
