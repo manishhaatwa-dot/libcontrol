@@ -1572,6 +1572,10 @@ function validateStudentForm() {
    17. SAVE STUDENT
    ========================================================================== */
 
+/* ==========================================================================
+   17. SAVE STUDENT
+   ========================================================================== */
+
 async function saveStudent(
     event
 ) {
@@ -1612,7 +1616,9 @@ async function saveStudent(
     const code =
         studentElement(
             "form-student-code"
-        ).value.trim().toUpperCase();
+        ).value
+            .trim()
+            .toUpperCase();
 
 
     if (!code) {
@@ -1640,7 +1646,7 @@ async function saveStudent(
         saveButton.textContent =
             studentEditMode
                 ? "Updating..."
-                : "Saving...";
+                : "Creating Account...";
 
     }
 
@@ -1659,7 +1665,10 @@ async function saveStudent(
 
 
         /*
+         * --------------------------------------------------------------
+         * STEP 1
          * Seat duplicate protection
+         * --------------------------------------------------------------
          */
 
         const duplicateSeat =
@@ -1670,10 +1679,14 @@ async function saveStudent(
                         String(
                             student.seatNumber ||
                             ""
-                        ).trim().toLowerCase() ===
+                        )
+                            .trim()
+                            .toLowerCase() ===
                         String(
                             data.seatNumber
-                        ).trim().toLowerCase();
+                        )
+                            .trim()
+                            .toLowerCase();
 
 
                     const differentStudent =
@@ -1704,6 +1717,13 @@ async function saveStudent(
         }
 
 
+        /*
+         * --------------------------------------------------------------
+         * STEP 2
+         * EDIT EXISTING STUDENT
+         * --------------------------------------------------------------
+         */
+
         if (studentEditMode) {
 
             await reference.update({
@@ -1722,55 +1742,230 @@ async function saveStudent(
                 "Student updated successfully."
             );
 
-        } else {
 
-            const existing =
-                await reference.get();
+            closeStudentModal();
 
+            return;
 
-            if (existing.exists) {
-
-                throw new Error(
-                    "Generated Student Code already exists. Please try again."
-                );
-
-            }
+        }
 
 
-            await reference.set({
+        /*
+         * --------------------------------------------------------------
+         * STEP 3
+         * NEW STUDENT
+         *
+         * First create Firestore record.
+         *
+         * Then Cloud Function creates Firebase Authentication
+         * account and attaches Firebase UID to this record.
+         * --------------------------------------------------------------
+         */
 
-                studentCode:
-                    code,
-
-                ...data,
-
-                createdAt:
-                    firebase.firestore
-                        .FieldValue
-                        .serverTimestamp(),
-
-                updatedAt:
-                    firebase.firestore
-                        .FieldValue
-                        .serverTimestamp(),
-
-                createdBy:
-                    session.libraryId
-
-            });
+        const existing =
+            await reference.get();
 
 
-            alert(
-                "Student registered successfully."
+        if (existing.exists) {
+
+            throw new Error(
+                "Generated Student Code already exists. Please try again."
             );
 
         }
 
 
+        /*
+         * Create the student record first.
+         *
+         * Password is NOT stored here.
+         */
+
+        await reference.set({
+
+            studentCode:
+                code,
+
+            ...data,
+
+            role:
+                "student",
+
+            libraryId:
+                session.libraryId,
+
+            authEnabled:
+                false,
+
+            mustChangePassword:
+                true,
+
+            createdAt:
+                firebase.firestore
+                    .FieldValue
+                    .serverTimestamp(),
+
+            updatedAt:
+                firebase.firestore
+                    .FieldValue
+                    .serverTimestamp(),
+
+            createdBy:
+                session.adminUID ||
+                ""
+
+        });
+
+
+        /*
+         * --------------------------------------------------------------
+         * STEP 4
+         * Call secure Cloud Function
+         * --------------------------------------------------------------
+         */
+
+        if (
+            typeof firebase.functions !==
+            "function"
+        ) {
+
+            /*
+             * Roll back Firestore record because
+             * Authentication account could not be created.
+             */
+
+            await reference.delete();
+
+
+            throw new Error(
+                "Secure Student Authentication service is unavailable."
+            );
+
+        }
+
+
+        const createStudentAccount =
+            firebase
+                .functions()
+                .httpsCallable(
+                    "createLibraryStudent"
+                );
+
+
+        let result;
+
+
+        try {
+
+            result =
+                await createStudentAccount({
+
+                    libraryId:
+                        session.libraryId,
+
+                    studentCode:
+                        code,
+
+                    email:
+                        data.email,
+
+                    temporaryPassword:
+                        validation.temporaryPassword
+
+                });
+
+        }
+        catch (functionError) {
+
+            /*
+             * Cloud Function failed.
+             *
+             * Remove the Firestore record because
+             * the Authentication account was not
+             * successfully initialized.
+             */
+
+            try {
+
+                await reference.delete();
+
+            }
+            catch (rollbackError) {
+
+                console.error(
+                    "[Students] Firestore rollback failed:",
+                    rollbackError
+                );
+
+            }
+
+
+            throw functionError;
+
+        }
+
+
+        /*
+         * --------------------------------------------------------------
+         * STEP 5
+         * Verify safe Function response
+         * --------------------------------------------------------------
+         */
+
+        if (
+            !result ||
+            !result.data ||
+            result.data.success !==
+            true
+        ) {
+
+            try {
+
+                await reference.delete();
+
+            }
+            catch (rollbackError) {
+
+                console.error(
+                    "[Students] Firestore rollback failed:",
+                    rollbackError
+                );
+
+            }
+
+
+            throw new Error(
+                "Unable to create Student Authentication account."
+            );
+
+        }
+
+
+        /*
+         * --------------------------------------------------------------
+         * STEP 6
+         * Success
+         * --------------------------------------------------------------
+         *
+         * Cloud Function has now attached:
+         *
+         * Firebase UID
+         * +
+         * Student Firestore record
+         *
+         */
+
+        alert(
+            "Student registered successfully.\n\n" +
+            "Student Login Code: " +
+            code
+        );
+
+
         closeStudentModal();
 
-
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
             "[Students] Save error:",
@@ -1778,13 +1973,32 @@ async function saveStudent(
         );
 
 
+        let message =
+            "Unable to save student.";
+
+
+        if (
+            error &&
+            error.message
+        ) {
+
+            message =
+                error.message;
+
+        }
+
+
+        /*
+         * Firebase Callable Functions can return
+         * HttpsError details through error.message.
+         */
+
         alert(
-            error.message ||
-            "Unable to save student."
+            message
         );
 
-
-    } finally {
+    }
+    finally {
 
         if (saveButton) {
 
@@ -1799,7 +2013,6 @@ async function saveStudent(
     }
 
 }
-
 
 /* ==========================================================================
    18. DELETE STUDENT
