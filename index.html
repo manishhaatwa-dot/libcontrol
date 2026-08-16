@@ -24,7 +24,7 @@
 
     <link
         rel="preconnect"
-        href="https://fonts.gstatic.com"
+        href="https://fonts.googleapis.com"
         crossorigin
     >
 
@@ -43,10 +43,812 @@
         href="css/style.css"
     >
 
+
+    <!-- =====================================================
+         LIBCONTROL GATEWAY MENU / INFORMATION UI
+         ===================================================== -->
+
+    <style>
+
+        /* =====================================================
+           THREE LINE MENU
+           ===================================================== */
+
+        .libcontrol-menu {
+
+            position: fixed;
+
+            top: 18px;
+
+            right: 18px;
+
+            z-index: 10000;
+
+        }
+
+
+        .libcontrol-menu summary {
+
+            list-style: none;
+
+            width: 46px;
+
+            height: 46px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            cursor: pointer;
+
+            border-radius: 12px;
+
+            background: rgba(255,255,255,0.92);
+
+            border: 1px solid rgba(15,23,42,0.10);
+
+            box-shadow:
+                0 8px 25px rgba(15,23,42,0.10);
+
+            font-size: 25px;
+
+            font-weight: 700;
+
+            color: #0f172a;
+
+            user-select: none;
+
+        }
+
+
+        .libcontrol-menu summary::-webkit-details-marker {
+
+            display: none;
+
+        }
+
+
+        .libcontrol-menu summary:hover {
+
+            transform: translateY(-1px);
+
+            box-shadow:
+                0 10px 28px rgba(15,23,42,0.14);
+
+        }
+
+
+        .libcontrol-menu-list {
+
+            position: absolute;
+
+            top: 56px;
+
+            right: 0;
+
+            width: 230px;
+
+            padding: 8px;
+
+            border-radius: 14px;
+
+            background: #ffffff;
+
+            border: 1px solid #e5e7eb;
+
+            box-shadow:
+                0 18px 45px rgba(15,23,42,0.16);
+
+        }
+
+
+        .libcontrol-menu-list a {
+
+            display: block;
+
+            padding: 12px 13px;
+
+            border-radius: 9px;
+
+            color: #0f172a;
+
+            text-decoration: none;
+
+            font-size: 14px;
+
+            font-weight: 600;
+
+        }
+
+
+        .libcontrol-menu-list a:hover {
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+        }
+
+
+        /* =====================================================
+           INFORMATION MODAL
+           ===================================================== */
+
+        .libcontrol-info-modal {
+
+            position: fixed;
+
+            inset: 0;
+
+            z-index: 20000;
+
+            display: none;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 20px;
+
+            background: rgba(15,23,42,0.68);
+
+            backdrop-filter: blur(7px);
+
+        }
+
+
+        .libcontrol-info-modal:target {
+
+            display: flex;
+
+        }
+
+
+        .libcontrol-info-card {
+
+            width: 100%;
+
+            max-width: 620px;
+
+            max-height: 88vh;
+
+            overflow-y: auto;
+
+            background: #ffffff;
+
+            border-radius: 20px;
+
+            padding: 28px;
+
+            box-shadow:
+                0 25px 70px rgba(15,23,42,0.28);
+
+            position: relative;
+
+        }
+
+
+        .libcontrol-info-close {
+
+            position: absolute;
+
+            top: 15px;
+
+            right: 17px;
+
+            width: 36px;
+
+            height: 36px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            border-radius: 50%;
+
+            background: #f1f5f9;
+
+            color: #334155;
+
+            text-decoration: none;
+
+            font-size: 22px;
+
+            font-weight: 700;
+
+        }
+
+
+        .libcontrol-info-close:hover {
+
+            background: #e2e8f0;
+
+        }
+
+
+        .libcontrol-info-card h2 {
+
+            margin: 0 45px 8px 0;
+
+            color: #0f172a;
+
+            font-size: 1.45rem;
+
+            font-weight: 800;
+
+        }
+
+
+        .libcontrol-info-subtitle {
+
+            margin: 0 0 20px;
+
+            color: #64748b;
+
+            line-height: 1.6;
+
+            font-size: 0.9rem;
+
+        }
+
+
+        .libcontrol-info-card h3 {
+
+            margin: 22px 0 9px;
+
+            color: #0f172a;
+
+            font-size: 1rem;
+
+            font-weight: 800;
+
+        }
+
+
+        .libcontrol-info-card p {
+
+            margin: 0 0 10px;
+
+            color: #475569;
+
+            line-height: 1.65;
+
+            font-size: 0.9rem;
+
+        }
+
+
+        .libcontrol-info-card ul {
+
+            margin: 8px 0 15px;
+
+            padding-left: 20px;
+
+            color: #475569;
+
+        }
+
+
+        .libcontrol-info-card li {
+
+            margin-bottom: 8px;
+
+            line-height: 1.5;
+
+            font-size: 0.9rem;
+
+        }
+
+
+        /* =====================================================
+           CONTACT BOX
+           ===================================================== */
+
+        .libcontrol-contact-box {
+
+            margin-top: 20px;
+
+            padding: 18px;
+
+            border-radius: 14px;
+
+            background: #eff6ff;
+
+            border: 1px solid #dbeafe;
+
+        }
+
+
+        .libcontrol-contact-box strong {
+
+            display: block;
+
+            margin-bottom: 5px;
+
+            color: #0f172a;
+
+        }
+
+
+        .libcontrol-contact-number {
+
+            display: block;
+
+            margin-bottom: 14px;
+
+            color: #2563eb;
+
+            font-size: 1.1rem;
+
+            font-weight: 800;
+
+            text-decoration: none;
+
+        }
+
+
+        .libcontrol-contact-actions {
+
+            display: flex;
+
+            flex-wrap: wrap;
+
+            gap: 10px;
+
+        }
+
+
+        .libcontrol-contact-actions a {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            min-width: 120px;
+
+            padding: 10px 14px;
+
+            border-radius: 9px;
+
+            text-decoration: none;
+
+            font-size: 13px;
+
+            font-weight: 700;
+
+        }
+
+
+        .libcontrol-call-btn {
+
+            background: #2563eb;
+
+            color: #ffffff;
+
+        }
+
+
+        .libcontrol-whatsapp-btn {
+
+            background: #16a34a;
+
+            color: #ffffff;
+
+        }
+
+
+        /* =====================================================
+           REGISTRATION HIGHLIGHT
+           ===================================================== */
+
+        .libcontrol-register-highlight {
+
+            margin-top: 18px;
+
+            padding: 16px;
+
+            border-radius: 12px;
+
+            background: #f8fafc;
+
+            border: 1px solid #e2e8f0;
+
+        }
+
+
+        .libcontrol-register-highlight strong {
+
+            color: #0f172a;
+
+        }
+
+
+        @media (max-width: 600px) {
+
+            .libcontrol-menu {
+
+                top: 12px;
+
+                right: 12px;
+
+            }
+
+
+            .libcontrol-info-card {
+
+                padding: 22px;
+
+                border-radius: 16px;
+
+            }
+
+
+            .libcontrol-contact-actions {
+
+                flex-direction: column;
+
+            }
+
+
+            .libcontrol-contact-actions a {
+
+                width: 100%;
+
+            }
+
+        }
+
+    </style>
+
 </head>
 
 
 <body>
+
+
+    <!-- =====================================================
+         LIBCONTROL UNIVERSAL MENU
+         ===================================================== -->
+
+    <details class="libcontrol-menu">
+
+        <summary
+            aria-label="Open menu"
+            title="Menu"
+        >
+            ☰
+        </summary>
+
+
+        <nav class="libcontrol-menu-list">
+
+            <a href="#register-library">
+                Register Your Library
+            </a>
+
+
+            <a href="#privacy-policy">
+                Privacy Policy
+            </a>
+
+        </nav>
+
+    </details>
+
+
+    <!-- =====================================================
+         REGISTER YOUR LIBRARY
+         ===================================================== -->
+
+    <section
+        id="register-library"
+        class="libcontrol-info-modal"
+        aria-label="Register Your Library"
+    >
+
+        <div class="libcontrol-info-card">
+
+            <a
+                href="#"
+                class="libcontrol-info-close"
+                aria-label="Close"
+            >
+                ×
+            </a>
+
+
+            <h2>
+                Register Your Library with LibControl
+            </h2>
+
+
+            <p class="libcontrol-info-subtitle">
+                Bring your library online with a modern,
+                secure and easy-to-manage library management
+                system.
+            </p>
+
+
+            <p>
+                LibControl is designed to help libraries
+                manage their day-to-day operations from one
+                centralized platform. Library owners and
+                managers can manage students, seats,
+                attendance, notices and other essential
+                library operations online.
+            </p>
+
+
+            <div class="libcontrol-register-highlight">
+
+                <strong>
+                    Want to register your library online?
+                </strong>
+
+                <p style="margin-top:8px;">
+                    Contact our LibControl team and we will
+                    guide you through the registration,
+                    setup and onboarding process.
+                </p>
+
+            </div>
+
+
+            <h3>
+                What We Can Help You With
+            </h3>
+
+
+            <ul>
+
+                <li>
+                    Online library registration and account setup
+                </li>
+
+                <li>
+                    Library Admin account configuration
+                </li>
+
+                <li>
+                    Student management and login setup
+                </li>
+
+                <li>
+                    Seat and attendance management
+                </li>
+
+                <li>
+                    Library notices and communication
+                </li>
+
+                <li>
+                    Guidance during initial onboarding
+                </li>
+
+            </ul>
+
+
+            <h3>
+                How Registration Works
+            </h3>
+
+
+            <p>
+                Simply contact us with your library details.
+                Our team will discuss your requirements,
+                verify the necessary information and assist
+                you with setting up your library on LibControl.
+            </p>
+
+
+            <div class="libcontrol-contact-box">
+
+                <strong>
+                    Contact LibControl
+                </strong>
+
+
+                <a
+                    href="tel:+918114434063"
+                    class="libcontrol-contact-number"
+                >
+                    +91 81144 34063
+                </a>
+
+
+                <div class="libcontrol-contact-actions">
+
+                    <a
+                        href="tel:+918114434063"
+                        class="libcontrol-call-btn"
+                    >
+                        Call Now
+                    </a>
+
+
+                    <a
+                        href="https://wa.me/918114434063"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="libcontrol-whatsapp-btn"
+                    >
+                        WhatsApp Us
+                    </a>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         PRIVACY POLICY
+         ===================================================== -->
+
+    <section
+        id="privacy-policy"
+        class="libcontrol-info-modal"
+        aria-label="Privacy Policy"
+    >
+
+        <div class="libcontrol-info-card">
+
+            <a
+                href="#"
+                class="libcontrol-info-close"
+                aria-label="Close"
+            >
+                ×
+            </a>
+
+
+            <h2>
+                Privacy Policy
+            </h2>
+
+
+            <p class="libcontrol-info-subtitle">
+                Your privacy and the security of your
+                library data are important to us.
+            </p>
+
+
+            <h3>
+                Information We Collect
+            </h3>
+
+
+            <p>
+                LibControl may process information required
+                to provide library-management services,
+                including library details, student details,
+                login information, attendance records,
+                seat information and notices.
+            </p>
+
+
+            <h3>
+                Authentication &amp; Security
+            </h3>
+
+
+            <p>
+                User authentication is handled through
+                Firebase Authentication. Passwords are not
+                stored directly in the LibControl Firestore
+                database. Access to library information is
+                designed around authenticated users and
+                library-specific authorization.
+            </p>
+
+
+            <h3>
+                Use of Information
+            </h3>
+
+
+            <p>
+                Information is used to provide and operate
+                the LibControl library-management platform,
+                maintain account access, manage library
+                operations and improve the reliability of
+                the service.
+            </p>
+
+
+            <h3>
+                Data Protection
+            </h3>
+
+
+            <p>
+                We take reasonable technical and
+                organizational measures to protect information
+                from unauthorized access, alteration or
+                disclosure. Access to information is intended
+                to be limited according to the user's role
+                and library authorization.
+            </p>
+
+
+            <h3>
+                Third-Party Services
+            </h3>
+
+
+            <p>
+                LibControl uses third-party infrastructure
+                and services, including Firebase, for
+                authentication and data-related functionality.
+                Their respective policies may also apply to
+                information processed through those services.
+            </p>
+
+
+            <h3>
+                Contact
+            </h3>
+
+
+            <p>
+                If you have any questions regarding privacy,
+                data handling or your library account, please
+                contact the LibControl team.
+            </p>
+
+
+            <div class="libcontrol-contact-box">
+
+                <strong>
+                    LibControl Support
+                </strong>
+
+
+                <a
+                    href="tel:+918114434063"
+                    class="libcontrol-contact-number"
+                >
+                    +91 81144 34063
+                </a>
+
+
+                <div class="libcontrol-contact-actions">
+
+                    <a
+                        href="tel:+918114434063"
+                        class="libcontrol-call-btn"
+                    >
+                        Call Now
+                    </a>
+
+
+                    <a
+                        href="https://wa.me/918114434063"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="libcontrol-whatsapp-btn"
+                    >
+                        WhatsApp Us
+                    </a>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </section>
 
 
     <!-- =====================================================
@@ -152,45 +954,45 @@
                     </div>
 
 
-                   <div class="form-group">
+                    <div class="form-group">
 
-    <label for="student-email">
-        Student Email
-    </label>
-
-
-    <input
-        type="email"
-        id="student-email"
-        placeholder="student@example.com"
-        autocomplete="username"
-        spellcheck="false"
-        required
-    >
-
-</div>
+                        <label for="student-email">
+                            Student Email
+                        </label>
 
 
-<div class="form-group">
+                        <input
+                            type="email"
+                            id="student-email"
+                            placeholder="student@example.com"
+                            autocomplete="username"
+                            spellcheck="false"
+                            required
+                        >
 
-    <label for="student-password">
-        Password
-    </label>
-
-
-    <input
-        type="password"
-        id="student-password"
-        placeholder="Enter your password"
-        autocomplete="current-password"
-        minlength="8"
-        required
-    >
-
-</div>
+                    </div>
 
 
-            <button
+                    <div class="form-group">
+
+                        <label for="student-password">
+                            Password
+                        </label>
+
+
+                        <input
+                            type="password"
+                            id="student-password"
+                            placeholder="Enter your password"
+                            autocomplete="current-password"
+                            minlength="8"
+                            required
+                        >
+
+                    </div>
+
+
+                    <button
                         type="submit"
                         class="btn-gateway-submit"
                     >
@@ -229,7 +1031,7 @@
                     </div>
 
 
-                </form>       
+                </form>
 
             </div>
 
@@ -482,6 +1284,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 
 
@@ -630,96 +1433,99 @@
         })();
 
     </script>
-<!-- =====================================================
-     STUDENT PASSWORD RESET UI
-     ===================================================== -->
-
-<script>
-
-    (function () {
-
-        "use strict";
 
 
-        const forgotButton =
-            document.getElementById(
-                "student-forgot-password-btn"
-            );
+    <!-- =====================================================
+         STUDENT PASSWORD RESET UI
+         ===================================================== -->
+
+    <script>
+
+        (function () {
+
+            "use strict";
 
 
-        const emailInput =
-            document.getElementById(
-                "student-email"
-            );
+            const forgotButton =
+                document.getElementById(
+                    "student-forgot-password-btn"
+                );
 
 
-        if (forgotButton) {
-
-            forgotButton.addEventListener(
-                "click",
-                async function () {
-
-                    const email =
-                        emailInput
-                            ? emailInput.value.trim()
-                            : "";
+            const emailInput =
+                document.getElementById(
+                    "student-email"
+                );
 
 
-                    if (!email) {
+            if (forgotButton) {
 
-                        alert(
-                            "Enter your Student Email first."
-                        );
+                forgotButton.addEventListener(
+                    "click",
+                    async function () {
+
+                        const email =
+                            emailInput
+                                ? emailInput.value.trim()
+                                : "";
 
 
-                        if (emailInput) {
+                        if (!email) {
 
-                            emailInput.focus();
+                            alert(
+                                "Enter your Student Email first."
+                            );
+
+
+                            if (emailInput) {
+
+                                emailInput.focus();
+
+                            }
+
+
+                            return;
 
                         }
 
 
-                        return;
+                        try {
 
-                    }
+                            const result =
+                                await sendStudentPasswordReset(
+                                    email
+                                );
 
 
-                    try {
+                            alert(
+                                result.message
+                            );
 
-                        const result =
-                            await sendStudentPasswordReset(
-                                email
+                        }
+                        catch (error) {
+
+                            console.error(
+                                "[LibControl] Student password reset UI error:",
+                                error
                             );
 
 
-                        alert(
-                            result.message
-                        );
+                            alert(
+                                "Unable to send password reset email."
+                            );
+
+                        }
 
                     }
-                    catch (error) {
+                );
 
-                        console.error(
-                            "[LibControl] Student password reset UI error:",
-                            error
-                        );
+            }
 
 
-                        alert(
-                            "Unable to send password reset email."
-                        );
+        })();
 
-                    }
+    </script>
 
-                }
-            );
-
-        }
-
-
-    })();
-
-</script>
 
     <!-- =====================================================
          ADMIN LOGIN UI HELPERS
