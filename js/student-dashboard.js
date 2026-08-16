@@ -2136,6 +2136,460 @@ function startStudentProfileListener() {
 
 }
 
+/* ==========================================================================
+   28. FIRST LOGIN PASSWORD CHANGE
+   ========================================================================== */
+
+function showStudentPasswordChangeModal() {
+
+    if (
+        document.getElementById(
+            "student-password-change-modal"
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    const overlay =
+        document.createElement(
+            "div"
+        );
+
+
+    overlay.id =
+        "student-password-change-modal";
+
+
+    overlay.style.cssText = `
+        position:fixed;
+        inset:0;
+        z-index:99999;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding:20px;
+        background:rgba(15,23,42,0.65);
+        backdrop-filter:blur(6px);
+    `;
+
+
+    overlay.innerHTML = `
+
+        <div
+            style="
+                width:100%;
+                max-width:430px;
+                background:#ffffff;
+                border-radius:18px;
+                padding:26px;
+                box-shadow:0 25px 60px rgba(15,23,42,0.25);
+            "
+        >
+
+            <h2
+                style="
+                    margin:0 0 8px;
+                    font-size:1.35rem;
+                    color:#0f172a;
+                "
+            >
+                Create Your New Password
+            </h2>
+
+
+            <p
+                style="
+                    margin:0 0 20px;
+                    color:#64748b;
+                    font-size:0.9rem;
+                    line-height:1.5;
+                "
+            >
+                This is your first login. Please create a
+                new password before continuing to your
+                Student Dashboard.
+            </p>
+
+
+            <div style="margin-bottom:14px;">
+
+                <label
+                    for="student-new-password"
+                    style="
+                        display:block;
+                        margin-bottom:6px;
+                        font-size:0.85rem;
+                        font-weight:700;
+                        color:#334155;
+                    "
+                >
+                    New Password
+                </label>
+
+
+                <input
+                    type="password"
+                    id="student-new-password"
+                    minlength="8"
+                    autocomplete="new-password"
+                    placeholder="Enter new password"
+                    style="
+                        width:100%;
+                        padding:12px 13px;
+                        border:1px solid #dbe2ea;
+                        border-radius:9px;
+                        font:inherit;
+                        outline:none;
+                    "
+                >
+
+            </div>
+
+
+            <div style="margin-bottom:16px;">
+
+                <label
+                    for="student-confirm-password"
+                    style="
+                        display:block;
+                        margin-bottom:6px;
+                        font-size:0.85rem;
+                        font-weight:700;
+                        color:#334155;
+                    "
+                >
+                    Confirm New Password
+                </label>
+
+
+                <input
+                    type="password"
+                    id="student-confirm-password"
+                    minlength="8"
+                    autocomplete="new-password"
+                    placeholder="Confirm new password"
+                    style="
+                        width:100%;
+                        padding:12px 13px;
+                        border:1px solid #dbe2ea;
+                        border-radius:9px;
+                        font:inherit;
+                        outline:none;
+                    "
+                >
+
+            </div>
+
+
+            <div
+                id="student-password-change-message"
+                style="
+                    display:none;
+                    margin-bottom:14px;
+                    padding:10px 12px;
+                    border-radius:8px;
+                    font-size:0.82rem;
+                    font-weight:600;
+                "
+            ></div>
+
+
+            <button
+                type="button"
+                id="student-change-password-btn"
+                style="
+                    width:100%;
+                    border:none;
+                    padding:12px;
+                    border-radius:9px;
+                    background:#2563eb;
+                    color:#ffffff;
+                    font:inherit;
+                    font-weight:700;
+                    cursor:pointer;
+                "
+            >
+                Change Password
+            </button>
+
+        </div>
+
+    `;
+
+
+    document.body.appendChild(
+        overlay
+    );
+
+
+    const changeButton =
+        document.getElementById(
+            "student-change-password-btn"
+        );
+
+
+    const newPasswordInput =
+        document.getElementById(
+            "student-new-password"
+        );
+
+
+    const confirmPasswordInput =
+        document.getElementById(
+            "student-confirm-password"
+        );
+
+
+    const messageBox =
+        document.getElementById(
+            "student-password-change-message"
+        );
+
+
+    function showPasswordMessage(
+        message,
+        isError = true
+    ) {
+
+        if (!messageBox) {
+            return;
+        }
+
+
+        messageBox.textContent =
+            message;
+
+
+        messageBox.style.display =
+            "block";
+
+
+        messageBox.style.background =
+            isError
+                ? "#fee2e2"
+                : "#dcfce7";
+
+
+        messageBox.style.color =
+            isError
+                ? "#991b1b"
+                : "#166534";
+
+    }
+
+
+    if (changeButton) {
+
+        changeButton.addEventListener(
+            "click",
+            async () => {
+
+                const newPassword =
+                    newPasswordInput
+                        ? newPasswordInput.value
+                        : "";
+
+
+                const confirmPassword =
+                    confirmPasswordInput
+                        ? confirmPasswordInput.value
+                        : "";
+
+
+                if (
+                    newPassword.length <
+                    8
+                ) {
+
+                    showPasswordMessage(
+                        "New password must contain at least 8 characters."
+                    );
+
+                    return;
+
+                }
+
+
+                if (
+                    newPassword !==
+                    confirmPassword
+                ) {
+
+                    showPasswordMessage(
+                        "Passwords do not match."
+                    );
+
+                    return;
+
+                }
+
+
+                const currentUser =
+                    firebase.auth()
+                        .currentUser;
+
+
+                if (!currentUser) {
+
+                    showPasswordMessage(
+                        "Your Firebase login session has expired. Please login again."
+                    );
+
+                    return;
+
+                }
+
+
+                changeButton.disabled =
+                    true;
+
+
+                changeButton.textContent =
+                    "Changing Password...";
+
+
+                try {
+
+                    await currentUser
+                        .updatePassword(
+                            newPassword
+                        );
+
+
+                    const studentRef =
+                        getCurrentStudentRef();
+
+
+                    if (!studentRef) {
+
+                        throw new Error(
+                            "Student record reference is unavailable."
+                        );
+
+                    }
+
+
+                    await studentRef.update({
+
+                        mustChangePassword:
+                            false,
+
+                        updatedAt:
+                            firebase.firestore
+                                .FieldValue
+                                .serverTimestamp()
+
+                    });
+
+
+                    showPasswordMessage(
+                        "Password changed successfully.",
+                        false
+                    );
+
+
+                    setTimeout(
+                        () => {
+
+                            overlay.remove();
+
+                        },
+                        700
+                    );
+
+
+                }
+                catch (error) {
+
+                    console.error(
+                        "[Student Dashboard] Password change error:",
+                        error
+                    );
+
+
+                    let message =
+                        "Unable to change password.";
+
+
+                    if (
+                        error.code ===
+                        "auth/requires-recent-login"
+                    ) {
+
+                        message =
+                            "Please login again with your current password and try again.";
+
+                    }
+                    else if (
+                        error.code ===
+                        "auth/weak-password"
+                    ) {
+
+                        message =
+                            "Please choose a stronger password.";
+
+                    }
+                    else if (
+                        error.message
+                    ) {
+
+                        message =
+                            error.message;
+
+                    }
+
+
+                    showPasswordMessage(
+                        message
+                    );
+
+
+                    changeButton.disabled =
+                        false;
+
+
+                    changeButton.textContent =
+                        "Change Password";
+
+                }
+
+            }
+        );
+
+    }
+
+}
+
+
+/* ==========================================================================
+   29. CHECK FIRST LOGIN PASSWORD STATE
+   ========================================================================== */
+
+function checkStudentFirstLoginPassword() {
+
+    if (
+        !studentDashboardData
+    ) {
+
+        return;
+
+    }
+
+
+    if (
+        studentDashboardData
+            .mustChangePassword ===
+        true
+    ) {
+
+        showStudentPasswordChangeModal();
+
+    }
+
+}
 
 /* ==========================================================================
    28. STUDENT LOGOUT
@@ -2395,7 +2849,8 @@ async function initializeStudentDashboard() {
         return;
     }
 
-
+checkStudentFirstLoginPassword();
+   
     startStudentProfileListener();
 
     startStudentNoticeListener();
