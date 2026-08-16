@@ -103,7 +103,55 @@ const LIBMANAGE_SCHEMA_VERSION =
             );
 
         }
+/*
+         * ------------------------------------------------------
+         * Firebase App Check
+         * ------------------------------------------------------
+         *
+         * App Check is activated only when the
+         * Firebase App Check SDK is available.
+         *
+         * This prevents App Check configuration
+         * from breaking the existing application.
+         * ------------------------------------------------------
+         */
 
+        try {
+
+            if (
+                typeof firebase.appCheck ===
+                "function"
+            ) {
+
+                firebase
+                    .appCheck()
+                    .activate(
+                        "YAHAN_APNI_SITE_KEY_PASTE_KARNA",
+                        true
+                    );
+
+                console.log(
+                    "[LibControl] Firebase App Check initialized."
+                );
+
+            }
+            else {
+
+                console.warn(
+                    "[LibControl] Firebase App Check SDK not loaded."
+                );
+
+            }
+
+        }
+        catch (appCheckError) {
+
+            console.error(
+                "[LibControl] Firebase App Check initialization error:",
+                appCheckError
+            );
+
+        }
 
         window.db =
             firebase.firestore();
