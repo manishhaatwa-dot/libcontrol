@@ -668,6 +668,10 @@ async function createLibraryRecord(
             data.mobile
         ).trim();
 
+   const address =
+    safeText(
+        data.address
+    ).trim();
 
     const joiningDate =
         safeText(
@@ -768,7 +772,9 @@ async function createLibraryRecord(
 
         mobile:
             mobile,
-
+address:
+    address,
+       
         totalSeats:
             totalSeats,
 
@@ -1529,7 +1535,11 @@ function initializeLibraryCreationForm() {
                     "lib-mobile"
                 );
 
-
+const addressInput =
+    document.getElementById(
+        "lib-address"
+    );
+           
             const joiningInput =
                 document.getElementById(
                     "lib-joining-date"
@@ -1572,7 +1582,11 @@ function initializeLibraryCreationForm() {
                 mobileInput
                     ? mobileInput.value.trim()
                     : "";
-
+const address =
+    addressInput
+        ? addressInput.value.trim()
+        : "";
+           
 
             const joiningDate =
                 joiningInput
@@ -1685,7 +1699,8 @@ function initializeLibraryCreationForm() {
 
                         mobile:
                             mobile,
-
+address:
+    address,
                         joiningDate:
                             joiningDate,
 
@@ -1887,8 +1902,22 @@ async function updateLibraryRecord(
 
     }
 
+if (
+    Object.prototype.hasOwnProperty.call(
+        updates,
+        "address"
+    )
+) {
 
-    if (
+    updateData.address =
+        safeText(
+            updates.address
+        ).trim();
+
+}
+   
+   
+   if (
         Object.prototype.hasOwnProperty.call(
             updates,
             "totalSeats"
@@ -2001,87 +2030,104 @@ function initializeLibraryActions() {
             /* --------------------------------------------------------------
                EDIT
             -------------------------------------------------------------- */
-
-            const editButton =
-                event.target.closest(
-                    "[data-library-edit]"
-                );
-
-
-            if (editButton) {
-
-                const libraryId =
-                    editButton.getAttribute(
-                        "data-library-edit"
-                    );
+const editButton =
+    event.target.closest(
+        "[data-library-edit]"
+    );
 
 
-                const newName =
-                    window.prompt(
-                        "Enter new library name:"
-                    );
+if (editButton) {
+
+    const libraryId =
+        editButton.getAttribute(
+            "data-library-edit"
+        );
 
 
-                if (
-                    newName ===
-                    null
-                ) {
-
-                    return;
-
-                }
+    const newName =
+        window.prompt(
+            "Enter new library name:"
+        );
 
 
-                if (
-                    !newName.trim()
-                ) {
+    if (
+        newName ===
+        null
+    ) {
 
-                    alert(
-                        "Library name cannot be empty."
-                    );
+        return;
 
-                    return;
-
-                }
+    }
 
 
-                try {
+    if (
+        !newName.trim()
+    ) {
 
-                    await updateLibraryRecord(
+        alert(
+            "Library name cannot be empty."
+        );
 
-                        libraryId,
+        return;
 
-                        {
-                            name:
-                                newName.trim()
-                        }
-
-                    );
-
-
-                    await refreshManagerLibraries();
-
-                }
-                catch (error) {
-
-                    console.error(
-                        "[LibControl] Edit error:",
-                        error
-                    );
+    }
 
 
-                    alert(
-                        error.message ||
-                        "Unable to update library."
-                    );
-
-                }
+    const newAddress =
+        window.prompt(
+            "Enter library address:"
+        );
 
 
-                return;
+    if (
+        newAddress ===
+        null
+    ) {
 
+        return;
+
+    }
+
+
+    try {
+
+        await updateLibraryRecord(
+
+            libraryId,
+
+            {
+                name:
+                    newName.trim(),
+
+                address:
+                    newAddress.trim()
             }
 
+        );
+
+
+        await refreshManagerLibraries();
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl] Edit error:",
+            error
+        );
+
+
+        alert(
+            error.message ||
+            "Unable to update library."
+        );
+
+    }
+
+
+    return;
+
+}
 
             /* --------------------------------------------------------------
                ENABLE / DISABLE
