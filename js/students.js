@@ -786,27 +786,58 @@ function renderStudentTable() {
                     </td>
 
 
-                    <td>
-                        ${escapeStudentHtml(
-                            formatDateValue(
-                                student.expiryDate
-                            ) ||
-                            "-"
-                        )}
-                    </td>
+                  <td>
+    ${escapeStudentHtml(
+        formatDateValue(
+            student.expiryDate
+        ) ||
+        "-"
+    )}
+</td>
 
 
-                    <td>
+<td>
+    ${escapeStudentHtml(
+        formatDateValue(
+            student.feeDueDate
+        ) ||
+        "-"
+    )}
+</td>
 
-                        <span
-                            class="status-tag ${statusClass}"
-                        >
-                            ${escapeStudentHtml(
-                                status
-                            )}
-                        </span>
 
-                    </td>
+<td>
+
+    <span
+        class="status-tag ${
+            String(
+                student.feeStatus ||
+                "Paid"
+            ).toLowerCase() === "due"
+                ? "expired"
+                : "active"
+        }"
+    >
+        ${escapeStudentHtml(
+            student.feeStatus ||
+            "Paid"
+        )}
+    </span>
+
+</td>
+
+
+<td>
+
+    <span
+        class="status-tag ${statusClass}"
+    >
+        ${escapeStudentHtml(
+            status
+        )}
+    </span>
+
+</td>
 
 
                     <td>
