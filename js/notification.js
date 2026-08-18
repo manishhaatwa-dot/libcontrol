@@ -489,3 +489,417 @@ async function startLibControlNotificationEngine() {
     }
 
 }
+
+
+/* ==========================================================================
+   9. AUTOMATIC FEE REMINDER
+   ==========================================================================
+   
+   Creates an individual student notification exactly 2 days
+   before the student's fee due date.
+
+   IMPORTANT:
+   - Only the current logged-in student is checked.
+   - Paid students do not receive a reminder.
+   - Each due date gets only one reminder.
+   ========================================================================== */
+
+async function checkStudentFeeReminder() {
+
+    try {
+
+        const userUID =
+            getNotificationUserUID();
+
+
+        if (!userUID) {
+
+            return;
+
+        }
+
+
+        /*
+         * Wait until student-dashboard.js has loaded
+         * the current student's Firestore record.
+         */
+
+        if (
+            typeof studentDashboardData ===
+            "undefined" ||
+            !studentDashboardData
+        ) {
+
+            return;
+
+        }
+
+
+        const feeStatus =
+            String(
+                studentDashboardData.feeStatus ||
+                "Paid"
+            )
+            .trim()
+            .toLowerCase();
+
+
+        /*
+         * Paid students should never receive
+         * a fee-due reminder.
+         */
+
+        if (
+            feeStatus !== "due"
+        ) {
+
+            return;
+
+        }
+
+
+        const feeDueDateValue =
+            studentDashboardData.feeDueDate;
+
+
+        if (!feeDueDateValue) {
+
+            return;
+
+        }
+
+
+        let dueDate = null;
+
+
+        /*
+         * DD/MM/YYYY format used by the student module.
+         */
+
+        if (
+            typeof feeDueDateValue ===
+            "string" &&
+            /^\d{2}\/\d{2}\/\d{4}$/.test(
+                feeDueDateValue.trim()
+            )
+        ) {
+
+            const parts =
+                feeDueDateValue
+                    .trim()
+                    .split("/");
+
+
+            dueDate =
+                new Date(
+                    parseInt(parts[2], 10),
+                    parseInt(parts[1], 10) - 1,
+                    parseInt(parts[0], 10)
+                );
+
+        }
+        else if (
+            typeof feeDueDateValue.toDate ===
+            "function"
+        ) {
+
+            dueDate =
+                feeDueDateValue.toDate();
+
+        }
+        else if (
+            feeDueDateValue.seconds !==
+            undefined
+        ) {
+
+            dueDate =
+                new Date(
+                    Number(
+                        feeDueDateValue.seconds
+                    ) * 1000
+                );
+
+        }
+
+
+        if (
+            !dueDate ||
+            Number.isNaN(
+                dueDate.getTime()
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        /*
+         * Normalize both dates to local midnight.
+         */
+
+        const today =
+            new Date();
+
+
+        today.setHours(
+            0,
+            0,
+            0,
+            0
+        );
+
+
+        dueDate.setHours(
+            0,
+            0,
+            0,
+            0
+        );
+
+
+        const difference =
+            dueDate.getTime() -
+            today.getTime();
+
+
+        const daysUntilDue =
+            Math.round(
+                difference /
+                (
+                    1000 *
+                    60 *
+                    60 *
+                    24
+                )
+            );
+
+
+        /*
+         * Reminder is created ONLY exactly 2 days
+         * before the due date.
+         */
+
+        if (
+            daysUntilDue !== 2
+        ) {
+
+            return;
+
+        }
+
+
+        const studentCode =
+            String(
+                studentDashboardData.studentCode ||
+                getStudentSessionCode?.() ||
+                ""
+            )
+            .trim()
+            .toUpperCase();
+
+
+        if (!studentCode) {
+
+            return;
+
+        }
+
+
+        const dueDateText =
+            String(
+                feeDueDateValue
+            );
+
+
+        /*
+         * Unique key prevents the same due-date reminder
+         * from being created repeatedly.
+         */
+
+        const reminderKey =
+            "fee_due_" +
+            studentCode +
+            "_" +
+            dueDateText.replace(
+                /[^0-9]/g,
+                ""
+            );
+
+
+        const reminderReference =
+            notificationDB
+                .collection(
+                    LIBCONTROL_NOTIFICATIONS.NOTIFICATIONS
+                )
+                .doc(
+                    userUID
+                )
+                .collection(
+                    "items"
+                )
+                .doc(
+                    reminderKey
+                );
+
+
+        const existing =
+            await reminderReference.get();
+
+
+        if (
+            existing.exists
+        ) {
+
+            return;
+
+        }
+
+
+        await reminderReference.set({
+
+            notificationId:
+                reminderKey,
+
+            userUID:
+                userUID,
+
+            studentCode:
+                studentCode,
+
+            title:
+                "Fee Payment Reminder",
+
+            message:
+                "Your library fee is due on " +
+                dueDateText +
+                ". Please complete your fee payment to continue your membership.",
+
+            type:
+                "fee_reminder",
+
+            read:
+                false,
+
+            createdAt:
+                firebase.firestore
+                    .FieldValue
+                    .serverTimestamp()
+
+        });
+
+
+        await notificationDB
+            .collection(
+                LIBCONTROL_NOTIFICATIONS.NOTIFICATIONS
+            )
+            .doc(
+                userUID
+            )
+            .set({
+
+                unreadCount:
+                    firebase.firestore
+                        .FieldValue
+                        .increment(1),
+
+                updatedAt:
+                    firebase.firestore
+                        .FieldValue
+                        .serverTimestamp()
+
+            }, {
+
+                merge:
+                    true
+
+            });
+
+
+        console.log(
+            "[LibControl Notification] Fee reminder created:",
+            reminderKey
+        );
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl Notification] Fee reminder error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* ==========================================================================
+   10. START FEE REMINDER CHECK
+   ========================================================================== */
+
+function startStudentFeeReminderCheck() {
+
+    let attempts =
+        0;
+
+
+    const maxAttempts =
+        20;
+
+
+    const timer =
+        setInterval(
+            async () => {
+
+                attempts++;
+
+
+                if (
+                    typeof studentDashboardData !==
+                    "undefined" &&
+                    studentDashboardData
+                ) {
+
+                    clearInterval(
+                        timer
+                    );
+
+
+                    await checkStudentFeeReminder();
+
+                    return;
+
+                }
+
+
+                if (
+                    attempts >=
+                    maxAttempts
+                ) {
+
+                    clearInterval(
+                        timer
+                    );
+
+                }
+
+            },
+            500
+        );
+
+}
+
+
+/* ==========================================================================
+   11. NOTIFICATION ENGINE START
+   ========================================================================== */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        startStudentFeeReminderCheck();
+
+    }
+);
