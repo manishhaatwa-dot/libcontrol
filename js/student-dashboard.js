@@ -825,8 +825,7 @@ function renderStudentProfile(
         formattedExpiryDate
     );
 
-
-    /* ----------------------------------------------------------------------
+/* ----------------------------------------------------------------------
        Status
     ---------------------------------------------------------------------- */
 
@@ -834,8 +833,62 @@ function renderStudentProfile(
         status
     );
 
-}
 
+    /* ----------------------------------------------------------------------
+       Fee Status
+    ---------------------------------------------------------------------- */
+
+    const feeStatus =
+        String(
+            student.feeStatus ||
+            "Paid"
+        )
+        .trim();
+
+
+    const feeStatusElement =
+        studentDashboardEl(
+            "student-fee-status"
+        );
+
+
+    if (feeStatusElement) {
+
+        const normalizedFeeStatus =
+            feeStatus.toLowerCase();
+
+
+        feeStatusElement.textContent =
+            feeStatus;
+
+
+        feeStatusElement.classList.remove(
+            "fee-paid",
+            "fee-due"
+        );
+
+
+        if (
+            normalizedFeeStatus ===
+            "due"
+        ) {
+
+            feeStatusElement.classList.add(
+                "fee-due"
+            );
+
+        }
+        else {
+
+            feeStatusElement.classList.add(
+                "fee-paid"
+            );
+
+        }
+
+    }
+
+}
 
 /* ==========================================================================
    14. STATUS RENDER
