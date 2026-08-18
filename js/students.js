@@ -1424,9 +1424,14 @@ function validateStudentForm() {
 
     const expiry =
         studentElement("std-expiry").value.trim();
+const feeDueDate =
+    studentElement("std-fee-due-date")?.value.trim() || "";
 
+const feeStatus =
+    studentElement("std-fee-status")?.value || "Paid";
 
-    if (
+ 
+   if (
         !name ||
         !email ||
         !father ||
@@ -1585,16 +1590,22 @@ function validateStudentForm() {
             status:
                 status,
 
-            joiningDate:
-                joining,
+         joiningDate:
+    joining,
 
-            expiryDate:
-                expiry
+expiryDate:
+    expiry,
 
-        },
+feeDueDate:
+    feeDueDate,
 
-        temporaryPassword:
-            password
+feeStatus:
+    feeStatus
+
+},
+
+temporaryPassword:
+    password 
 
     };
 
