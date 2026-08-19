@@ -297,6 +297,114 @@
 
 
         /* =====================================================
+           NOTICE ATTACHMENT UI
+           ===================================================== */
+
+        .notice-attachment-box {
+
+            margin-top: 6px;
+
+            padding: 14px;
+
+            border-radius: 10px;
+
+            border:
+                1px solid
+                #e5e7eb;
+
+            background:
+                #f8fafc;
+
+        }
+
+
+        .notice-attachment-label {
+
+            display: block;
+
+            margin-bottom: 8px;
+
+            font-size: 0.88rem;
+
+            font-weight: 700;
+
+            color: #334155;
+
+        }
+
+
+        .notice-attachment-help {
+
+            margin: 7px 0 0;
+
+            font-size: 0.76rem;
+
+            line-height: 1.4;
+
+            color: #64748b;
+
+        }
+
+
+        #notice-attachment {
+
+            width: 100%;
+
+            padding: 10px;
+
+            border:
+                1px solid
+                #dbe2ea;
+
+            border-radius: 8px;
+
+            background: #ffffff;
+
+            font-family: inherit;
+
+            font-size: 0.86rem;
+
+            box-sizing: border-box;
+
+        }
+
+
+        #notice-attachment:focus {
+
+            outline: none;
+
+            border-color:
+                #2563eb;
+
+        }
+
+
+        .notice-attachment-selected {
+
+            display: none;
+
+            margin-top: 9px;
+
+            padding: 8px 10px;
+
+            border-radius: 7px;
+
+            background:
+                #eff6ff;
+
+            color:
+                #1d4ed8;
+
+            font-size: 0.78rem;
+
+            font-weight: 600;
+
+            word-break: break-word;
+
+        }
+
+
+        /* =====================================================
            RESPONSIVE
            ===================================================== */
 
@@ -654,7 +762,7 @@
 
 
 <!-- =========================================================
-     ADD NOTICE MODAL
+     ADD / EDIT NOTICE MODAL
      ========================================================= -->
 
 <div
@@ -678,7 +786,7 @@
 
             <div>
 
-                <h2>
+                <h2 id="notice-modal-title">
                     Add Library Notice
                 </h2>
 
@@ -755,6 +863,45 @@
             </div>
 
 
+            <!-- =================================================
+                 NOTICE ATTACHMENT
+                 ================================================= -->
+
+            <div class="form-group">
+
+                <label
+                    for="notice-attachment"
+                    class="notice-attachment-label"
+                >
+                    Image / PDF Attachment
+                </label>
+
+
+                <div class="notice-attachment-box">
+
+                    <input
+                        type="file"
+                        id="notice-attachment"
+                        accept="image/*,.pdf,application/pdf"
+                    >
+
+
+                    <p class="notice-attachment-help">
+                        Optional. You can upload one image or PDF.
+                        Maximum file size: 15 MB.
+                    </p>
+
+
+                    <div
+                        id="notice-attachment-selected"
+                        class="notice-attachment-selected"
+                    ></div>
+
+                </div>
+
+            </div>
+
+
             <div class="form-actions">
 
                 <button
@@ -795,6 +942,11 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
+
+<!-- Firebase Storage SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
+
 <!-- =========================================================
      LIBCONTROL CORE
      ========================================================= -->
@@ -1077,6 +1229,123 @@
         initializeAdminDashboard
     );
 
+
+})();
+
+</script>
+
+
+<!-- =========================================================
+     NOTICE ATTACHMENT DISPLAY HELPER
+     ========================================================= -->
+
+<script>
+
+(function () {
+
+    "use strict";
+
+
+    const attachmentInput =
+        document.getElementById(
+            "notice-attachment"
+        );
+
+
+    const selectedBox =
+        document.getElementById(
+            "notice-attachment-selected"
+        );
+
+
+    if (
+        !attachmentInput ||
+        !selectedBox
+    ) {
+
+        return;
+
+    }
+
+
+    attachmentInput.addEventListener(
+        "change",
+        () => {
+
+            const file =
+                attachmentInput.files &&
+                attachmentInput.files[0];
+
+
+            selectedBox.style.display =
+                "none";
+
+
+            selectedBox.textContent =
+                "";
+
+
+            if (!file) {
+
+                return;
+
+            }
+
+
+            const maxSize =
+                15 *
+                1024 *
+                1024;
+
+
+            if (
+                file.size >
+                maxSize
+            ) {
+
+                alert(
+                    "File size cannot exceed 15 MB."
+                );
+
+
+                attachmentInput.value =
+                    "";
+
+
+                return;
+
+            }
+
+
+            const fileName =
+                file.name ||
+                "Selected file";
+
+
+            const fileSizeMB =
+                (
+                    file.size /
+                    (
+                        1024 *
+                        1024
+                    )
+                )
+                .toFixed(2);
+
+
+            selectedBox.textContent =
+                "Selected: " +
+                fileName +
+                " (" +
+                fileSizeMB +
+                " MB)";
+
+
+            selectedBox.style.display =
+                "block";
+
+        }
+    );
 
 })();
 
