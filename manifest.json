@@ -1,1 +1,11 @@
-
+{
+  "name": "LibControl",
+  "short_name": "LibControl",
+  "description": "Library Management System",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb"
+}
