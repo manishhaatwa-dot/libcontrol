@@ -3,17 +3,12 @@
  * LIBCONTROL - NOTIFICATION ENGINE
  * ==========================================================================
  *
- * NEW NOTIFICATION MODULE
- *
- * Existing working files are NOT modified here.
- *
- * Purpose:
+ * Handles:
  * - Notification structure
- * - Automatic Firestore notification document setup
- * - Notification creation helpers
- * - Student notification loading helpers
+ * - Notification creation
+ * - Latest student notification
+ * - Automatic old notification cleanup
  * - Automatic fee reminder
- * - Student notification display
  *
  * ==========================================================================
  */
@@ -26,6 +21,7 @@
    ========================================================================== */
 
 let notificationDB = null;
+
 
 if (
     typeof firebase !== "undefined" &&
@@ -133,12 +129,6 @@ async function initializeNotificationStructure() {
     }
 
 
-    /*
-     * --------------------------------------------------------------
-     * GLOBAL NOTIFICATION CONFIGURATION
-     * --------------------------------------------------------------
-     */
-
     const configReference =
         notificationDB
             .collection(
@@ -181,19 +171,8 @@ async function initializeNotificationStructure() {
 
         });
 
-
-        console.log(
-            "[LibControl Notification] Notification configuration created."
-        );
-
     }
 
-
-    /*
-     * --------------------------------------------------------------
-     * USER NOTIFICATION ROOT
-     * --------------------------------------------------------------
-     */
 
     const userReference =
         notificationDB
@@ -233,11 +212,6 @@ async function initializeNotificationStructure() {
                     .serverTimestamp()
 
         });
-
-
-        console.log(
-            "[LibControl Notification] User notification structure created."
-        );
 
     }
 
@@ -353,10 +327,6 @@ async function createLibControlNotification(
     });
 
 
-    /*
-     * Update unread count.
-     */
-
     await notificationDB
         .collection(
             LIBCONTROL_NOTIFICATIONS.NOTIFICATIONS
@@ -453,14 +423,17 @@ async function loadLibControlNotifications(
 
 }
 
+
 /* ==========================================================================
-   7A. LOAD LATEST STUDENT NOTIFICATION
+   8. LOAD LATEST STUDENT NOTIFICATION
    ========================================================================== */
 
 async function loadLatestStudentNotification() {
 
     if (!notificationDB) {
+
         return;
+
     }
 
 
@@ -469,7 +442,9 @@ async function loadLatestStudentNotification() {
 
 
     if (!userUID) {
+
         return;
+
     }
 
 
@@ -480,7 +455,9 @@ async function loadLatestStudentNotification() {
 
 
     if (!notificationElement) {
+
         return;
+
     }
 
 
@@ -528,7 +505,6 @@ async function loadLatestStudentNotification() {
             latest.title ||
             "No new notification";
 
-
     }
     catch (error) {
 
@@ -541,265 +517,14 @@ async function loadLatestStudentNotification() {
 
 }
 
-/* ==========================================================================
-   8. NOTIFICATION HTML ESCAPE
-   ========================================================================== */
-
-function escapeNotificationHtml(
-    value
-) {
-
-    return String(
-        value ?? ""
-    )
-    .replace(
-        /&/g,
-        "&amp;"
-    )
-    .replace(
-        /</g,
-        "&lt;"
-    )
-    .replace(
-        />/g,
-        "&gt;"
-    )
-    .replace(
-        /"/g,
-        "&quot;"
-    )
-    .replace(
-        /'/g,
-        "&#39;"
-    );
-
-}
-
 
 /* ==========================================================================
-   9. NOTIFICATION TIMESTAMP
+   9. KEEP ONLY LATEST NOTIFICATION
    ========================================================================== */
 
-function getNotificationTimestampMillis(
-    value
-) {
+async function keepOnlyLatestStudentNotification() {
 
-    if (!value) {
-
-        return 0;
-
-    }
-
-
-    if (
-        typeof value.toMillis ===
-        "function"
-    ) {
-
-        return value.toMillis();
-
-    }
-
-
-    if (
-        typeof value.toDate ===
-        "function"
-    ) {
-
-        return value
-            .toDate()
-            .getTime();
-
-    }
-
-
-    if (
-        value.seconds !== undefined
-    ) {
-
-        return (
-            Number(
-                value.seconds
-            ) *
-            1000
-        );
-
-    }
-
-
-    if (
-        typeof value ===
-        "string"
-    ) {
-
-        const parsed =
-            new Date(
-                value
-            );
-
-
-        if (
-            !Number.isNaN(
-                parsed.getTime()
-            )
-        ) {
-
-            return parsed.getTime();
-
-        }
-
-    }
-
-
-    return 0;
-
-}
-
-
-/* ==========================================================================
-   10. NOTIFICATION DATE FORMAT
-   ========================================================================== */
-
-function formatNotificationDate(
-    value
-) {
-
-    const millis =
-        getNotificationTimestampMillis(
-            value
-        );
-
-
-    if (!millis) {
-
-        return "Just now";
-
-    }
-
-
-    return new Date(
-        millis
-    ).toLocaleString(
-        "en-IN",
-        {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit"
-        }
-    );
-
-}
-
-
-/* ==========================================================================
-   11. RENDER STUDENT NOTIFICATIONS
-   ========================================================================== */
-
-function renderStudentNotifications(
-    notifications,
-    container
-) {
-
-    if (!container) {
-
-        return;
-
-    }
-
-
-    if (
-        !notifications ||
-        !notifications.length
-    ) {
-
-        container.innerHTML = `
-            <div class="empty-message">
-                No notifications available right now.
-            </div>
-        `;
-
-        return;
-
-    }
-
-
-    let html =
-        "";
-
-
-    notifications.forEach(
-        (notification) => {
-
-            const notificationClass =
-                notification.read
-                    ? "notification-item read"
-                    : "notification-item unread";
-
-
-            html += `
-                <div class="${notificationClass}">
-
-                    <h3>
-                        ${escapeNotificationHtml(
-                            notification.title ||
-                            "Notification"
-                        )}
-                    </h3>
-
-
-                    <p>
-                        ${escapeNotificationHtml(
-                            notification.message ||
-                            ""
-                        )}
-                    </p>
-
-
-                    <span class="notice-date">
-                        ${escapeNotificationHtml(
-                            formatNotificationDate(
-                                notification.createdAt
-                            )
-                        )}
-                    </span>
-
-                </div>
-            `;
-
-        }
-    );
-
-
-    container.innerHTML =
-        html;
-
-}
-
-
-/* ==========================================================================
-   12. STUDENT NOTIFICATION LISTENER
-   ==========================================================================
-   
-   Loads notifications for the currently authenticated
-   Firebase student account.
-
-   ========================================================================== */
-
-function startStudentNotificationListener() {
-
-    const container =
-        document.getElementById(
-            "student-notifications-container"
-        );
-
-
-    if (!container) {
-
-        console.warn(
-            "[LibControl Notification] Notification container not found."
-        );
+    if (!notificationDB) {
 
         return;
 
@@ -812,90 +537,107 @@ function startStudentNotificationListener() {
 
     if (!userUID) {
 
-        container.innerHTML = `
-            <div class="empty-message">
-                Please login again to view notifications.
-            </div>
-        `;
-
         return;
 
     }
 
 
-    notificationDB
-        .collection(
-            LIBCONTROL_NOTIFICATIONS.NOTIFICATIONS
-        )
-        .doc(
-            userUID
-        )
-        .collection(
-            "items"
-        )
-        .orderBy(
-            "createdAt",
-            "desc"
-        )
-        .limit(
-            50
-        )
-        .onSnapshot(
+    try {
 
-            (snapshot) => {
+        const snapshot =
+            await notificationDB
+                .collection(
+                    LIBCONTROL_NOTIFICATIONS.NOTIFICATIONS
+                )
+                .doc(
+                    userUID
+                )
+                .collection(
+                    "items"
+                )
+                .orderBy(
+                    "createdAt",
+                    "desc"
+                )
+                .get();
 
-                const notifications =
-                    snapshot.docs.map(
-                        (doc) => ({
 
-                            id:
-                                doc.id,
+        if (
+            snapshot.size <= 1
+        ) {
 
-                            ...doc.data()
+            return;
 
-                        })
+        }
+
+
+        const batch =
+            notificationDB.batch();
+
+
+        snapshot.docs
+            .slice(1)
+            .forEach(
+                (doc) => {
+
+                    batch.delete(
+                        doc.ref
                     );
 
-
-                renderStudentNotifications(
-                    notifications,
-                    container
-                );
-
-            },
-
-            (error) => {
-
-                console.error(
-                    "[LibControl Notification] Notification listener error:",
-                    error
-                );
+                }
+            );
 
 
-                container.innerHTML = `
-                    <div class="empty-message">
-                        Unable to load notifications right now.
-                    </div>
-                `;
+        await batch.commit();
 
-            }
 
+        console.log(
+            "[LibControl Notification] Old notifications removed."
         );
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl Notification] Old notification cleanup error:",
+            error
+        );
+
+    }
 
 }
 
 
 /* ==========================================================================
-   13. AUTOMATIC FEE REMINDER
-   ==========================================================================
-   
-   Creates an individual student notification exactly 2 days
-   before the student's fee due date.
+   10. INITIALIZE
+   ========================================================================== */
 
-   IMPORTANT:
-   - Only the current logged-in student is checked.
-   - Paid students do not receive a reminder.
-   - Each due date gets only one reminder.
+async function startLibControlNotificationEngine() {
+
+    try {
+
+        await initializeNotificationStructure();
+
+
+        console.log(
+            "[LibControl Notification] Engine ready."
+        );
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl Notification] Initialization error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* ==========================================================================
+   11. AUTOMATIC FEE REMINDER
    ========================================================================== */
 
 async function checkStudentFeeReminder() {
@@ -912,11 +654,6 @@ async function checkStudentFeeReminder() {
 
         }
 
-
-        /*
-         * Wait until student-dashboard.js has loaded
-         * the current student's Firestore record.
-         */
 
         if (
             typeof studentDashboardData ===
@@ -937,11 +674,6 @@ async function checkStudentFeeReminder() {
             .trim()
             .toLowerCase();
 
-
-        /*
-         * Paid students should never receive
-         * a fee-due reminder.
-         */
 
         if (
             feeStatus !== "due"
@@ -968,7 +700,7 @@ async function checkStudentFeeReminder() {
 
 
         /*
-         * DD/MM/YYYY format.
+         * DD/MM/YYYY
          */
 
         if (
@@ -987,21 +719,26 @@ async function checkStudentFeeReminder() {
 
             dueDate =
                 new Date(
+
                     parseInt(
                         parts[2],
                         10
                     ),
+
                     parseInt(
                         parts[1],
                         10
                     ) - 1,
+
                     parseInt(
                         parts[0],
                         10
                     )
+
                 );
 
         }
+
         else if (
             typeof feeDueDateValue.toDate ===
             "function"
@@ -1011,6 +748,7 @@ async function checkStudentFeeReminder() {
                 feeDueDateValue.toDate();
 
         }
+
         else if (
             feeDueDateValue.seconds !==
             undefined
@@ -1025,6 +763,7 @@ async function checkStudentFeeReminder() {
                 );
 
         }
+
         else if (
             typeof feeDueDateValue ===
             "string"
@@ -1057,17 +796,13 @@ async function checkStudentFeeReminder() {
             )
         ) {
 
-            console.warn(
-                "[LibControl Notification] Invalid fee due date."
-            );
-
             return;
 
         }
 
 
         /*
-         * Normalize both dates to local midnight.
+         * Normalize dates.
          */
 
         const today =
@@ -1108,8 +843,7 @@ async function checkStudentFeeReminder() {
 
 
         /*
-         * Reminder is created exactly 2 days
-         * before the due date.
+         * EXACTLY 2 DAYS BEFORE.
          */
 
         if (
@@ -1124,12 +858,14 @@ async function checkStudentFeeReminder() {
         const studentCode =
             String(
                 studentDashboardData.studentCode ||
+
                 (
                     typeof getStudentSessionCode ===
                     "function"
                         ? getStudentSessionCode()
                         : ""
                 ) ||
+
                 ""
             )
             .trim()
@@ -1149,41 +885,34 @@ async function checkStudentFeeReminder() {
             ).trim();
 
 
-        /*
-         * Keep the notification date readable.
-         */
-
         if (
             dueDateText ===
             "[object Object]"
         ) {
 
             dueDateText =
-                dueDate
-                    .toLocaleDateString(
-                        "en-IN",
-                        {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric"
-                        }
-                    );
+                dueDate.toLocaleDateString(
+                    "en-IN",
+                    {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric"
+                    }
+                );
 
         }
 
 
         /*
-         * Unique key prevents duplicate reminders
-         * for the same student and same due date.
+         * Unique reminder ID.
          */
 
         const reminderKey =
             "fee_due_" +
             studentCode +
             "_" +
-            (
-                dueDate.getFullYear()
-            ) +
+            dueDate
+                .getFullYear() +
             String(
                 dueDate.getMonth() + 1
             ).padStart(
@@ -1219,93 +948,96 @@ async function checkStudentFeeReminder() {
 
 
         if (
-            existing.exists
+            !existing.exists
         ) {
 
-            console.log(
-                "[LibControl Notification] Fee reminder already exists:",
-                reminderKey
-            );
+            await reminderReference.set({
 
-            return;
-
-        }
-
-
-        await reminderReference.set({
-
-            notificationId:
-                reminderKey,
-
-            userUID:
-                userUID,
-
-            studentCode:
-                studentCode,
-
-            title:
-                "Fee Payment Reminder",
-
-            message:
-                "Your library fee is due on " +
-                dueDateText +
-                ". Please complete your fee payment to continue your membership.",
-
-            type:
-                "fee_reminder",
-
-            read:
-                false,
-
-            createdAt:
-                firebase.firestore
-                    .FieldValue
-                    .serverTimestamp()
-
-        });
-
-
-        /*
-         * Update unread count.
-         */
-
-        await notificationDB
-            .collection(
-                LIBCONTROL_NOTIFICATIONS.NOTIFICATIONS
-            )
-            .doc(
-                userUID
-            )
-            .set({
+                notificationId:
+                    reminderKey,
 
                 userUID:
                     userUID,
 
-                initialized:
-                    true,
+                studentCode:
+                    studentCode,
 
-                unreadCount:
-                    firebase.firestore
-                        .FieldValue
-                        .increment(1),
+                title:
+                    "Fee Payment Reminder",
 
-                updatedAt:
+                message:
+                    "Your library fee is due on " +
+                    dueDateText +
+                    ". Please complete your fee payment to continue your membership.",
+
+                type:
+                    "fee_reminder",
+
+                read:
+                    false,
+
+                createdAt:
                     firebase.firestore
                         .FieldValue
                         .serverTimestamp()
 
-            }, {
-
-                merge:
-                    true
-
             });
 
 
-        console.log(
-            "[LibControl Notification] Fee reminder created:",
-            reminderKey
-        );
+            await notificationDB
+                .collection(
+                    LIBCONTROL_NOTIFICATIONS.NOTIFICATIONS
+                )
+                .doc(
+                    userUID
+                )
+                .set({
+
+                    userUID:
+                        userUID,
+
+                    initialized:
+                        true,
+
+                    unreadCount:
+                        firebase.firestore
+                            .FieldValue
+                            .increment(1),
+
+                    updatedAt:
+                        firebase.firestore
+                            .FieldValue
+                            .serverTimestamp()
+
+                }, {
+
+                    merge:
+                        true
+
+                });
+
+
+            console.log(
+                "[LibControl Notification] Fee reminder created:",
+                reminderKey
+            );
+
+        }
+
+
+        /*
+         * Keep only the newest notification.
+         */
+
+        await keepOnlyLatestStudentNotification();
+
+
+        /*
+         * Refresh the small Notification field
+         * below Expiry Date.
+         */
+
+        await loadLatestStudentNotification();
 
     }
     catch (error) {
@@ -1321,7 +1053,7 @@ async function checkStudentFeeReminder() {
 
 
 /* ==========================================================================
-   14. START FEE REMINDER CHECK
+   12. START FEE REMINDER CHECK
    ========================================================================== */
 
 function startStudentFeeReminderCheck() {
@@ -1354,6 +1086,15 @@ function startStudentFeeReminderCheck() {
 
                     await checkStudentFeeReminder();
 
+
+                    /*
+                     * Always load the latest notification,
+                     * even if no new reminder was created.
+                     */
+
+                    await loadLatestStudentNotification();
+
+
                     return;
 
                 }
@@ -1378,27 +1119,45 @@ function startStudentFeeReminderCheck() {
 
 
 /* ==========================================================================
-   15. NOTIFICATION ENGINE START
+   13. NOTIFICATION ENGINE START
    ========================================================================== */
 
 document.addEventListener(
     "DOMContentLoaded",
     () => {
 
-        /*
-         * Start the notification listener after
-         * the dashboard HTML is available.
-         */
-
-        startStudentNotificationListener();
-
-
-        /*
-         * Check the student's fee reminder after
-         * student-dashboard.js has loaded the record.
-         */
+        startLibControlNotificationEngine();
 
         startStudentFeeReminderCheck();
 
     }
+);
+
+
+/* ==========================================================================
+   14. PUBLIC API
+   ========================================================================== */
+
+window.LibControlNotifications = {
+
+    create:
+        createLibControlNotification,
+
+    load:
+        loadLibControlNotifications,
+
+    latest:
+        loadLatestStudentNotification,
+
+    cleanup:
+        keepOnlyLatestStudentNotification,
+
+    checkFeeReminder:
+        checkStudentFeeReminder
+
+};
+
+
+console.log(
+    "[LibControl Notification] Notification engine loaded successfully."
 );
