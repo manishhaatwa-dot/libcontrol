@@ -3779,6 +3779,21 @@ let adminNoticeRealtimeUnsubscribe =
     null;
 
 
+/* ==========================================================================
+   NOTICE LIMITS
+   ========================================================================== */
+
+const ADMIN_NOTICE_MAX_COUNT =
+    10;
+
+const ADMIN_NOTICE_MAX_FILE_SIZE =
+    15 * 1024 * 1024;
+
+
+/* ==========================================================================
+   ADMIN NOTICE MODULE
+   ========================================================================== */
+
 function initAdminNoticeModule() {
 
     const addButton =
@@ -3792,17 +3807,6 @@ function initAdminNoticeModule() {
             "dashboard-notification-list"
         );
 
-
-    /*
-     * Current dashboard HTML uses:
-     *
-     * #notice-modal
-     * #notice-form
-     * #notice-title
-     * #notice-message
-     *
-     * This module is kept compatible with those IDs.
-     */
 
     const modal =
         document.getElementById(
@@ -3840,6 +3844,18 @@ function initAdminNoticeModule() {
         );
 
 
+    const attachmentInput =
+        document.getElementById(
+            "notice-attachment"
+        );
+
+
+    const modalTitle =
+        document.getElementById(
+            "notice-modal-title"
+        );
+
+
     if (
         !noticeContainer
     ) {
@@ -3871,12 +3887,59 @@ function initAdminNoticeModule() {
         );
 
 
+    let editingNoticeId =
+        null;
+
+
+    let editingNoticeData =
+        null;
+
+
+    /*
+     * ----------------------------------------------------------
+     * Firebase Storage
+     * ----------------------------------------------------------
+     */
+
+    let storage =
+        null;
+
+
+    if (
+        typeof firebase !==
+        "undefined" &&
+        typeof firebase.storage ===
+        "function"
+    ) {
+
+        try {
+
+            storage =
+                firebase.storage();
+
+        }
+        catch (error) {
+
+            console.error(
+                "[LibControl Notice] Firebase Storage initialization error:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /* ==========================================================
+       HTML ESCAPE
+       ========================================================== */
+
     function escapeHtml(
         value
     ) {
 
         return String(
-            value || ""
+            value ?? ""
         )
             .replace(
                 /&/g,
@@ -3901,6 +3964,10 @@ function initAdminNoticeModule() {
 
     }
 
+
+    /* ==========================================================
+       DATE FORMAT
+       ========================================================== */
 
     function formatDate(
         value
@@ -3927,14 +3994,27 @@ function initAdminNoticeModule() {
 
         }
         else if (
-            typeof value.seconds ===
-            "number"
+            value.seconds !==
+            undefined
         ) {
 
             date =
                 new Date(
-                    value.seconds *
+                    Number(
+                        value.seconds
+                    ) *
                     1000
+                );
+
+        }
+        else if (
+            typeof value ===
+            "string"
+        ) {
+
+            date =
+                new Date(
+                    value
                 );
 
         }
@@ -3975,6 +4055,10 @@ function initAdminNoticeModule() {
     }
 
 
+    /* ==========================================================
+       OPEN MODAL
+       ========================================================== */
+
     function openModal() {
 
         if (!modal) {
@@ -3997,6 +4081,100 @@ function initAdminNoticeModule() {
     }
 
 
+    /* ==========================================================
+       RESET MODAL
+       ========================================================== */
+
+    function resetNoticeModal() {
+
+        editingNoticeId =
+            null;
+
+
+        editingNoticeData =
+            null;
+
+
+        if (form) {
+
+            form.reset();
+
+        }
+
+
+        if (modalTitle) {
+
+            modalTitle.textContent =
+                "Add Library Notice";
+
+        }
+
+
+        const submitButton =
+            form
+                ? form.querySelector(
+                    'button[type="submit"]'
+                )
+                : null;
+
+
+        if (submitButton) {
+
+            submitButton.textContent =
+                "Publish Notice";
+
+        }
+
+
+        const existingAttachment =
+            document.getElementById(
+                "notice-existing-attachment"
+            );
+
+
+        if (existingAttachment) {
+
+            existingAttachment.remove();
+
+        }
+
+
+        const removeAttachmentRow =
+            document.getElementById(
+                "notice-remove-attachment-row"
+            );
+
+
+        if (removeAttachmentRow) {
+
+            removeAttachmentRow.remove();
+
+        }
+
+
+        const selectedBox =
+            document.getElementById(
+                "notice-attachment-selected"
+            );
+
+
+        if (selectedBox) {
+
+            selectedBox.style.display =
+                "none";
+
+            selectedBox.textContent =
+                "";
+
+        }
+
+    }
+
+
+    /* ==========================================================
+       CLOSE MODAL
+       ========================================================== */
+
     function closeModal() {
 
         if (!modal) {
@@ -4017,14 +4195,518 @@ function initAdminNoticeModule() {
         );
 
 
-        if (form) {
+        resetNoticeModal();
 
-            form.reset();
+    }
+
+
+    /* ==========================================================
+       OPEN ADD NOTICE
+       ========================================================== */
+
+    function openAddNoticeModal() {
+
+        resetNoticeModal();
+
+        openModal();
+
+    }
+
+
+    /* ==========================================================
+       OPEN EDIT NOTICE
+       ========================================================== */
+
+    function openEditNoticeModal(
+        noticeId,
+        noticeData
+    ) {
+
+        editingNoticeId =
+            noticeId;
+
+
+        editingNoticeData =
+            {
+                ...noticeData
+            };
+
+
+        if (titleInput) {
+
+            titleInput.value =
+                noticeData.title ||
+                "";
+
+        }
+
+
+        if (messageInput) {
+
+            messageInput.value =
+                noticeData.message ||
+                "";
+
+        }
+
+
+        if (attachmentInput) {
+
+            attachmentInput.value =
+                "";
+
+        }
+
+
+        if (modalTitle) {
+
+            modalTitle.textContent =
+                "Edit Library Notice";
+
+        }
+
+
+        const submitButton =
+            form
+                ? form.querySelector(
+                    'button[type="submit"]'
+                )
+                : null;
+
+
+        if (submitButton) {
+
+            submitButton.textContent =
+                "Update Notice";
+
+        }
+
+
+        /*
+         * Existing attachment display.
+         */
+
+        if (
+            noticeData.attachment &&
+            noticeData.attachment.url
+        ) {
+
+            const existingBox =
+                document.createElement(
+                    "div"
+                );
+
+
+            existingBox.id =
+                "notice-existing-attachment";
+
+
+            existingBox.style.cssText = `
+                margin-top:10px;
+                padding:10px 12px;
+                border-radius:8px;
+                background:#eff6ff;
+                color:#1d4ed8;
+                font-size:0.8rem;
+                line-height:1.5;
+            `;
+
+
+            const attachmentName =
+                escapeHtml(
+                    noticeData.attachment.name ||
+                    "Current attachment"
+                );
+
+
+            existingBox.innerHTML = `
+                <strong>
+                    Current attachment:
+                </strong>
+                <a
+                    href="${escapeHtml(
+                        noticeData.attachment.url
+                    )}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style="
+                        color:#1d4ed8;
+                        font-weight:700;
+                        word-break:break-word;
+                    "
+                >
+                    ${attachmentName}
+                </a>
+            `;
+
+
+            if (
+                attachmentInput &&
+                attachmentInput.parentElement
+            ) {
+
+                attachmentInput
+                    .parentElement
+                    .appendChild(
+                        existingBox
+                    );
+
+            }
+
+
+            /*
+             * Remove attachment option.
+             */
+
+            const removeRow =
+                document.createElement(
+                    "label"
+                );
+
+
+            removeRow.id =
+                "notice-remove-attachment-row";
+
+
+            removeRow.style.cssText = `
+                display:flex;
+                align-items:center;
+                gap:7px;
+                margin-top:9px;
+                font-size:0.8rem;
+                color:#475569;
+                cursor:pointer;
+            `;
+
+
+            removeRow.innerHTML = `
+                <input
+                    type="checkbox"
+                    id="notice-remove-attachment"
+                >
+                Remove current attachment
+            `;
+
+
+            if (
+                attachmentInput &&
+                attachmentInput.parentElement
+            ) {
+
+                attachmentInput
+                    .parentElement
+                    .appendChild(
+                        removeRow
+                    );
+
+            }
+
+        }
+
+
+        openModal();
+
+    }
+
+
+    /* ==========================================================
+       VALIDATE FILE
+       ========================================================== */
+
+    function validateAttachmentFile(
+        file
+    ) {
+
+        if (!file) {
+
+            return {
+                valid: true
+            };
+
+        }
+
+
+        if (
+            file.size >
+            ADMIN_NOTICE_MAX_FILE_SIZE
+        ) {
+
+            return {
+
+                valid: false,
+
+                message:
+                    "File size cannot exceed 15 MB."
+
+            };
+
+        }
+
+
+        const fileName =
+            String(
+                file.name ||
+                ""
+            )
+            .toLowerCase();
+
+
+        const isPdf =
+            file.type ===
+                "application/pdf" ||
+            fileName.endsWith(
+                ".pdf"
+            );
+
+
+        const isImage =
+            String(
+                file.type ||
+                ""
+            )
+            .toLowerCase()
+            .startsWith(
+                "image/"
+            );
+
+
+        if (
+            !isPdf &&
+            !isImage
+        ) {
+
+            return {
+
+                valid: false,
+
+                message:
+                    "Only image files and PDF files are allowed."
+
+            };
+
+        }
+
+
+        return {
+            valid: true
+        };
+
+    }
+
+
+    /* ==========================================================
+       GET STORAGE REFERENCE
+       ========================================================== */
+
+    function getNoticeStorageRef(
+        noticeId,
+        fileName
+    ) {
+
+        if (!storage) {
+
+            throw new Error(
+                "Firebase Storage is unavailable."
+            );
+
+        }
+
+
+        return storage
+            .ref()
+            .child(
+                "libcontrol_notice_attachments"
+            )
+            .child(
+                session.libraryId
+            )
+            .child(
+                noticeId
+            )
+            .child(
+                fileName
+            );
+
+    }
+
+
+    /* ==========================================================
+       DELETE STORAGE FILE
+       ========================================================== */
+
+    async function deleteStorageFile(
+        storagePath
+    ) {
+
+        if (
+            !storagePath ||
+            !storage
+        ) {
+
+            return;
+
+        }
+
+
+        try {
+
+            await storage
+                .ref(
+                    storagePath
+                )
+                .delete();
+
+        }
+        catch (error) {
+
+            /*
+             * File may already be deleted.
+             */
+
+            if (
+                error.code ===
+                "storage/object-not-found"
+            ) {
+
+                return;
+
+            }
+
+
+            console.error(
+                "[LibControl Notice] Storage delete error:",
+                error
+            );
 
         }
 
     }
 
+
+    /* ==========================================================
+       UPLOAD ATTACHMENT
+       ========================================================== */
+
+    async function uploadNoticeAttachment(
+        noticeId,
+        file
+    ) {
+
+        if (!file) {
+
+            return null;
+
+        }
+
+
+        if (!storage) {
+
+            throw new Error(
+                "Firebase Storage is unavailable. Please check Firebase Storage configuration."
+            );
+
+        }
+
+
+        const validation =
+            validateAttachmentFile(
+                file
+            );
+
+
+        if (
+            !validation.valid
+        ) {
+
+            throw new Error(
+                validation.message
+            );
+
+        }
+
+
+        const safeFileName =
+            String(
+                file.name ||
+                "attachment"
+            )
+            .replace(
+                /[^a-zA-Z0-9._-]/g,
+                "_"
+            );
+
+
+        const uniqueFileName =
+            Date.now() +
+            "_" +
+            safeFileName;
+
+
+        const storageReference =
+            getNoticeStorageRef(
+                noticeId,
+                uniqueFileName
+            );
+
+
+        const metadata = {
+
+            contentType:
+                file.type ||
+                "application/octet-stream",
+
+            customMetadata: {
+
+                libraryId:
+                    session.libraryId,
+
+                noticeId:
+                    noticeId
+
+            }
+
+        };
+
+
+        const uploadTask =
+            await storageReference
+                .put(
+                    file,
+                    metadata
+                );
+
+
+        const downloadUrl =
+            await uploadTask
+                .ref
+                .getDownloadURL();
+
+
+        return {
+
+            name:
+                file.name,
+
+            size:
+                file.size,
+
+            type:
+                file.type,
+
+            url:
+                downloadUrl,
+
+            storagePath:
+                storageReference.fullPath
+
+        };
+
+    }
+
+
+    /* ==========================================================
+       SAVE / UPDATE NOTICE
+       ========================================================== */
 
     async function saveNotice(
         event
@@ -4067,6 +4749,458 @@ function initAdminNoticeModule() {
             alert(
                 "Please enter a notice message."
             );
+
+            return;
+
+        }
+
+
+        const selectedFile =
+            attachmentInput &&
+            attachmentInput.files &&
+            attachmentInput.files[0]
+                ? attachmentInput.files[0]
+                : null;
+
+
+        const fileValidation =
+            validateAttachmentFile(
+                selectedFile
+            );
+
+
+        if (
+            !fileValidation.valid
+        ) {
+
+            alert(
+                fileValidation.message
+            );
+
+            return;
+
+        }
+
+
+        const removeCurrentAttachment =
+            document.getElementById(
+                "notice-remove-attachment"
+            );
+
+
+        const shouldRemoveCurrentAttachment =
+            !!(
+                removeCurrentAttachment &&
+                removeCurrentAttachment.checked
+            );
+
+
+        const submitButton =
+            form
+                ? form.querySelector(
+                    'button[type="submit"]'
+                )
+                : null;
+
+
+        if (submitButton) {
+
+            submitButton.disabled =
+                true;
+
+            submitButton.textContent =
+                editingNoticeId
+                    ? "Updating..."
+                    : "Publishing...";
+
+        }
+
+
+        let uploadedAttachment =
+            null;
+
+
+        try {
+
+            /*
+             * ------------------------------------------------------
+             * Firebase Admin Authentication
+             * ------------------------------------------------------
+             */
+
+            const currentUser =
+                await waitForFirebaseAuthUser();
+
+
+            if (!currentUser) {
+
+                throw new Error(
+                    "Admin authentication session expired."
+                );
+
+            }
+
+
+            if (
+                !currentUser.emailVerified
+            ) {
+
+                throw new Error(
+                    "Please verify your Admin email first."
+                );
+
+            }
+
+
+            const authorization =
+                await getAdminAuthorization(
+
+                    currentUser,
+
+                    session.libraryId
+
+                );
+
+
+            if (
+                !authorization.authorized
+            ) {
+
+                throw new Error(
+                    "Admin authorization failed."
+                );
+
+            }
+
+
+            /* =====================================================
+               NEW NOTICE
+               ===================================================== */
+
+            if (
+                !editingNoticeId
+            ) {
+
+                /*
+                 * Maximum 10 notices.
+                 */
+
+                const existingSnapshot =
+                    await noticeCollection
+                        .get();
+
+
+                if (
+                    existingSnapshot.size >=
+                    ADMIN_NOTICE_MAX_COUNT
+                ) {
+
+                    throw new Error(
+                        "Maximum 10 notices allowed. Please delete an old notice first."
+                    );
+
+                }
+
+
+                /*
+                 * Create document reference first
+                 * so Storage path can use the notice ID.
+                 */
+
+                const newNoticeRef =
+                    noticeCollection.doc();
+
+
+                /*
+                 * Upload attachment first.
+                 */
+
+                if (selectedFile) {
+
+                    uploadedAttachment =
+                        await uploadNoticeAttachment(
+                            newNoticeRef.id,
+                            selectedFile
+                        );
+
+                }
+
+
+                try {
+
+                    await newNoticeRef.set({
+
+                        title:
+                            title,
+
+                        message:
+                            message,
+
+                        createdAt:
+                            firebase.firestore
+                                .FieldValue
+                                .serverTimestamp(),
+
+                        updatedAt:
+                            firebase.firestore
+                                .FieldValue
+                                .serverTimestamp(),
+
+                        createdBy:
+                            currentUser.uid,
+
+                        updatedBy:
+                            currentUser.uid,
+
+                        attachment:
+                            uploadedAttachment
+
+                    });
+
+                }
+                catch (firestoreError) {
+
+                    /*
+                     * If Firestore save fails after upload,
+                     * clean up the uploaded file.
+                     */
+
+                    if (
+                        uploadedAttachment &&
+                        uploadedAttachment.storagePath
+                    ) {
+
+                        await deleteStorageFile(
+                            uploadedAttachment.storagePath
+                        );
+
+                    }
+
+
+                    throw firestoreError;
+
+                }
+
+            }
+
+
+            /* =====================================================
+               EDIT EXISTING NOTICE
+               ===================================================== */
+
+            else {
+
+                const noticeRef =
+                    noticeCollection.doc(
+                        editingNoticeId
+                    );
+
+
+                const currentSnapshot =
+                    await noticeRef.get();
+
+
+                if (
+                    !currentSnapshot.exists
+                ) {
+
+                    throw new Error(
+                        "This notice no longer exists."
+                    );
+
+                }
+
+
+                const currentData =
+                    currentSnapshot.data() ||
+                    {};
+
+
+                let finalAttachment =
+                    currentData.attachment ||
+                    null;
+
+
+                /*
+                 * Upload new attachment if selected.
+                 */
+
+                if (selectedFile) {
+
+                    uploadedAttachment =
+                        await uploadNoticeAttachment(
+                            editingNoticeId,
+                            selectedFile
+                        );
+
+
+                    finalAttachment =
+                        uploadedAttachment;
+
+                }
+
+
+                /*
+                 * Remove existing attachment
+                 * if requested.
+                 */
+
+                if (
+                    shouldRemoveCurrentAttachment
+                ) {
+
+                    finalAttachment =
+                        null;
+
+                }
+
+
+                try {
+
+                    await noticeRef.update({
+
+                        title:
+                            title,
+
+                        message:
+                            message,
+
+                        updatedAt:
+                            firebase.firestore
+                                .FieldValue
+                                .serverTimestamp(),
+
+                        updatedBy:
+                            currentUser.uid,
+
+                        attachment:
+                            finalAttachment
+
+                    });
+
+                }
+                catch (firestoreError) {
+
+                    /*
+                     * If update failed after new upload,
+                     * clean up new file.
+                     */
+
+                    if (
+                        uploadedAttachment &&
+                        uploadedAttachment.storagePath
+                    ) {
+
+                        await deleteStorageFile(
+                            uploadedAttachment.storagePath
+                        );
+
+                    }
+
+
+                    throw firestoreError;
+
+                }
+
+
+                /*
+                 * Delete old Storage file only after
+                 * successful Firestore update.
+                 */
+
+                const oldAttachment =
+                    currentData.attachment ||
+                    null;
+
+
+                const oldPath =
+                    oldAttachment.storagePath ||
+                    "";
+
+
+                const newPath =
+                    finalAttachment &&
+                    finalAttachment.storagePath
+                        ? finalAttachment.storagePath
+                        : "";
+
+
+                if (
+                    oldPath &&
+                    oldPath !== newPath &&
+                    (
+                        selectedFile ||
+                        shouldRemoveCurrentAttachment
+                    )
+                ) {
+
+                    await deleteStorageFile(
+                        oldPath
+                    );
+
+                }
+
+            }
+
+
+            closeModal();
+
+        }
+        catch (error) {
+
+            console.error(
+                "[LibControl Notice Save Error]",
+                error
+            );
+
+
+            alert(
+                error.message ||
+                "Unable to save notice."
+            );
+
+        }
+        finally {
+
+            if (submitButton) {
+
+                submitButton.disabled =
+                    false;
+
+                submitButton.textContent =
+                    editingNoticeId
+                        ? "Update Notice"
+                        : "Publish Notice";
+
+            }
+
+        }
+
+    }
+
+
+    /* ==========================================================
+       DELETE NOTICE
+       ========================================================== */
+
+    async function deleteNotice(
+        noticeId
+    ) {
+
+        if (!noticeId) {
+
+            return;
+
+        }
+
+
+        const confirmed =
+            window.confirm(
+                "Are you sure you want to delete this notice?"
+            );
+
+
+        if (!confirmed) {
 
             return;
 
@@ -4120,52 +5254,83 @@ function initAdminNoticeModule() {
             }
 
 
-            await noticeCollection
-                .add({
-
-                    title:
-                        title,
-
-                    message:
-                        message,
-
-                    createdAt:
-                        firebase.firestore
-                            .FieldValue
-                            .serverTimestamp(),
-
-                    updatedAt:
-                        firebase.firestore
-                            .FieldValue
-                            .serverTimestamp(),
-
-                    createdBy:
-                        currentUser.uid
-
-                });
+            const noticeRef =
+                noticeCollection.doc(
+                    noticeId
+                );
 
 
-            closeModal();
+            const snapshot =
+                await noticeRef.get();
 
+
+            if (
+                !snapshot.exists
+            ) {
+
+                alert(
+                    "Notice was already deleted."
+                );
+
+                return;
+
+            }
+
+
+            const data =
+                snapshot.data() ||
+                {};
+
+
+            const attachment =
+                data.attachment ||
+                null;
+
+
+            /*
+             * Delete Firestore document first.
+             */
+
+            await noticeRef.delete();
+
+
+            /*
+             * Then remove attached file from Storage.
+             */
+
+            if (
+                attachment &&
+                attachment.storagePath
+            ) {
+
+                await deleteStorageFile(
+                    attachment.storagePath
+                );
+
+            }
 
         }
         catch (error) {
 
             console.error(
-                "[LibControl Notice Save Error]",
+                "[LibControl Notice Delete Error]",
                 error
             );
 
 
             alert(
                 error.message ||
-                "Unable to save notice."
+                "Unable to delete notice."
             );
 
         }
 
     }
 
+
+    /* ==========================================================
+       ADD BUTTON
+       ========================================================== */
 
     if (
         addButton &&
@@ -4178,11 +5343,15 @@ function initAdminNoticeModule() {
 
         addButton.addEventListener(
             "click",
-            openModal
+            openAddNoticeModal
         );
 
     }
 
+
+    /* ==========================================================
+       CLOSE BUTTON
+       ========================================================== */
 
     if (
         closeButton &&
@@ -4201,6 +5370,10 @@ function initAdminNoticeModule() {
     }
 
 
+    /* ==========================================================
+       CANCEL BUTTON
+       ========================================================== */
+
     if (
         cancelButton &&
         !cancelButton.dataset.noticeBound
@@ -4218,6 +5391,10 @@ function initAdminNoticeModule() {
     }
 
 
+    /* ==========================================================
+       FORM SUBMIT
+       ========================================================== */
+
     if (
         form &&
         !form.dataset.noticeBound
@@ -4234,6 +5411,10 @@ function initAdminNoticeModule() {
 
     }
 
+
+    /* ==========================================================
+       MODAL BACKDROP
+       ========================================================== */
 
     if (
         modal &&
@@ -4262,6 +5443,116 @@ function initAdminNoticeModule() {
 
     }
 
+
+    /* ==========================================================
+       FILE SELECTION
+       ========================================================== */
+
+    if (
+        attachmentInput &&
+        !attachmentInput.dataset.noticeFileBound
+    ) {
+
+        attachmentInput.dataset.noticeFileBound =
+            "true";
+
+
+        attachmentInput.addEventListener(
+            "change",
+            () => {
+
+                const file =
+                    attachmentInput.files &&
+                    attachmentInput.files[0]
+                        ? attachmentInput.files[0]
+                        : null;
+
+
+                const selectedBox =
+                    document.getElementById(
+                        "notice-attachment-selected"
+                    );
+
+
+                if (
+                    !selectedBox
+                ) {
+
+                    return;
+
+                }
+
+
+                selectedBox.style.display =
+                    "none";
+
+
+                selectedBox.textContent =
+                    "";
+
+
+                if (!file) {
+
+                    return;
+
+                }
+
+
+                const validation =
+                    validateAttachmentFile(
+                        file
+                    );
+
+
+                if (
+                    !validation.valid
+                ) {
+
+                    alert(
+                        validation.message
+                    );
+
+
+                    attachmentInput.value =
+                        "";
+
+
+                    return;
+
+                }
+
+
+                const sizeMB =
+                    (
+                        file.size /
+                        (
+                            1024 *
+                            1024
+                        )
+                    )
+                    .toFixed(2);
+
+
+                selectedBox.textContent =
+                    "Selected: " +
+                    file.name +
+                    " (" +
+                    sizeMB +
+                    " MB)";
+
+
+                selectedBox.style.display =
+                    "block";
+
+            }
+        );
+
+    }
+
+
+    /* ==========================================================
+       NOTICE REALTIME LISTENER
+       ========================================================== */
 
     if (
         typeof adminNoticeRealtimeUnsubscribe ===
@@ -4309,8 +5600,10 @@ function initAdminNoticeModule() {
                                 : 0;
 
 
-                        return bTime -
-                            aTime;
+                        return (
+                            bTime -
+                            aTime
+                        );
 
                     }
                 );
@@ -4341,16 +5634,137 @@ function initAdminNoticeModule() {
                             (doc) => {
 
                                 const data =
-                                    doc.data();
+                                    doc.data() ||
+                                    {};
+
+
+                                const attachment =
+                                    data.attachment ||
+                                    null;
+
+
+                                let attachmentHtml =
+                                    "";
+
+
+                                if (
+                                    attachment &&
+                                    attachment.url
+                                ) {
+
+                                    const isImage =
+                                        String(
+                                            attachment.type ||
+                                            ""
+                                        )
+                                        .startsWith(
+                                            "image/"
+                                        );
+
+
+                                    if (isImage) {
+
+                                        attachmentHtml = `
+
+                                            <div
+                                                style="
+                                                    margin-top:10px;
+                                                "
+                                            >
+
+                                                <a
+                                                    href="${escapeHtml(
+                                                        attachment.url
+                                                    )}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+
+                                                    <img
+                                                        src="${escapeHtml(
+                                                            attachment.url
+                                                        )}"
+                                                        alt="${escapeHtml(
+                                                            attachment.name ||
+                                                            "Notice image"
+                                                        )}"
+                                                        style="
+                                                            display:block;
+                                                            max-width:100%;
+                                                            max-height:260px;
+                                                            border-radius:8px;
+                                                            object-fit:contain;
+                                                            border:1px solid #e5e7eb;
+                                                        "
+                                                    >
+
+                                                </a>
+
+                                            </div>
+
+                                        `;
+
+                                    }
+                                    else {
+
+                                        attachmentHtml = `
+
+                                            <div
+                                                style="
+                                                    margin-top:10px;
+                                                "
+                                            >
+
+                                                <a
+                                                    href="${escapeHtml(
+                                                        attachment.url
+                                                    )}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    style="
+                                                        display:inline-flex;
+                                                        align-items:center;
+                                                        gap:7px;
+                                                        padding:8px 11px;
+                                                        border-radius:8px;
+                                                        background:#eff6ff;
+                                                        color:#1d4ed8;
+                                                        text-decoration:none;
+                                                        font-size:0.8rem;
+                                                        font-weight:700;
+                                                    "
+                                                >
+                                                    📄
+                                                    ${escapeHtml(
+                                                        attachment.name ||
+                                                        "Open PDF"
+                                                    )}
+                                                </a>
+
+                                            </div>
+
+                                        `;
+
+                                    }
+
+                                }
 
 
                                 return `
 
                                     <div
                                         class="notification-item"
+                                        data-notice-id="${escapeHtml(
+                                            doc.id
+                                        )}"
                                     >
 
-                                        <div>
+                                        <div
+                                            style="
+                                                min-width:0;
+                                                flex:1;
+                                            "
+                                        >
 
                                             <strong>
                                                 ${escapeHtml(
@@ -4359,6 +5773,7 @@ function initAdminNoticeModule() {
                                                 )}
                                             </strong>
 
+
                                             <p>
                                                 ${escapeHtml(
                                                     data.message ||
@@ -4366,15 +5781,75 @@ function initAdminNoticeModule() {
                                                 )}
                                             </p>
 
+
+                                            ${attachmentHtml}
+
+
+                                            <small>
+                                                ${escapeHtml(
+                                                    formatDate(
+                                                        data.createdAt
+                                                    )
+                                                )}
+                                            </small>
+
                                         </div>
 
-                                        <small>
-                                            ${escapeHtml(
-                                                formatDate(
-                                                    data.createdAt
-                                                )
-                                            )}
-                                        </small>
+
+                                        <div
+                                            style="
+                                                display:flex;
+                                                flex-direction:column;
+                                                gap:7px;
+                                                margin-left:12px;
+                                                flex-shrink:0;
+                                            "
+                                        >
+
+                                            <button
+                                                type="button"
+                                                class="notice-edit-btn"
+                                                data-notice-id="${escapeHtml(
+                                                    doc.id
+                                                )}"
+                                                style="
+                                                    border:none;
+                                                    border-radius:7px;
+                                                    padding:7px 11px;
+                                                    background:#eff6ff;
+                                                    color:#2563eb;
+                                                    font:inherit;
+                                                    font-size:0.78rem;
+                                                    font-weight:700;
+                                                    cursor:pointer;
+                                                "
+                                            >
+                                                Edit
+                                            </button>
+
+
+                                            <button
+                                                type="button"
+                                                class="notice-delete-btn"
+                                                data-notice-id="${escapeHtml(
+                                                    doc.id
+                                                )}"
+                                                style="
+                                                    border:none;
+                                                    border-radius:7px;
+                                                    padding:7px 11px;
+                                                    background:#fef2f2;
+                                                    color:#dc2626;
+                                                    font:inherit;
+                                                    font-size:0.78rem;
+                                                    font-weight:700;
+                                                    cursor:pointer;
+                                                "
+                                            >
+                                                Delete
+                                            </button>
+
+                                        </div>
 
                                     </div>
 
@@ -4408,12 +5883,127 @@ function initAdminNoticeModule() {
 
         );
 
+
+    /* ==========================================================
+       EDIT / DELETE BUTTON HANDLER
+       ========================================================== */
+
+    if (
+        !noticeContainer.dataset.noticeActionsBound
+    ) {
+
+        noticeContainer.dataset.noticeActionsBound =
+            "true";
+
+
+        noticeContainer.addEventListener(
+            "click",
+            async (event) => {
+
+                const editButton =
+                    event.target.closest(
+                        ".notice-edit-btn"
+                    );
+
+
+                const deleteButton =
+                    event.target.closest(
+                        ".notice-delete-btn"
+                    );
+
+
+                if (
+                    editButton
+                ) {
+
+                    const noticeId =
+                        editButton.dataset.noticeId;
+
+
+                    if (!noticeId) {
+
+                        return;
+
+                    }
+
+
+                    try {
+
+                        const snapshot =
+                            await noticeCollection
+                                .doc(
+                                    noticeId
+                                )
+                                .get();
+
+
+                        if (
+                            !snapshot.exists
+                        ) {
+
+                            alert(
+                                "This notice no longer exists."
+                            );
+
+                            return;
+
+                        }
+
+
+                        openEditNoticeModal(
+
+                            snapshot.id,
+
+                            snapshot.data() ||
+                            {}
+
+                        );
+
+                    }
+                    catch (error) {
+
+                        console.error(
+                            "[LibControl Notice Edit Load Error]",
+                            error
+                        );
+
+
+                        alert(
+                            "Unable to open this notice for editing."
+                        );
+
+                    }
+
+
+                    return;
+
+                }
+
+
+                if (
+                    deleteButton
+                ) {
+
+                    const noticeId =
+                        deleteButton.dataset.noticeId;
+
+
+                    await deleteNotice(
+                        noticeId
+                    );
+
+                }
+
+            }
+        );
+
+    }
+
 }
 
 
 window.initAdminNoticeModule =
     initAdminNoticeModule;
-
 
 /* ==========================================================================
    30. DOM READY
