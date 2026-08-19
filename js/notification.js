@@ -453,6 +453,93 @@ async function loadLibControlNotifications(
 
 }
 
+/* ==========================================================================
+   7A. LOAD LATEST STUDENT NOTIFICATION
+   ========================================================================== */
+
+async function loadLatestStudentNotification() {
+
+    if (!notificationDB) {
+        return;
+    }
+
+
+    const userUID =
+        getNotificationUserUID();
+
+
+    if (!userUID) {
+        return;
+    }
+
+
+    const notificationElement =
+        document.getElementById(
+            "student-notification"
+        );
+
+
+    if (!notificationElement) {
+        return;
+    }
+
+
+    try {
+
+        const snapshot =
+            await notificationDB
+                .collection(
+                    LIBCONTROL_NOTIFICATIONS.NOTIFICATIONS
+                )
+                .doc(
+                    userUID
+                )
+                .collection(
+                    "items"
+                )
+                .orderBy(
+                    "createdAt",
+                    "desc"
+                )
+                .limit(
+                    1
+                )
+                .get();
+
+
+        if (
+            snapshot.empty
+        ) {
+
+            notificationElement.textContent =
+                "No new notification";
+
+            return;
+
+        }
+
+
+        const latest =
+            snapshot.docs[0].data();
+
+
+        notificationElement.textContent =
+            latest.message ||
+            latest.title ||
+            "No new notification";
+
+
+    }
+    catch (error) {
+
+        console.error(
+            "[LibControl Notification] Latest notification load error:",
+            error
+        );
+
+    }
+
+}
 
 /* ==========================================================================
    8. NOTIFICATION HTML ESCAPE
