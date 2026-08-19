@@ -9,6 +9,7 @@
  * - Latest student notification
  * - Automatic old notification cleanup
  * - Automatic fee reminder
+ * - Fee reminder removal when fee becomes Paid
  *
  * ==========================================================================
  */
@@ -425,10 +426,10 @@ async function loadLibControlNotifications(
 
 
 /* ==========================================================================
-   8. LOAD LATEST STUDENT NOTIFICATION
+   8. DELETE ALL FEE REMINDERS
    ========================================================================== */
 
-async function loadLatestStudentNotification() {
+async function deleteStudentFeeReminders() {
 
     if (!notificationDB) {
 
@@ -448,19 +449,6 @@ async function loadLatestStudentNotification() {
     }
 
 
-    const notificationElement =
-        document.getElementById(
-            "student-notification"
-        );
-
-
-    if (!notificationElement) {
-
-        return;
-
-    }
-
-
     try {
 
         const snapshot =
@@ -474,12 +462,10 @@ async function loadLatestStudentNotification() {
                 .collection(
                     "items"
                 )
-                .orderBy(
-                    "createdAt",
-                    "desc"
-                )
-                .limit(
-                    1
+                .where(
+                    "type",
+                    "==",
+                    "fee_reminder"
                 )
                 .get();
 
@@ -488,28 +474,68 @@ async function loadLatestStudentNotification() {
             snapshot.empty
         ) {
 
-            notificationElement.textContent =
-                "No new notification";
-
             return;
 
         }
 
 
-        const latest =
-            snapshot.docs[0].data();
+        const batch =
+            notificationDB.batch();
 
 
-        notificationElement.textContent =
-            latest.message ||
-            latest.title ||
-            "No new notification";
+        snapshot.docs.forEach(
+            (doc) => {
+
+                batch.delete(
+                    doc.ref
+                );
+
+            }
+        );
+
+
+        await batch.commit();
+
+
+        /*
+         * Reset unread count because fee reminders
+         * have now been removed.
+         */
+
+        await notificationDB
+            .collection(
+                LIBCONTROL_NOTIFICATIONS.NOTIFICATIONS
+            )
+            .doc(
+                userUID
+            )
+            .set({
+
+                unreadCount:
+                    0,
+
+                updatedAt:
+                    firebase.firestore
+                        .FieldValue
+                        .serverTimestamp()
+
+            }, {
+
+                merge:
+                    true
+
+            });
+
+
+        console.log(
+            "[LibControl Notification] Fee reminders removed because fee is Paid."
+        );
 
     }
     catch (error) {
 
         console.error(
-            "[LibControl Notification] Latest notification load error:",
+            "[LibControl Notification] Fee reminder deletion error:",
             error
         );
 
@@ -609,25 +635,139 @@ async function keepOnlyLatestStudentNotification() {
 
 
 /* ==========================================================================
-   10. INITIALIZE
+   10. LOAD LATEST STUDENT NOTIFICATION
    ========================================================================== */
 
-async function startLibControlNotificationEngine() {
+async function loadLatestStudentNotification() {
+
+    if (!notificationDB) {
+
+        return;
+
+    }
+
+
+    const userUID =
+        getNotificationUserUID();
+
+
+    if (!userUID) {
+
+        return;
+
+    }
+
+
+    const notificationElement =
+        document.getElementById(
+            "student-notification"
+        );
+
+
+    if (!notificationElement) {
+
+        return;
+
+    }
+
 
     try {
 
-        await initializeNotificationStructure();
+        /*
+         * --------------------------------------------------------------
+         * CHECK CURRENT FEE STATUS
+         * --------------------------------------------------------------
+         */
+
+        if (
+            typeof studentDashboardData !==
+                "undefined" &&
+            studentDashboardData
+        ) {
+
+            const feeStatus =
+                String(
+                    studentDashboardData.feeStatus ||
+                    "Paid"
+                )
+                .trim()
+                .toLowerCase();
 
 
-        console.log(
-            "[LibControl Notification] Engine ready."
-        );
+            if (
+                feeStatus ===
+                "paid"
+            ) {
+
+                await deleteStudentFeeReminders();
+
+            }
+
+        }
+
+
+        /*
+         * --------------------------------------------------------------
+         * KEEP ONLY LATEST
+         * --------------------------------------------------------------
+         */
+
+        await keepOnlyLatestStudentNotification();
+
+
+        /*
+         * --------------------------------------------------------------
+         * LOAD LATEST
+         * --------------------------------------------------------------
+         */
+
+        const snapshot =
+            await notificationDB
+                .collection(
+                    LIBCONTROL_NOTIFICATIONS.NOTIFICATIONS
+                )
+                .doc(
+                    userUID
+                )
+                .collection(
+                    "items"
+                )
+                .orderBy(
+                    "createdAt",
+                    "desc"
+                )
+                .limit(
+                    1
+                )
+                .get();
+
+
+        if (
+            snapshot.empty
+        ) {
+
+            notificationElement.textContent =
+                "No new notification";
+
+            return;
+
+        }
+
+
+        const latest =
+            snapshot.docs[0].data();
+
+
+        notificationElement.textContent =
+            latest.message ||
+            latest.title ||
+            "No new notification";
 
     }
     catch (error) {
 
         console.error(
-            "[LibControl Notification] Initialization error:",
+            "[LibControl Notification] Latest notification load error:",
             error
         );
 
@@ -657,7 +797,7 @@ async function checkStudentFeeReminder() {
 
         if (
             typeof studentDashboardData ===
-            "undefined" ||
+                "undefined" ||
             !studentDashboardData
         ) {
 
@@ -665,6 +805,12 @@ async function checkStudentFeeReminder() {
 
         }
 
+
+        /*
+         * --------------------------------------------------------------
+         * FEE STATUS
+         * --------------------------------------------------------------
+         */
 
         const feeStatus =
             String(
@@ -675,14 +821,29 @@ async function checkStudentFeeReminder() {
             .toLowerCase();
 
 
+        /*
+         * If Paid, remove any old fee reminder.
+         */
+
         if (
-            feeStatus !== "due"
+            feeStatus !==
+            "due"
         ) {
+
+            await deleteStudentFeeReminders();
+
+            await loadLatestStudentNotification();
 
             return;
 
         }
 
+
+        /*
+         * --------------------------------------------------------------
+         * FEE DUE DATE
+         * --------------------------------------------------------------
+         */
 
         const feeDueDateValue =
             studentDashboardData.feeDueDate;
@@ -705,7 +866,7 @@ async function checkStudentFeeReminder() {
 
         if (
             typeof feeDueDateValue ===
-            "string" &&
+                "string" &&
             /^\d{2}\/\d{2}\/\d{4}$/.test(
                 feeDueDateValue.trim()
             )
@@ -741,7 +902,7 @@ async function checkStudentFeeReminder() {
 
         else if (
             typeof feeDueDateValue.toDate ===
-            "function"
+                "function"
         ) {
 
             dueDate =
@@ -766,7 +927,7 @@ async function checkStudentFeeReminder() {
 
         else if (
             typeof feeDueDateValue ===
-            "string"
+                "string"
         ) {
 
             const parsedDate =
@@ -802,7 +963,9 @@ async function checkStudentFeeReminder() {
 
 
         /*
-         * Normalize dates.
+         * --------------------------------------------------------------
+         * NORMALIZE DATES
+         * --------------------------------------------------------------
          */
 
         const today =
@@ -843,30 +1006,48 @@ async function checkStudentFeeReminder() {
 
 
         /*
-         * EXACTLY 2 DAYS BEFORE.
+         * --------------------------------------------------------------
+         * REMINDER EXACTLY 2 DAYS BEFORE
+         * --------------------------------------------------------------
          */
 
         if (
-            daysUntilDue !== 2
+            daysUntilDue !==
+            2
         ) {
+
+            /*
+             * If it is not the reminder day,
+             * do not create a new notification.
+             */
+
+            await loadLatestStudentNotification();
 
             return;
 
         }
 
 
+        /*
+         * --------------------------------------------------------------
+         * STUDENT CODE
+         * --------------------------------------------------------------
+         */
+
         const studentCode =
             String(
+
                 studentDashboardData.studentCode ||
 
                 (
                     typeof getStudentSessionCode ===
-                    "function"
+                        "function"
                         ? getStudentSessionCode()
                         : ""
                 ) ||
 
                 ""
+
             )
             .trim()
             .toUpperCase();
@@ -878,6 +1059,12 @@ async function checkStudentFeeReminder() {
 
         }
 
+
+        /*
+         * --------------------------------------------------------------
+         * DUE DATE TEXT
+         * --------------------------------------------------------------
+         */
 
         let dueDateText =
             String(
@@ -894,9 +1081,14 @@ async function checkStudentFeeReminder() {
                 dueDate.toLocaleDateString(
                     "en-IN",
                     {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric"
+                        day:
+                            "2-digit",
+
+                        month:
+                            "2-digit",
+
+                        year:
+                            "numeric"
                     }
                 );
 
@@ -904,7 +1096,9 @@ async function checkStudentFeeReminder() {
 
 
         /*
-         * Unique reminder ID.
+         * --------------------------------------------------------------
+         * UNIQUE REMINDER ID
+         * --------------------------------------------------------------
          */
 
         const reminderKey =
@@ -946,6 +1140,12 @@ async function checkStudentFeeReminder() {
         const existing =
             await reminderReference.get();
 
+
+        /*
+         * --------------------------------------------------------------
+         * CREATE ONLY IF NOT ALREADY PRESENT
+         * --------------------------------------------------------------
+         */
 
         if (
             !existing.exists
@@ -1000,9 +1200,7 @@ async function checkStudentFeeReminder() {
                         true,
 
                     unreadCount:
-                        firebase.firestore
-                            .FieldValue
-                            .increment(1),
+                        1,
 
                     updatedAt:
                         firebase.firestore
@@ -1026,15 +1224,18 @@ async function checkStudentFeeReminder() {
 
 
         /*
-         * Keep only the newest notification.
+         * --------------------------------------------------------------
+         * REMOVE ALL OLDER NOTIFICATIONS
+         * --------------------------------------------------------------
          */
 
         await keepOnlyLatestStudentNotification();
 
 
         /*
-         * Refresh the small Notification field
-         * below Expiry Date.
+         * --------------------------------------------------------------
+         * DISPLAY LATEST
+         * --------------------------------------------------------------
          */
 
         await loadLatestStudentNotification();
@@ -1075,7 +1276,7 @@ function startStudentFeeReminderCheck() {
 
                 if (
                     typeof studentDashboardData !==
-                    "undefined" &&
+                        "undefined" &&
                     studentDashboardData
                 ) {
 
@@ -1085,14 +1286,6 @@ function startStudentFeeReminderCheck() {
 
 
                     await checkStudentFeeReminder();
-
-
-                    /*
-                     * Always load the latest notification,
-                     * even if no new reminder was created.
-                     */
-
-                    await loadLatestStudentNotification();
 
 
                     return;
@@ -1119,7 +1312,117 @@ function startStudentFeeReminderCheck() {
 
 
 /* ==========================================================================
-   13. NOTIFICATION ENGINE START
+   13. REALTIME FEE STATUS WATCHER
+   ==========================================================================
+   
+   Student dashboard already maintains studentDashboardData
+   through Firestore realtime updates.
+
+   This watcher checks the current data periodically so that
+   Due -> Paid is reflected in the notification box without
+   requiring a logout/login.
+
+   ========================================================================== */
+
+function startStudentNotificationStatusWatcher() {
+
+    let lastFeeStatus =
+        null;
+
+
+    let lastFeeDueDate =
+        null;
+
+
+    setInterval(
+        async () => {
+
+            if (
+                typeof studentDashboardData ===
+                    "undefined" ||
+                !studentDashboardData
+            ) {
+
+                return;
+
+            }
+
+
+            const currentFeeStatus =
+                String(
+                    studentDashboardData.feeStatus ||
+                    "Paid"
+                )
+                .trim()
+                .toLowerCase();
+
+
+            const currentFeeDueDate =
+                String(
+                    studentDashboardData.feeDueDate ||
+                    ""
+                )
+                .trim();
+
+
+            /*
+             * First run.
+             */
+
+            if (
+                lastFeeStatus ===
+                    null
+            ) {
+
+                lastFeeStatus =
+                    currentFeeStatus;
+
+                lastFeeDueDate =
+                    currentFeeDueDate;
+
+
+                await checkStudentFeeReminder();
+
+                await loadLatestStudentNotification();
+
+                return;
+
+            }
+
+
+            /*
+             * Detect admin changes.
+             */
+
+            if (
+                currentFeeStatus !==
+                    lastFeeStatus ||
+                currentFeeDueDate !==
+                    lastFeeDueDate
+            ) {
+
+                lastFeeStatus =
+                    currentFeeStatus;
+
+                lastFeeDueDate =
+                    currentFeeDueDate;
+
+
+                await checkStudentFeeReminder();
+
+                await loadLatestStudentNotification();
+
+            }
+
+        },
+        3000
+    );
+
+}
+
+
+/* ==========================================================================
+   14. NOTIFICATION ENGINE START
    ========================================================================== */
 
 document.addEventListener(
@@ -1130,12 +1433,14 @@ document.addEventListener(
 
         startStudentFeeReminderCheck();
 
+        startStudentNotificationStatusWatcher();
+
     }
 );
 
 
 /* ==========================================================================
-   14. PUBLIC API
+   15. PUBLIC API
    ========================================================================== */
 
 window.LibControlNotifications = {
@@ -1153,7 +1458,10 @@ window.LibControlNotifications = {
         keepOnlyLatestStudentNotification,
 
     checkFeeReminder:
-        checkStudentFeeReminder
+        checkStudentFeeReminder,
+
+    deleteFeeReminders:
+        deleteStudentFeeReminders
 
 };
 
