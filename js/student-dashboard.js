@@ -1361,16 +1361,20 @@ function renderStudentNotices(
              * Firestore records remain compatible.
              */
 
-            const attachmentUrl =
-                notice.attachmentUrl ||
-                notice.downloadURL ||
-                notice.downloadUrl ||
-                notice.fileUrl ||
-                notice.fileURL ||
-                notice.pdfUrl ||
-                notice.imageUrl ||
-                notice.url ||
-                "";
+           const attachmentUrl =
+    attachment &&
+    attachment.url
+        ? attachment.url
+        : (
+            notice.attachmentUrl ||
+            notice.downloadURL ||
+            notice.downloadUrl ||
+            notice.fileUrl ||
+            notice.fileURL ||
+            notice.pdfUrl ||
+            notice.imageUrl ||
+            ""
+        );
 
 
             const attachmentName =
