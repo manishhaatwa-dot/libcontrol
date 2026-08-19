@@ -1324,7 +1324,6 @@ function startStudentNotificationListener() {
 /* ==========================================================================
    17. NOTICE RENDER
    ========================================================================== */
-
 function renderStudentNotices(
     notices,
     container
@@ -1352,192 +1351,114 @@ function renderStudentNotices(
     notices.forEach(
         (notice) => {
 
-            /*
-             * ------------------------------------------------------
-             * ATTACHMENT URL
-             * ------------------------------------------------------
-             *
-             * Support multiple field names so existing
-             * Firestore records remain compatible.
-             */
+            const attachment =
+                notice.attachment ||
+                null;
 
-           const attachmentUrl =
-    attachment &&
-    attachment.url
-        ? attachment.url
-        : (
-            notice.attachmentUrl ||
-            notice.downloadURL ||
-            notice.downloadUrl ||
-            notice.fileUrl ||
-            notice.fileURL ||
-            notice.pdfUrl ||
-            notice.imageUrl ||
-            ""
-        );
+
+            const attachmentUrl =
+                attachment &&
+                attachment.url
+                    ? attachment.url
+                    : (
+                        notice.attachmentUrl ||
+                        notice.downloadURL ||
+                        notice.downloadUrl ||
+                        notice.fileUrl ||
+                        notice.fileURL ||
+                        notice.pdfUrl ||
+                        notice.imageUrl ||
+                        ""
+                    );
 
 
             const attachmentName =
-                notice.attachmentName ||
-                notice.fileName ||
-                notice.name ||
-                "Open Attachment";
+                attachment &&
+                attachment.name
+                    ? attachment.name
+                    : (
+                        notice.attachmentName ||
+                        notice.fileName ||
+                        "Open Attachment"
+                    );
 
 
             const attachmentType =
-                String(
-                    notice.attachmentType ||
-                    notice.fileType ||
-                    notice.contentType ||
-                    ""
-                )
-                .toLowerCase();
+                attachment &&
+                attachment.type
+                    ? String(
+                        attachment.type
+                    ).toLowerCase()
+                    : String(
+                        notice.attachmentType ||
+                        notice.fileType ||
+                        notice.contentType ||
+                        ""
+                    ).toLowerCase();
 
 
             let attachmentHtml =
                 "";
 
 
-            /*
-             * ------------------------------------------------------
-             * IMAGE ATTACHMENT
-             * ------------------------------------------------------
-             */
-
             if (
-                attachmentUrl &&
-                (
-                    attachmentType.includes(
-                        "image"
-                    ) ||
-                    /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i
-                        .test(
-                            attachmentUrl
-                        )
-                )
-            ) {
-
-                attachmentHtml = `
-
-                    <div
-                        style="
-                            margin-top:12px;
-                        "
-                    >
-
-                        <a
-                            href="${escapeStudentDashboardHtml(
-                                attachmentUrl
-                            )}"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-
-                            <img
-                                src="${escapeStudentDashboardHtml(
-                                    attachmentUrl
-                                )}"
-                                alt="Notice Attachment"
-                                style="
-                                    display:block;
-                                    width:100%;
-                                    max-width:100%;
-                                    max-height:420px;
-                                    object-fit:contain;
-                                    border-radius:10px;
-                                    border:1px solid #e2e8f0;
-                                    background:#ffffff;
-                                "
-                            >
-
-                        </a>
-
-                    </div>
-
-                `;
-
-            }
-
-
-            /*
-             * ------------------------------------------------------
-             * PDF / DOCUMENT / OTHER FILE
-             * ------------------------------------------------------
-             */
-
-            else if (
                 attachmentUrl
             ) {
 
-                const isPdf =
-                    attachmentType.includes(
-                        "pdf"
-                    ) ||
-                    /\.pdf(\?.*)?$/i
-                        .test(
-                            attachmentUrl
-                        );
+                const isImage =
+                    attachmentType.startsWith(
+                        "image/"
+                    );
 
 
-                attachmentHtml = `
+                if (isImage) {
 
-                    <div
-                        style="
-                            margin-top:12px;
-                            padding:12px;
-                            border:1px solid #dbe2ea;
-                            border-radius:10px;
-                            background:#ffffff;
-                        "
-                    >
-
+                    attachmentHtml = `
                         <div
                             style="
-                                display:flex;
-                                align-items:center;
-                                justify-content:space-between;
-                                gap:10px;
-                                flex-wrap:wrap;
+                                margin-top:10px;
                             "
                         >
 
-                            <div
-                                style="
-                                    min-width:0;
-                                "
+                            <a
+                                href="${escapeStudentDashboardHtml(
+                                    attachmentUrl
+                                )}"
+                                target="_blank"
+                                rel="noopener noreferrer"
                             >
 
-                                <strong
-                                    style="
-                                        display:block;
-                                        color:#0f172a;
-                                        font-size:0.86rem;
-                                        word-break:break-word;
-                                    "
-                                >
-                                    ${
-                                        isPdf
-                                            ? "📄 PDF Attachment"
-                                            : "📎 File Attachment"
-                                    }
-                                </strong>
-
-                                <span
-                                    style="
-                                        display:block;
-                                        margin-top:3px;
-                                        color:#64748b;
-                                        font-size:0.75rem;
-                                        word-break:break-word;
-                                    "
-                                >
-                                    ${escapeStudentDashboardHtml(
+                                <img
+                                    src="${escapeStudentDashboardHtml(
+                                        attachmentUrl
+                                    )}"
+                                    alt="${escapeStudentDashboardHtml(
                                         attachmentName
-                                    )}
-                                </span>
+                                    )}"
+                                    style="
+                                        display:block;
+                                        max-width:100%;
+                                        max-height:260px;
+                                        border-radius:8px;
+                                        object-fit:contain;
+                                        border:1px solid #e5e7eb;
+                                    "
+                                >
 
-                            </div>
+                            </a>
 
+                        </div>
+                    `;
+
+                }
+                else {
+
+                    attachmentHtml = `
+                        <div
+                            style="
+                                margin-top:10px;
+                            "
+                        >
 
                             <a
                                 href="${escapeStudentDashboardHtml(
@@ -1548,38 +1469,32 @@ function renderStudentNotices(
                                 style="
                                     display:inline-flex;
                                     align-items:center;
-                                    justify-content:center;
-                                    padding:9px 13px;
+                                    gap:7px;
+                                    padding:8px 11px;
                                     border-radius:8px;
-                                    background:#2563eb;
-                                    color:#ffffff;
+                                    background:#eff6ff;
+                                    color:#1d4ed8;
                                     text-decoration:none;
-                                    font-size:0.78rem;
+                                    font-size:0.8rem;
                                     font-weight:700;
-                                    white-space:nowrap;
                                 "
                             >
-                                ${
-                                    isPdf
-                                        ? "Open PDF"
-                                        : "Open File"
-                                }
+                                📄
+                                ${escapeStudentDashboardHtml(
+                                    attachmentName
+                                )}
                             </a>
 
                         </div>
+                    `;
 
-                    </div>
-
-                `;
+                }
 
             }
 
 
             html += `
-
-                <div
-                    class="notice-item"
-                >
+                <div class="notice-item">
 
                     <h3>
                         ${escapeStudentDashboardHtml(
@@ -1588,7 +1503,6 @@ function renderStudentNotices(
                         )}
                     </h3>
 
-
                     <p>
                         ${escapeStudentDashboardHtml(
                             notice.message ||
@@ -1596,13 +1510,9 @@ function renderStudentNotices(
                         )}
                     </p>
 
-
                     ${attachmentHtml}
 
-
-                    <span
-                        class="notice-date"
-                    >
+                    <span class="notice-date">
                         ${escapeStudentDashboardHtml(
                             formatStudentDateTime(
                                 notice.createdAt
@@ -1611,7 +1521,6 @@ function renderStudentNotices(
                     </span>
 
                 </div>
-
             `;
 
         }
@@ -1622,7 +1531,6 @@ function renderStudentNotices(
         html;
 
 }
-
 /* ==========================================================================
    18. TIMESTAMP MILLIS
    ========================================================================== */
