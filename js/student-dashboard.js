@@ -38,6 +38,8 @@ let studentDashboardLibrary = null;
 
 let studentDashboardNoticeUnsubscribe = null;
 
+let studentDashboardNotificationUnsubscribe = null;
+
 let studentDashboardAttendanceUnsubscribe = null;
 
 let studentDashboardStudentUnsubscribe = null;
@@ -45,7 +47,6 @@ let studentDashboardStudentUnsubscribe = null;
 let studentAttendanceRecords = [];
 
 let studentCalendarDate = new Date();
-
 
 /* ==========================================================================
    2. DOM HELPER
@@ -1202,6 +1203,123 @@ function startStudentNoticeListener() {
 
 }
 
+/* ==========================================================================
+   16A. STUDENT NOTIFICATION LISTENER
+   ========================================================================== */
+
+function startStudentNotificationListener() {
+
+    const container =
+        studentDashboardEl(
+            "student-notifications-container"
+        ) ||
+        studentDashboardEl(
+            "notification-list"
+        ) ||
+        studentDashboardEl(
+            "student-notification-list"
+        );
+
+
+    if (
+        !container
+    ) {
+        return;
+    }
+
+
+    if (
+        typeof studentDashboardNotificationUnsubscribe ===
+        "function"
+    ) {
+
+        studentDashboardNotificationUnsubscribe();
+
+    }
+
+
+    const currentUser =
+        typeof firebase !== "undefined" &&
+        firebase.auth
+            ? firebase.auth().currentUser
+            : null;
+
+
+    if (
+        !currentUser
+    ) {
+
+        console.warn(
+            "[Student Dashboard] Firebase student user is not available."
+        );
+
+        return;
+
+    }
+
+
+    studentDashboardNotificationUnsubscribe =
+        firebase
+            .firestore()
+            .collection(
+                "notifications"
+            )
+            .doc(
+                currentUser.uid
+            )
+            .collection(
+                "items"
+            )
+            .orderBy(
+                "createdAt",
+                "desc"
+            )
+            .limit(
+                50
+            )
+            .onSnapshot(
+
+                (snapshot) => {
+
+                    const notifications =
+                        snapshot.docs.map(
+                            (doc) => ({
+
+                                id:
+                                    doc.id,
+
+                                ...doc.data()
+
+                            })
+                        );
+
+
+                    renderStudentNotifications(
+                        notifications,
+                        container
+                    );
+
+                },
+
+                (error) => {
+
+                    console.error(
+                        "[Student Dashboard] Notification listener error:",
+                        error
+                    );
+
+
+                    container.innerHTML = `
+                        <div class="empty-message">
+                            Unable to load notifications right now.
+                        </div>
+                    `;
+
+                }
+
+            );
+
+}
 
 /* ==========================================================================
    17. NOTICE RENDER
@@ -2660,6 +2778,16 @@ function logoutStudentDashboard() {
     }
 
 
+if (
+        typeof studentDashboardNotificationUnsubscribe ===
+        "function"
+    ) {
+
+        studentDashboardNotificationUnsubscribe();
+
+    }
+   
+   
     if (
         typeof studentDashboardAttendanceUnsubscribe ===
         "function"
@@ -2907,6 +3035,8 @@ checkStudentFirstLoginPassword();
     startStudentProfileListener();
 
     startStudentNoticeListener();
+
+    startStudentNotificationListener();
 
     startStudentAttendanceListener();
 
