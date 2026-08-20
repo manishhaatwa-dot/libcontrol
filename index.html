@@ -514,12 +514,22 @@
 
         }
 
+/* =====================================================
+           AUTH SESSION CHECK
+           ===================================================== */
+
+        body.libcontrol-auth-check
+        .gateway-container {
+
+            visibility: hidden;
+
+        }
+        
     </style>
 
 </head>
 
-
-<body>
+<body class="libcontrol-auth-check">
 
 
     <!-- =====================================================
@@ -1304,7 +1314,7 @@
 
     <script src="js/dashboard.js"></script>
 
-    <!-- =====================================================
+<!-- =====================================================
      LIBCONTROL SAVED AUTH SESSION RESTORE
      ===================================================== -->
 
@@ -1315,6 +1325,15 @@
         "use strict";
 
 
+        function showLoginScreen() {
+
+            document.body.classList.remove(
+                "libcontrol-auth-check"
+            );
+
+        }
+
+
         try {
 
             const user =
@@ -1323,55 +1342,45 @@
 
             if (!user) {
 
+                showLoginScreen();
+
                 return;
 
             }
 
 
             if (
-                user.emailVerified
+                !user.emailVerified
             ) {
 
-                const session =
-                    getCurrentSession();
+                showLoginScreen();
+
+                return;
+
+            }
+
+
+            const session =
+                getCurrentSession();
+
+
+            if (
+                session.role ===
+                "admin" &&
+                session.libraryId
+            ) {
+
+                const restored =
+                    await restoreAdminSession();
 
 
                 if (
-                    session.role ===
-                    "admin" &&
-                    session.libraryId
-                ) {
-
-                    const restored =
-                        await restoreAdminSession();
-
-
-                    if (
-                        restored.success
-                    ) {
-
-                        window.location.href =
-                            getPagePath(
-                                "admin-dashboard.html"
-                            );
-
-                        return;
-
-                    }
-
-                }
-
-
-                if (
-                    session.role ===
-                    "student" &&
-                    session.libraryId &&
-                    session.studentCode
+                    restored.success
                 ) {
 
                     window.location.href =
                         getPagePath(
-                            "student-dashboard.html"
+                            "admin-dashboard.html"
                         );
 
                     return;
@@ -1380,6 +1389,26 @@
 
             }
 
+
+            if (
+                session.role ===
+                "student" &&
+                session.libraryId &&
+                session.studentCode
+            ) {
+
+                window.location.href =
+                    getPagePath(
+                        "student-dashboard.html"
+                    );
+
+                return;
+
+            }
+
+
+            showLoginScreen();
+
         }
         catch (error) {
 
@@ -1387,6 +1416,9 @@
                 "[LibControl] Saved auth session restore error:",
                 error
             );
+
+
+            showLoginScreen();
 
         }
 
