@@ -1304,6 +1304,95 @@
 
     <script src="js/dashboard.js"></script>
 
+    <!-- =====================================================
+     LIBCONTROL SAVED AUTH SESSION RESTORE
+     ===================================================== -->
+
+<script>
+
+    (async function () {
+
+        "use strict";
+
+
+        try {
+
+            const user =
+                await waitForFirebaseAuthUser();
+
+
+            if (!user) {
+
+                return;
+
+            }
+
+
+            if (
+                user.emailVerified
+            ) {
+
+                const session =
+                    getCurrentSession();
+
+
+                if (
+                    session.role ===
+                    "admin" &&
+                    session.libraryId
+                ) {
+
+                    const restored =
+                        await restoreAdminSession();
+
+
+                    if (
+                        restored.success
+                    ) {
+
+                        window.location.href =
+                            getPagePath(
+                                "admin-dashboard.html"
+                            );
+
+                        return;
+
+                    }
+
+                }
+
+
+                if (
+                    session.role ===
+                    "student" &&
+                    session.libraryId &&
+                    session.studentCode
+                ) {
+
+                    window.location.href =
+                        getPagePath(
+                            "student-dashboard.html"
+                        );
+
+                    return;
+
+                }
+
+            }
+
+        }
+        catch (error) {
+
+            console.error(
+                "[LibControl] Saved auth session restore error:",
+                error
+            );
+
+        }
+
+    })();
+
+</script>
 
     <!-- =====================================================
          LIBCONTROL SERVICE WORKER REGISTRATION
