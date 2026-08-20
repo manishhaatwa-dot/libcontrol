@@ -1009,7 +1009,136 @@
 
         ]);
 
+/*
+         * ------------------------------------------------------
+         * MOBILE SIDEBAR TOGGLE
+         * ------------------------------------------------------
+         */
 
+        const sidebar =
+            document.querySelector(
+                ".sidebar-panel"
+            );
+
+        const sidebarToggle =
+            document.getElementById(
+                "mobile-sidebar-toggle"
+            );
+
+
+        if (
+            sidebar &&
+            sidebarToggle
+        ) {
+
+            let backdrop =
+                document.querySelector(
+                    ".sidebar-mobile-backdrop"
+                );
+
+
+            if (!backdrop) {
+
+                backdrop =
+                    document.createElement(
+                        "div"
+                    );
+
+                backdrop.className =
+                    "sidebar-mobile-backdrop";
+
+                document.body.appendChild(
+                    backdrop
+                );
+
+            }
+
+
+            function closeMobileSidebar() {
+
+                sidebar.classList.remove(
+                    "mobile-sidebar-open"
+                );
+
+                backdrop.classList.remove(
+                    "active"
+                );
+
+                sidebarToggle.setAttribute(
+                    "aria-expanded",
+                    "false"
+                );
+
+            }
+
+
+            function openMobileSidebar() {
+
+                sidebar.classList.add(
+                    "mobile-sidebar-open"
+                );
+
+                backdrop.classList.add(
+                    "active"
+                );
+
+                sidebarToggle.setAttribute(
+                    "aria-expanded",
+                    "true"
+                );
+
+            }
+
+
+            sidebarToggle.addEventListener(
+                "click",
+                function () {
+
+                    const isOpen =
+                        sidebar.classList.contains(
+                            "mobile-sidebar-open"
+                        );
+
+
+                    if (isOpen) {
+
+                        closeMobileSidebar();
+
+                    }
+                    else {
+
+                        openMobileSidebar();
+
+                    }
+
+                }
+            );
+
+
+            backdrop.addEventListener(
+                "click",
+                closeMobileSidebar
+            );
+
+
+            sidebar
+                .querySelectorAll(
+                    ".menu-link"
+                )
+                .forEach(
+                    function (link) {
+
+                        link.addEventListener(
+                            "click",
+                            closeMobileSidebar
+                        );
+
+                    }
+                );
+
+        }
+
+        
         /*
          * ------------------------------------------------------
          * Read current Admin session
