@@ -110,6 +110,23 @@ const LIBMANAGE_SCHEMA_VERSION =
 
         window.auth =
             firebase.auth();
+
+       window.auth.setPersistence(
+    firebase.auth.Auth.Persistence.LOCAL
+)
+    .catch(
+        function (error) {
+
+            console.error(
+                "[LibControl] Firebase Auth persistence error:",
+                error
+            );
+
+        }
+    );
+
+
+       
        /*
          * ------------------------------------------------------
          * Firebase App Check
