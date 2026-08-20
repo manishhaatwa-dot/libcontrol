@@ -719,3 +719,11 @@ textarea {
 a {
     text-decoration: none;
 }
+
+/* ==========================================================
+   REMOVE SIDEBAR TOGGLE BUTTON
+   ========================================================== */
+
+.sidebar-toggle-btn {
+    display: none !important;
+}
