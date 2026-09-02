@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#ffffff"
+    >
+
+    <meta
+        name="apple-mobile-web-app-capable"
+        content="yes"
+    >
+
+    <meta
+        name="apple-mobile-web-app-status-bar-style"
+        content="default"
+    >
+
+    <title>LibControl - Self Attendance</title>
+
+    <!-- Existing LibControl styles -->
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/layout.css">
+
+    <style>
+        /* ======================================================
+           Student Self Attendance
+           Standalone page styles
+           ====================================================== */
+
+        .self-attendance-page {
+            min-height: 100vh;
+            padding: 30px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            box-sizing: border-box;
+        }
+
+        .self-attendance-container {
+            width: 100%;
+            max-width: 520px;
+        }
+
+        .self-attendance-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        .self-attendance-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .self-attendance-header h1 {
+            margin: 0 0 8px;
+            font-size: 26px;
+        }
+
+        .self-attendance-header p {
+            margin: 0;
+            opacity: 0.7;
+        }
+
+        .student-info {
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 22px;
+            background: #f7f7f7;
+        }
+
+        .student-info-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 7px 0;
+        }
+
+        .student-info-label {
+            font-weight: 600;
+        }
+
+        .student-info-value {
+            text-align: right;
+        }
+
+        .attendance-action {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .attendance-action button {
+            width: 100%;
+            min-height: 52px;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .attendance-action button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .attendance-message {
+            display: none;
+            margin-top: 18px;
+            padding: 13px 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .attendance-message.show {
+            display: block;
+        }
+
+        .attendance-times {
+            margin-top: 22px;
+        }
+
+        .time-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 13px 15px;
+            margin-top: 10px;
+            border-radius: 10px;
+            background: #f7f7f7;
+        }
+
+        .time-label {
+            font-weight: 600;
+        }
+
+        .time-value {
+            font-weight: 600;
+        }
+
+        .page-loading {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .page-error {
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .page-error h2 {
+            margin-top: 0;
+        }
+
+        @media (max-width: 600px) {
+            .self-attendance-page {
+                padding: 18px 12px;
+            }
+
+            .self-attendance-card {
+                padding: 20px 16px;
+                border-radius: 14px;
+            }
+
+            .self-attendance-header h1 {
+                font-size: 23px;
+            }
+
+            .student-info-row {
+                flex-direction: column;
+                gap: 3px;
+            }
+
+            .student-info-value {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="self-attendance-page">
+
+        <div class="self-attendance-container">
+
+            <!-- Loading -->
+            <div
+                id="self-attendance-loading"
+                class="self-attendance-card page-loading"
+            >
+                <p>Loading student information...</p>
+            </div>
+
+
+            <!-- Error -->
+            <div
+                id="self-attendance-error"
+                class="self-attendance-card page-error"
+                style="display: none;"
+            >
+                <h2>Unable to Continue</h2>
+
+                <p id="self-attendance-error-message">
+                    Please login first.
+                </p>
+            </div>
+
+
+            <!-- Main Attendance Card -->
+            <div
+                id="self-attendance-card"
+                class="self-attendance-card"
+                style="display: none;"
+            >
+
+                <div class="self-attendance-header">
+
+                    <h1>Self Attendance</h1>
+
+                    <p id="self-attendance-library-name">
+                        LibControl
+                    </p>
+
+                </div>
+
+
+                <!-- Student Information -->
+                <div class="student-info">
+
+                    <div class="student-info-row">
+                        <span class="student-info-label">
+                            Student
+                        </span>
+
+                        <span
+                            id="self-attendance-student-name"
+                            class="student-info-value"
+                        >
+                            —
+                        </span>
+                    </div>
+
+
+                    <div class="student-info-row">
+                        <span class="student-info-label">
+                            Student ID
+                        </span>
+
+                        <span
+                            id="self-attendance-student-code"
+                            class="student-info-value"
+                        >
+                            —
+                        </span>
+                    </div>
+
+
+                    <div class="student-info-row">
+                        <span class="student-info-label">
+                            Seat
+                        </span>
+
+                        <span
+                            id="self-attendance-seat"
+                            class="student-info-value"
+                        >
+                            —
+                        </span>
+                    </div>
+
+
+                    <div class="student-info-row">
+                        <span class="student-info-label">
+                            Shift
+                        </span>
+
+                        <span
+                            id="self-attendance-shift"
+                            class="student-info-value"
+                        >
+                            —
+                        </span>
+                    </div>
+
+                </div>
+
+
+                <!-- Attendance Action -->
+                <div class="attendance-action">
+
+                    <button
+                        id="self-attendance-action-btn"
+                        type="button"
+                    >
+                        Self Attendance
+                    </button>
+
+                </div>
+
+
+                <!-- Message -->
+                <div
+                    id="self-attendance-message"
+                    class="attendance-message"
+                ></div>
+
+
+                <!-- Today's Times -->
+                <div class="attendance-times">
+
+                    <div class="time-box">
+
+                        <span class="time-label">
+                            Check-in
+                        </span>
+
+                        <span
+                            id="self-attendance-checkin-time"
+                            class="time-value"
+                        >
+                            —
+                        </span>
+
+                    </div>
+
+
+                    <div class="time-box">
+
+                        <span class="time-label">
+                            Leave
+                        </span>
+
+                        <span
+                            id="self-attendance-checkout-time"
+                            class="time-value"
+                        >
+                            —
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+
+    <!-- Existing LibControl shared code -->
+    <script src="../js/dashboard.js"></script>
+
+
+    <!-- Student Self Attendance -->
+    <script src="../js/student-self-attendance.js"></script>
+
+</body>
+</html>
