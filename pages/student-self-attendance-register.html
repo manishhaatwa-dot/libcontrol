@@ -11,10 +11,10 @@
 
     <meta
         name="theme-color"
-        content="#0f172a"
+        content="#fff3e6"
     >
 
-    <title>Self Attendance Register</title>
+    <title>Student Self Attendance Register</title>
 
     <!-- Existing LibControl CSS -->
     <link
@@ -28,22 +28,50 @@
     >
 
     <style>
+
         /* ============================================================
            LibControl - Student Self Attendance Register
-           ------------------------------------------------------------
-           Standalone admin register page.
-           Does NOT modify existing attendance.html / attendance.js.
            ============================================================ */
 
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: #fff3e6;
+            color: #000000;
+            font-weight: 600;
+        }
+
+        body {
+            min-height: 100vh;
+        }
+
+        .main-content {
+            background: #fff3e6;
+            min-height: 100vh;
+        }
+
         .self-attendance-register-page {
-            padding: 20px;
+            padding: 24px;
+            min-height: calc(100vh - 80px);
+            background: #fff3e6;
         }
 
         .self-attendance-register-card {
             width: 100%;
             max-width: 1400px;
             margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
         }
+
+        /* ------------------------------------------------------------
+           Header
+           ------------------------------------------------------------ */
 
         .self-attendance-register-header {
             display: flex;
@@ -51,136 +79,245 @@
             justify-content: space-between;
             gap: 20px;
             flex-wrap: wrap;
-            margin-bottom: 20px;
         }
 
         .self-attendance-register-title h2 {
             margin: 0;
+            color: #000000;
+            font-size: 24px;
+            font-weight: 800;
         }
 
         .self-attendance-register-title p {
-            margin: 6px 0 0;
-            opacity: 0.7;
+            margin: 7px 0 0;
+            color: #000000;
+            font-size: 14px;
+            font-weight: 600;
         }
+
+        /* ------------------------------------------------------------
+           Filters
+           ------------------------------------------------------------ */
 
         .self-attendance-register-filters {
             display: flex;
             align-items: end;
-            gap: 12px;
+            justify-content: flex-end;
+            gap: 10px;
             flex-wrap: wrap;
         }
 
         .self-attendance-filter-group {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 5px;
         }
 
         .self-attendance-filter-group label {
-            font-size: 13px;
-            font-weight: 600;
+            color: #000000;
+            font-size: 12px;
+            font-weight: 800;
         }
 
         .self-attendance-filter-group input,
         .self-attendance-filter-group select {
-            min-width: 160px;
-            height: 42px;
-            padding: 0 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background: #fff;
-            font: inherit;
+            height: 40px;
+            padding: 0 11px;
+            border: 1px solid #d6d6d6;
+            border-radius: 7px;
+            background: #ffffff;
+            color: #000000;
+            font-size: 13px;
+            font-weight: 700;
+            outline: none;
         }
+
+        .self-attendance-filter-group input:focus,
+        .self-attendance-filter-group select:focus {
+            border-color: #e85d04;
+        }
+
+        /* ------------------------------------------------------------
+           Small Search Box
+           ------------------------------------------------------------ */
+
+        .self-attendance-search {
+            position: relative;
+            width: 190px;
+        }
+
+        .self-attendance-search input {
+            width: 100%;
+            height: 40px;
+            padding: 0 12px 0 36px;
+            border: 1px solid #d6d6d6;
+            border-radius: 7px;
+            background: #ffffff;
+            color: #000000;
+            font-size: 13px;
+            font-weight: 700;
+            outline: none;
+        }
+
+        .self-attendance-search input::placeholder {
+            color: #555555;
+            font-weight: 600;
+        }
+
+        .self-attendance-search input:focus {
+            border-color: #e85d04;
+        }
+
+        .self-attendance-search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #000000;
+            font-size: 15px;
+            pointer-events: none;
+        }
+
+        /* ------------------------------------------------------------
+           Table
+           ------------------------------------------------------------ */
 
         .self-attendance-table-wrap {
             width: 100%;
             overflow-x: auto;
-            border-radius: 10px;
+            border-radius: 9px;
         }
 
         .self-attendance-table {
             width: 100%;
             min-width: 850px;
             border-collapse: collapse;
+            color: #000000;
         }
 
         .self-attendance-table th,
         .self-attendance-table td {
-            padding: 13px 14px;
+            padding: 14px 15px;
             text-align: left;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #eeeeee;
             white-space: nowrap;
         }
 
         .self-attendance-table th {
+            color: #000000;
             font-size: 13px;
-            font-weight: 700;
+            font-weight: 800;
+            background: #fafafa;
         }
 
         .self-attendance-table td {
+            color: #000000;
             font-size: 14px;
+            font-weight: 700;
         }
 
+        .self-attendance-table tbody tr:hover {
+            background: #fffaf5;
+        }
+
+        /* ------------------------------------------------------------
+           Shift Badge
+           ------------------------------------------------------------ */
+
+        .self-attendance-shift-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            background: #eeeeee;
+            color: #000000;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .self-attendance-time {
+            color: #000000;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        /* ------------------------------------------------------------
+           Loading / Empty / Error
+           ------------------------------------------------------------ */
+
         .self-attendance-empty {
+            padding: 40px 20px !important;
             text-align: center !important;
-            padding: 35px 20px !important;
-            opacity: 0.65;
+            color: #000000;
+            font-size: 15px;
+            font-weight: 700;
         }
 
         .self-attendance-status-message {
             margin: 15px 0 0;
-            font-size: 14px;
+            color: #000000;
+            font-size: 13px;
+            font-weight: 700;
             text-align: center;
         }
 
         .self-attendance-loading {
-            padding: 35px 20px;
+            padding: 40px 20px;
+            color: #000000;
+            font-size: 15px;
+            font-weight: 700;
             text-align: center;
-            opacity: 0.7;
         }
 
         .self-attendance-error {
-            padding: 16px;
+            padding: 15px;
             margin-bottom: 15px;
             border-radius: 8px;
             background: #fff1f1;
             color: #b42318;
+            font-size: 14px;
+            font-weight: 700;
             display: none;
         }
 
-        .self-attendance-shift-badge {
-            display: inline-block;
-            padding: 4px 9px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            background: #f1f1f1;
-        }
-
-        .self-attendance-time {
-            font-weight: 600;
-        }
+        /* ------------------------------------------------------------
+           Mobile
+           ------------------------------------------------------------ */
 
         @media (max-width: 768px) {
+
             .self-attendance-register-page {
                 padding: 12px;
             }
 
+            .self-attendance-register-title h2 {
+                font-size: 21px;
+            }
+
             .self-attendance-register-filters {
                 width: 100%;
+                justify-content: flex-start;
             }
 
             .self-attendance-filter-group {
                 flex: 1;
-                min-width: 140px;
+                min-width: 120px;
             }
 
             .self-attendance-filter-group input,
             .self-attendance-filter-group select {
                 width: 100%;
-                min-width: 0;
+            }
+
+            .self-attendance-search {
+                width: 170px;
+            }
+
+            .self-attendance-table th,
+            .self-attendance-table td {
+                padding: 12px;
             }
         }
+
     </style>
 </head>
 
@@ -194,13 +331,19 @@
 
         <div class="self-attendance-register-page">
 
-            <section class="dashboard-card self-attendance-register-card">
+            <section
+                class="dashboard-card self-attendance-register-card"
+            >
 
                 <div class="card-header">
 
-                    <div class="self-attendance-register-header">
+                    <div
+                        class="self-attendance-register-header"
+                    >
 
-                        <div class="self-attendance-register-title">
+                        <div
+                            class="self-attendance-register-title"
+                        >
 
                             <h2>
                                 Student Self Attendance
@@ -212,11 +355,38 @@
 
                         </div>
 
-                        <div class="self-attendance-register-filters">
+                        <div
+                            class="self-attendance-register-filters"
+                        >
 
-                            <div class="self-attendance-filter-group">
+                            <!-- Small Search -->
+                            <div
+                                class="self-attendance-search"
+                            >
 
-                                <label for="self-attendance-date">
+                                <span
+                                    class="self-attendance-search-icon"
+                                >
+                                    🔎
+                                </span>
+
+                                <input
+                                    type="search"
+                                    id="self-attendance-search"
+                                    placeholder="Search student..."
+                                    autocomplete="off"
+                                >
+
+                            </div>
+
+                            <!-- Date -->
+                            <div
+                                class="self-attendance-filter-group"
+                            >
+
+                                <label
+                                    for="self-attendance-date"
+                                >
                                     Date
                                 </label>
 
@@ -227,15 +397,21 @@
 
                             </div>
 
-                            <div class="self-attendance-filter-group">
+                            <!-- Shift -->
+                            <div
+                                class="self-attendance-filter-group"
+                            >
 
-                                <label for="self-attendance-shift">
+                                <label
+                                    for="self-attendance-shift"
+                                >
                                     Shift
                                 </label>
 
                                 <select
                                     id="self-attendance-shift"
                                 >
+
                                     <option value="all">
                                         All Shifts
                                     </option>
@@ -255,6 +431,7 @@
                                     <option value="Night">
                                         Night
                                     </option>
+
                                 </select>
 
                             </div>
@@ -324,7 +501,6 @@
                             <tbody
                                 id="self-attendance-register-body"
                             >
-
                             </tbody>
 
                         </table>
@@ -353,17 +529,24 @@
     </main>
 
     <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script
+        src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"
+    ></script>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script
+        src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"
+    ></script>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script
+        src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"
+    ></script>
 
     <!-- Existing LibControl Dashboard / Session -->
     <script src="../js/dashboard.js"></script>
 
-    <!-- Register JS will be added in the next step -->
-
+    <!-- Student Self Attendance Register -->
     <script src="../js/student-self-attendance-register.js"></script>
-    
+
+</body>
+
 </html>
