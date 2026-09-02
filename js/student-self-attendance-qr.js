@@ -65,7 +65,7 @@
     // ----------------------------------------------------------
     function buildAttendanceURL(libraryId) {
         const attendancePageURL = new URL(
-            "student-attendance.html",
+            "student-self-attendance.html",
             window.location.href
         );
 
