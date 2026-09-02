@@ -1071,7 +1071,206 @@ exports.createLibraryStudent =
                     ""
                 );
 
+// ============================================================
+// STUDENT SELF ATTENDANCE - QR
+// ============================================================
 
+exports.markStudentSelfAttendance = onCall(
+  { cors: true },
+  async (request) => {
+    try {
+      // --------------------------------------------------------
+      // 1. Student must be logged in
+      // --------------------------------------------------------
+      if (!request.auth) {
+        throw new HttpsError(
+          "unauthenticated",
+          "Student login required."
+        );
+      }
+
+      const uid = request.auth.uid;
+
+      // --------------------------------------------------------
+      // 2. Read data sent by student attendance page
+      // --------------------------------------------------------
+      const data = request.data || {};
+
+      const libraryId = normalizeLibraryId(data.libraryId);
+      const studentCode = String(data.studentCode || "").trim();
+
+      if (!libraryId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Library ID is required."
+        );
+      }
+
+      if (!studentCode) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Student code is required."
+        );
+      }
+
+      // --------------------------------------------------------
+      // 3. Verify library
+      // --------------------------------------------------------
+      const libraryRef = adminDB
+        .collection(COLLECTIONS.LIBRARIES)
+        .doc(libraryId);
+
+      const librarySnap = await libraryRef.get();
+
+      if (!librarySnap.exists) {
+        throw new HttpsError(
+          "not-found",
+          "Library not found."
+        );
+      }
+
+      const libraryData = librarySnap.data() || {};
+
+      if (libraryData.enabled === false) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This library is currently disabled."
+        );
+      }
+
+      // --------------------------------------------------------
+      // 4. Check Student Self Attendance ON/OFF
+      // --------------------------------------------------------
+      if (libraryData.studentSelfAttendanceEnabled !== true) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Student self attendance is currently disabled."
+        );
+      }
+
+      // --------------------------------------------------------
+      // 5. Get exact student record
+      // --------------------------------------------------------
+      const studentRef = libraryRef
+        .collection("students")
+        .doc(studentCode);
+
+      const studentSnap = await studentRef.get();
+
+      if (!studentSnap.exists) {
+        throw new HttpsError(
+          "not-found",
+          "Student record not found."
+        );
+      }
+
+      const studentData = studentSnap.data() || {};
+
+      // --------------------------------------------------------
+      // 6. IMPORTANT SECURITY CHECK
+      // StudentCode must belong to logged-in Firebase UID
+      // --------------------------------------------------------
+      if (!studentData.uid || studentData.uid !== uid) {
+        throw new HttpsError(
+          "permission-denied",
+          "Student account does not match this student record."
+        );
+      }
+
+      // --------------------------------------------------------
+      // 7. Get today's date in India
+      // --------------------------------------------------------
+      const today = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+
+      // --------------------------------------------------------
+      // 8. Use SAME attendance document ID as manual attendance
+      // --------------------------------------------------------
+      const attendanceRef = libraryRef
+        .collection("attendance")
+        .doc(`${today}_${studentCode}`);
+
+      // --------------------------------------------------------
+      // 9. Transaction prevents duplicate attendance
+      // --------------------------------------------------------
+      const result = await adminDB.runTransaction(async (transaction) => {
+        const attendanceSnap = await transaction.get(attendanceRef);
+
+        // Already marked by student OR admin
+        if (attendanceSnap.exists) {
+          return {
+            success: false,
+            alreadyMarked: true,
+          };
+        }
+
+        const attendanceData = {
+          studentCode: studentCode,
+          studentName: studentData.name || "",
+          seatNumber: studentData.seatNumber || "",
+          shift: studentData.shift || "",
+          date: today,
+          status: "Present",
+          libraryId: libraryId,
+
+          // Extra information for QR attendance
+          attendanceSource: "student_qr",
+          markedByUID: uid,
+
+          updatedAt: FieldValue.serverTimestamp(),
+          markedAt: FieldValue.serverTimestamp(),
+        };
+
+        transaction.set(attendanceRef, attendanceData);
+
+        return {
+          success: true,
+          alreadyMarked: false,
+        };
+      });
+
+      // --------------------------------------------------------
+      // 10. Response
+      // --------------------------------------------------------
+      if (result.alreadyMarked) {
+        return {
+          success: true,
+          alreadyMarked: true,
+          date: today,
+          message: "Attendance already marked for today.",
+        };
+      }
+
+      return {
+        success: true,
+        alreadyMarked: false,
+        date: today,
+        message: "Attendance marked successfully.",
+      };
+
+    } catch (error) {
+      console.error(
+        "markStudentSelfAttendance error:",
+        error
+      );
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "internal",
+        "Unable to mark attendance."
+      );
+    }
+  }
+);
+
+           
             /*
              * --------------------------------------------------------------
              * STEP 3
