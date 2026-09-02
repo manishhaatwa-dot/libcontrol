@@ -5,8 +5,10 @@
    - Admin-only QR self attendance register
    - Date filter
    - Shift filter
+   - Student search
+   - Actual student name from student record
    - Real-time attendance updates
-   - Reads only attendance records marked through student QR
+   - Reads only student QR attendance
    - Does NOT modify existing manual attendance system
    ============================================================ */
 
@@ -14,16 +16,23 @@
     "use strict";
 
     let initialized = false;
+
     let attendanceUnsubscribe = null;
 
     let currentLibraryId = null;
     let currentDate = null;
     let currentShift = "all";
+    let currentSearch = "";
 
     let attendanceRecords = [];
+    let studentRecords = {};
 
     function getAdminSession() {
-        if (typeof window.getCurrentSession !== "function") {
+
+        if (
+            typeof window.getCurrentSession !==
+            "function"
+        ) {
             console.error(
                 "Student Self Attendance Register: getCurrentSession() not found."
             );
@@ -66,6 +75,7 @@
     }
 
     function getTodayIndia() {
+
         return new Intl.DateTimeFormat(
             "en-CA",
             {
@@ -77,10 +87,14 @@
         ).format(new Date());
     }
 
-    function getAttendanceCollection(libraryId) {
+    function getAttendanceCollection(
+        libraryId
+    ) {
+
         if (
             window.LibManageDB &&
-            typeof window.LibManageDB.attendance === "function"
+            typeof window.LibManageDB.attendance ===
+                "function"
         ) {
             return window.LibManageDB.attendance(
                 libraryId
@@ -89,7 +103,8 @@
 
         if (
             window.LibManageDB &&
-            typeof window.LibManageDB.library === "function"
+            typeof window.LibManageDB.library ===
+                "function"
         ) {
             return window.LibManageDB
                 .library(libraryId)
@@ -102,7 +117,9 @@
         ) {
             return firebase
                 .firestore()
-                .collection("libcontrol_libraries")
+                .collection(
+                    "libcontrol_libraries"
+                )
                 .doc(libraryId)
                 .collection("attendance");
         }
@@ -110,7 +127,48 @@
         return null;
     }
 
+    function getStudentsCollection(
+        libraryId
+    ) {
+
+        if (
+            window.LibManageDB &&
+            typeof window.LibManageDB.students ===
+                "function"
+        ) {
+            return window.LibManageDB.students(
+                libraryId
+            );
+        }
+
+        if (
+            window.LibManageDB &&
+            typeof window.LibManageDB.library ===
+                "function"
+        ) {
+            return window.LibManageDB
+                .library(libraryId)
+                .collection("students");
+        }
+
+        if (
+            typeof firebase !== "undefined" &&
+            firebase.firestore
+        ) {
+            return firebase
+                .firestore()
+                .collection(
+                    "libcontrol_libraries"
+                )
+                .doc(libraryId)
+                .collection("students");
+        }
+
+        return null;
+    }
+
     function formatTimestamp(timestamp) {
+
         if (!timestamp) {
             return "—";
         }
@@ -119,20 +177,28 @@
 
         if (
             timestamp &&
-            typeof timestamp.toDate === "function"
+            typeof timestamp.toDate ===
+                "function"
         ) {
             date = timestamp.toDate();
-        } else if (
+        }
+
+        else if (
             timestamp instanceof Date
         ) {
             date = timestamp;
-        } else if (
+        }
+
+        else if (
             typeof timestamp === "number"
         ) {
             date = new Date(timestamp);
         }
 
-        if (!date || isNaN(date.getTime())) {
+        if (
+            !date ||
+            isNaN(date.getTime())
+        ) {
             return "—";
         }
 
@@ -147,7 +213,70 @@
         ).format(date);
     }
 
+    function getTimestampMillis(
+        timestamp
+    ) {
+
+        if (
+            timestamp &&
+            typeof timestamp.toMillis ===
+                "function"
+        ) {
+            return timestamp.toMillis();
+        }
+
+        if (
+            timestamp &&
+            typeof timestamp.toDate ===
+                "function"
+        ) {
+            return timestamp
+                .toDate()
+                .getTime();
+        }
+
+        if (
+            timestamp instanceof Date
+        ) {
+            return timestamp.getTime();
+        }
+
+        if (
+            typeof timestamp === "number"
+        ) {
+            return timestamp;
+        }
+
+        return 0;
+    }
+
+    function escapeHTML(value) {
+
+        return String(value)
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#039;"
+            );
+    }
+
     function showError(message) {
+
         const errorBox =
             getElement(
                 "self-attendance-register-error"
@@ -158,12 +287,15 @@
         }
 
         errorBox.textContent =
-            message || "Something went wrong.";
+            message ||
+            "Something went wrong.";
 
-        errorBox.style.display = "block";
+        errorBox.style.display =
+            "block";
     }
 
     function hideError() {
+
         const errorBox =
             getElement(
                 "self-attendance-register-error"
@@ -174,10 +306,15 @@
         }
 
         errorBox.textContent = "";
-        errorBox.style.display = "none";
+
+        errorBox.style.display =
+            "none";
     }
 
-    function setLoading(isLoading) {
+    function setLoading(
+        isLoading
+    ) {
+
         const loading =
             getElement(
                 "self-attendance-register-loading"
@@ -188,10 +325,163 @@
         }
 
         loading.style.display =
-            isLoading ? "block" : "none";
+            isLoading
+                ? "block"
+                : "none";
     }
 
+    /* ============================================================
+       LOAD STUDENTS
+       ------------------------------------------------------------
+       Gets actual student names from the current library.
+       ============================================================ */
+
+    async function loadStudents() {
+
+        const collection =
+            getStudentsCollection(
+                currentLibraryId
+            );
+
+        if (!collection) {
+
+            console.error(
+                "Student Self Attendance Register: Student collection unavailable."
+            );
+
+            return;
+        }
+
+        try {
+
+            const snapshot =
+                await collection.get();
+
+            studentRecords = {};
+
+            snapshot.forEach(
+                function (doc) {
+
+                    const data =
+                        doc.data() || {};
+
+                    const code =
+                        String(
+                            data.studentCode ||
+                            doc.id ||
+                            ""
+                        ).trim();
+
+                    if (!code) {
+                        return;
+                    }
+
+                    studentRecords[
+                        code
+                    ] = data;
+                }
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Student Self Attendance Register: Unable to load students.",
+                error
+            );
+        }
+    }
+
+    function getActualStudentName(
+        record
+    ) {
+
+        const code =
+            String(
+                record.studentCode ||
+                ""
+            ).trim();
+
+        const student =
+            studentRecords[code];
+
+        if (student) {
+
+            return (
+                student.name ||
+                student.studentName ||
+                record.studentName ||
+                "—"
+            );
+        }
+
+        return (
+            record.studentName ||
+            "—"
+        );
+    }
+
+    function getActualSeatNumber(
+        record
+    ) {
+
+        const code =
+            String(
+                record.studentCode ||
+                ""
+            ).trim();
+
+        const student =
+            studentRecords[code];
+
+        if (student) {
+
+            return (
+                student.seatNumber ||
+                record.seatNumber ||
+                "—"
+            );
+        }
+
+        return (
+            record.seatNumber ||
+            "—"
+        );
+    }
+
+    function getActualShift(
+        record
+    ) {
+
+        const code =
+            String(
+                record.studentCode ||
+                ""
+            ).trim();
+
+        const student =
+            studentRecords[code];
+
+        if (student) {
+
+            return (
+                student.shift ||
+                record.shift ||
+                "—"
+            );
+        }
+
+        return (
+            record.shift ||
+            "—"
+        );
+    }
+
+    /* ============================================================
+       RENDER
+       ============================================================ */
+
     function renderRecords() {
+
         const tableWrap =
             getElement(
                 "self-attendance-register-table-wrap"
@@ -220,18 +510,65 @@
             return;
         }
 
+        const searchText =
+            currentSearch
+                .trim()
+                .toLowerCase();
+
         const filteredRecords =
             attendanceRecords.filter(
                 function (record) {
 
-                    if (
-                        currentShift !== "all" &&
+                    const name =
+                        getActualStudentName(
+                            record
+                        );
+
+                    const code =
                         String(
-                            record.shift || ""
-                        ).trim().toLowerCase() !==
-                        currentShift.toLowerCase()
+                            record.studentCode ||
+                            ""
+                        );
+
+                    const shift =
+                        getActualShift(
+                            record
+                        );
+
+                    /* Shift filter */
+                    if (
+                        currentShift !==
+                            "all" &&
+                        String(
+                            shift || ""
+                        )
+                            .trim()
+                            .toLowerCase() !==
+                            currentShift.toLowerCase()
                     ) {
                         return false;
+                    }
+
+                    /* Search filter */
+                    if (searchText) {
+
+                        const searchableText =
+                            (
+                                name +
+                                " " +
+                                code +
+                                " " +
+                                shift
+                            )
+                                .toLowerCase();
+
+                        if (
+                            !searchableText.includes(
+                                searchText
+                            )
+                        ) {
+                            return false;
+                        }
                     }
 
                     return true;
@@ -241,12 +578,18 @@
         tableBody.innerHTML = "";
 
         if (
-            filteredRecords.length === 0
+            filteredRecords.length ===
+            0
         ) {
-            tableWrap.style.display = "none";
-            emptyBox.style.display = "block";
+
+            tableWrap.style.display =
+                "none";
+
+            emptyBox.style.display =
+                "block";
 
             if (status) {
+
                 status.textContent =
                     "0 self attendance records";
             }
@@ -254,26 +597,38 @@
             return;
         }
 
-        tableWrap.style.display = "block";
-        emptyBox.style.display = "none";
+        tableWrap.style.display =
+            "block";
+
+        emptyBox.style.display =
+            "none";
 
         filteredRecords.forEach(
             function (record) {
 
                 const row =
-                    document.createElement("tr");
+                    document.createElement(
+                        "tr"
+                    );
 
                 const studentCode =
-                    record.studentCode || "—";
+                    record.studentCode ||
+                    "—";
 
                 const studentName =
-                    record.studentName || "—";
+                    getActualStudentName(
+                        record
+                    );
 
                 const seatNumber =
-                    record.seatNumber || "—";
+                    getActualSeatNumber(
+                        record
+                    );
 
                 const shift =
-                    record.shift || "—";
+                    getActualShift(
+                        record
+                    );
 
                 const checkIn =
                     formatTimestamp(
@@ -287,58 +642,82 @@
 
                 row.innerHTML = `
                     <td>
-                        ${escapeHTML(studentCode)}
+                        ${escapeHTML(
+                            studentCode
+                        )}
                     </td>
 
                     <td>
-                        ${escapeHTML(studentName)}
+                        ${escapeHTML(
+                            studentName
+                        )}
                     </td>
 
                     <td>
-                        ${escapeHTML(String(seatNumber))}
+                        ${escapeHTML(
+                            String(
+                                seatNumber
+                            )
+                        )}
                     </td>
 
                     <td>
                         <span class="self-attendance-shift-badge">
-                            ${escapeHTML(String(shift))}
+                            ${escapeHTML(
+                                String(
+                                    shift
+                                )
+                            )}
                         </span>
                     </td>
 
                     <td class="self-attendance-time">
-                        ${escapeHTML(checkIn)}
+                        ${escapeHTML(
+                            checkIn
+                        )}
                     </td>
 
                     <td class="self-attendance-time">
-                        ${escapeHTML(checkOut)}
+                        ${escapeHTML(
+                            checkOut
+                        )}
                     </td>
                 `;
 
-                tableBody.appendChild(row);
+                tableBody.appendChild(
+                    row
+                );
             }
         );
 
         if (status) {
+
             status.textContent =
                 `${filteredRecords.length} self attendance record${
-                    filteredRecords.length === 1
+                    filteredRecords.length ===
+                    1
                         ? ""
                         : "s"
                 }`;
         }
     }
 
-    function escapeHTML(value) {
-        return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
+    /* ============================================================
+       LOAD ATTENDANCE
+       ============================================================ */
 
-    function loadAttendance() {
+    async function loadAttendance() {
+
         hideError();
+
         setLoading(true);
+
+        /*
+         * Refresh student data first so actual names,
+         * seats and shifts are available.
+         */
+
+        await loadStudents();
 
         const collection =
             getAttendanceCollection(
@@ -346,6 +725,7 @@
             );
 
         if (!collection) {
+
             setLoading(false);
 
             showError(
@@ -358,21 +738,21 @@
         if (
             attendanceUnsubscribe
         ) {
+
             attendanceUnsubscribe();
-            attendanceUnsubscribe = null;
+
+            attendanceUnsubscribe =
+                null;
         }
 
         attendanceRecords = [];
 
         /*
-         * We intentionally query by date only.
+         * Only date is queried from Firestore.
          *
-         * Existing manual attendance records may not have
-         * attendanceSource, so we filter student_qr records
-         * in JavaScript after reading the date's records.
-         *
-         * This avoids changing the existing attendance system
-         * and avoids requiring a new Firestore composite index.
+         * Existing manual attendance records can also
+         * exist for the same date, so they are filtered
+         * below using attendanceSource.
          */
 
         attendanceUnsubscribe =
@@ -385,20 +765,24 @@
                 .onSnapshot(
                     function (snapshot) {
 
-                        attendanceRecords = [];
+                        attendanceRecords =
+                            [];
 
                         snapshot.forEach(
                             function (doc) {
 
                                 const data =
-                                    doc.data() || {};
+                                    doc.data() ||
+                                    {};
 
                                 /*
-                                 * Only QR self attendance.
+                                 * IMPORTANT:
+                                 * Only student QR records.
                                  *
                                  * Manual/admin attendance
-                                 * is completely ignored.
+                                 * remains completely separate.
                                  */
+
                                 if (
                                     data.attendanceSource !==
                                     "student_qr"
@@ -406,15 +790,21 @@
                                     return;
                                 }
 
-                                attendanceRecords.push({
-                                    id: doc.id,
-                                    ...data
-                                });
+                                attendanceRecords.push(
+                                    {
+                                        id:
+                                            doc.id,
+                                        ...data
+                                    }
+                                );
                             }
                         );
 
                         attendanceRecords.sort(
-                            function (a, b) {
+                            function (
+                                a,
+                                b
+                            ) {
 
                                 const aTime =
                                     getTimestampMillis(
@@ -426,11 +816,16 @@
                                         b.checkInAt
                                     );
 
-                                return bTime - aTime;
+                                return (
+                                    bTime -
+                                    aTime
+                                );
                             }
                         );
 
-                        setLoading(false);
+                        setLoading(
+                            false
+                        );
 
                         renderRecords();
                     },
@@ -441,7 +836,9 @@
                             error
                         );
 
-                        setLoading(false);
+                        setLoading(
+                            false
+                        );
 
                         showError(
                             "Unable to load self attendance records."
@@ -450,40 +847,18 @@
                 );
     }
 
-    function getTimestampMillis(timestamp) {
-        if (
-            timestamp &&
-            typeof timestamp.toMillis === "function"
-        ) {
-            return timestamp.toMillis();
-        }
+    /* ============================================================
+       DATE
+       ============================================================ */
 
-        if (
-            timestamp &&
-            typeof timestamp.toDate === "function"
-        ) {
-            return timestamp.toDate().getTime();
-        }
+    function handleDateChange(
+        event
+    ) {
 
-        if (
-            timestamp instanceof Date
-        ) {
-            return timestamp.getTime();
-        }
-
-        if (
-            typeof timestamp === "number"
-        ) {
-            return timestamp;
-        }
-
-        return 0;
-    }
-
-    function handleDateChange(event) {
         const selectedDate =
             String(
-                event.target.value || ""
+                event.target.value ||
+                ""
             ).trim();
 
         if (!selectedDate) {
@@ -496,16 +871,46 @@
         loadAttendance();
     }
 
-    function handleShiftChange(event) {
+    /* ============================================================
+       SHIFT
+       ============================================================ */
+
+    function handleShiftChange(
+        event
+    ) {
+
         currentShift =
             String(
-                event.target.value || "all"
+                event.target.value ||
+                "all"
             ).trim();
 
         renderRecords();
     }
 
+    /* ============================================================
+       SEARCH
+       ============================================================ */
+
+    function handleSearchInput(
+        event
+    ) {
+
+        currentSearch =
+            String(
+                event.target.value ||
+                ""
+            );
+
+        renderRecords();
+    }
+
+    /* ============================================================
+       DEFAULT DATE
+       ============================================================ */
+
     function setDefaultDate() {
+
         const dateInput =
             getElement(
                 "self-attendance-date"
@@ -522,7 +927,12 @@
             currentDate;
     }
 
+    /* ============================================================
+       EVENTS
+       ============================================================ */
+
     function attachEvents() {
+
         const dateInput =
             getElement(
                 "self-attendance-date"
@@ -533,7 +943,13 @@
                 "self-attendance-shift"
             );
 
+        const searchInput =
+            getElement(
+                "self-attendance-search"
+            );
+
         if (dateInput) {
+
             dateInput.addEventListener(
                 "change",
                 handleDateChange
@@ -541,14 +957,28 @@
         }
 
         if (shiftInput) {
+
             shiftInput.addEventListener(
                 "change",
                 handleShiftChange
             );
         }
+
+        if (searchInput) {
+
+            searchInput.addEventListener(
+                "input",
+                handleSearchInput
+            );
+        }
     }
 
+    /* ============================================================
+       INIT
+       ============================================================ */
+
     function init() {
+
         if (initialized) {
             return;
         }
@@ -566,6 +996,7 @@
             getAdminSession();
 
         if (!session) {
+
             showError(
                 "Admin session required."
             );
@@ -579,6 +1010,7 @@
             ).trim();
 
         if (!currentLibraryId) {
+
             showError(
                 "Library ID is missing."
             );
@@ -595,20 +1027,32 @@
         loadAttendance();
     }
 
-    window.LibControlStudentSelfAttendanceRegister = {
-        init: init,
-        reload: loadAttendance
-    };
+    /* ============================================================
+       PUBLIC API
+       ============================================================ */
+
+    window
+        .LibControlStudentSelfAttendanceRegister = {
+            init: init,
+            reload: loadAttendance
+        };
+
+    /* ============================================================
+       START
+       ============================================================ */
 
     if (
         document.readyState ===
         "loading"
     ) {
+
         document.addEventListener(
             "DOMContentLoaded",
             init
         );
+
     } else {
+
         init();
     }
 
