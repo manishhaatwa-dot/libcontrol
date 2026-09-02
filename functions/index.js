@@ -1075,6 +1075,10 @@ exports.createLibraryStudent =
 // STUDENT SELF ATTENDANCE - QR
 // ============================================================
 
+// ============================================================
+// STUDENT SELF ATTENDANCE - QR
+// ============================================================
+
 exports.markStudentSelfAttendance = onCall(
   { cors: true },
   async (request) => {
@@ -1090,14 +1094,19 @@ exports.markStudentSelfAttendance = onCall(
       }
 
       const uid = request.auth.uid;
-
-      // --------------------------------------------------------
-      // 2. Read data sent by student attendance page
-      // --------------------------------------------------------
       const data = request.data || {};
 
+      // --------------------------------------------------------
+      // 2. Read request data
+      // --------------------------------------------------------
       const libraryId = normalizeLibraryId(data.libraryId);
-      const studentCode = String(data.studentCode || "").trim();
+      const studentCode = String(
+        data.studentCode || ""
+      ).trim();
+
+      const action = String(
+        data.action || ""
+      ).trim().toLowerCase();
 
       if (!libraryId) {
         throw new HttpsError(
@@ -1110,6 +1119,16 @@ exports.markStudentSelfAttendance = onCall(
         throw new HttpsError(
           "invalid-argument",
           "Student code is required."
+        );
+      }
+
+      if (
+        action !== "checkin" &&
+        action !== "checkout"
+      ) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Invalid attendance action."
         );
       }
 
@@ -1129,7 +1148,8 @@ exports.markStudentSelfAttendance = onCall(
         );
       }
 
-      const libraryData = librarySnap.data() || {};
+      const libraryData =
+        librarySnap.data() || {};
 
       if (libraryData.enabled === false) {
         throw new HttpsError(
@@ -1139,9 +1159,11 @@ exports.markStudentSelfAttendance = onCall(
       }
 
       // --------------------------------------------------------
-      // 4. Check Student Self Attendance ON/OFF
+      // 4. Library Self Attendance must be ON
       // --------------------------------------------------------
-      if (libraryData.studentSelfAttendanceEnabled !== true) {
+      if (
+        libraryData.studentSelfAttendanceEnabled !== true
+      ) {
         throw new HttpsError(
           "failed-precondition",
           "Student self attendance is currently disabled."
@@ -1149,13 +1171,14 @@ exports.markStudentSelfAttendance = onCall(
       }
 
       // --------------------------------------------------------
-      // 5. Get exact student record
+      // 5. Get student record
       // --------------------------------------------------------
       const studentRef = libraryRef
         .collection("students")
         .doc(studentCode);
 
-      const studentSnap = await studentRef.get();
+      const studentSnap =
+        await studentRef.get();
 
       if (!studentSnap.exists) {
         throw new HttpsError(
@@ -1164,13 +1187,16 @@ exports.markStudentSelfAttendance = onCall(
         );
       }
 
-      const studentData = studentSnap.data() || {};
+      const studentData =
+        studentSnap.data() || {};
 
       // --------------------------------------------------------
-      // 6. IMPORTANT SECURITY CHECK
-      // StudentCode must belong to logged-in Firebase UID
+      // 6. Verify Firebase Auth UID
       // --------------------------------------------------------
-      if (!studentData.uid || studentData.uid !== uid) {
+      if (
+        !studentData.uid ||
+        studentData.uid !== uid
+      ) {
         throw new HttpsError(
           "permission-denied",
           "Student account does not match this student record."
@@ -1178,79 +1204,246 @@ exports.markStudentSelfAttendance = onCall(
       }
 
       // --------------------------------------------------------
-      // 7. Get today's date in India
+      // 7. Today's date - India
       // --------------------------------------------------------
-      const today = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(new Date());
+      const today =
+        new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Kolkata",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date());
 
       // --------------------------------------------------------
-      // 8. Use SAME attendance document ID as manual attendance
+      // 8. Same attendance document as existing attendance
       // --------------------------------------------------------
       const attendanceRef = libraryRef
         .collection("attendance")
         .doc(`${today}_${studentCode}`);
 
       // --------------------------------------------------------
-      // 9. Transaction prevents duplicate attendance
+      // 9. Handle check-in / check-out atomically
       // --------------------------------------------------------
-      const result = await adminDB.runTransaction(async (transaction) => {
-        const attendanceSnap = await transaction.get(attendanceRef);
+      const result =
+        await adminDB.runTransaction(
+          async (transaction) => {
+            const attendanceSnap =
+              await transaction.get(
+                attendanceRef
+              );
 
-        // Already marked by student OR admin
-        if (attendanceSnap.exists) {
+            const now =
+              FieldValue.serverTimestamp();
+
+            // ==================================================
+            // CHECK-IN
+            // ==================================================
+            if (action === "checkin") {
+              // Already has an attendance record today.
+              if (attendanceSnap.exists) {
+                const existingData =
+                  attendanceSnap.data() || {};
+
+                // Never overwrite manual admin attendance.
+                if (
+                  existingData.attendanceSource !==
+                  "student_qr"
+                ) {
+                  return {
+                    success: false,
+                    result: "admin_marked",
+                  };
+                }
+
+                // Already checked in through QR.
+                if (
+                  existingData.checkInAt
+                ) {
+                  return {
+                    success: false,
+                    result: "already_checked_in",
+                  };
+                }
+
+                return {
+                  success: false,
+                  result: "already_checked_in",
+                };
+              }
+
+              const attendanceData = {
+                studentCode:
+                  studentCode,
+
+                studentName:
+                  studentData.name || "",
+
+                seatNumber:
+                  studentData.seatNumber || "",
+
+                shift:
+                  studentData.shift || "",
+
+                date: today,
+
+                status: "Present",
+
+                libraryId:
+                  libraryId,
+
+                // QR attendance identification
+                attendanceSource:
+                  "student_qr",
+
+                markedByUID:
+                  uid,
+
+                // Check-in timestamp
+                checkInAt:
+                  now,
+
+                // Leave time is empty initially
+                checkOutAt:
+                  null,
+
+                updatedAt:
+                  now,
+              };
+
+              transaction.set(
+                attendanceRef,
+                attendanceData
+              );
+
+              return {
+                success: true,
+                result: "checked_in",
+              };
+            }
+
+            // ==================================================
+            // CHECK-OUT / LEAVE
+            // ==================================================
+            if (action === "checkout") {
+              // No attendance record means student
+              // has not checked in.
+              if (!attendanceSnap.exists) {
+                return {
+                  success: false,
+                  result: "not_checked_in",
+                };
+              }
+
+              const existingData =
+                attendanceSnap.data() || {};
+
+              // Never modify an admin/manual record.
+              if (
+                existingData.attendanceSource !==
+                "student_qr"
+              ) {
+                return {
+                  success: false,
+                  result: "admin_marked",
+                };
+              }
+
+              // Student already left.
+              if (
+                existingData.checkOutAt
+              ) {
+                return {
+                  success: false,
+                  result: "already_checked_out",
+                };
+              }
+
+              transaction.update(
+                attendanceRef,
+                {
+                  checkOutAt:
+                    now,
+
+                  updatedAt:
+                    now,
+
+                  lastAction:
+                    "checkout",
+                }
+              );
+
+              return {
+                success: true,
+                result: "checked_out",
+              };
+            }
+
+            return {
+              success: false,
+              result: "invalid_action",
+            };
+          }
+        );
+
+      // --------------------------------------------------------
+      // 10. Response messages
+      // --------------------------------------------------------
+      switch (result.result) {
+        case "checked_in":
+          return {
+            success: true,
+            action: "checkin",
+            message:
+              "Self attendance check-in successful.",
+          };
+
+        case "checked_out":
+          return {
+            success: true,
+            action: "checkout",
+            message:
+              "Leave time saved successfully.",
+          };
+
+        case "already_checked_in":
           return {
             success: false,
-            alreadyMarked: true,
+            alreadyCheckedIn: true,
+            message:
+              "Attendance is already checked in for today.",
           };
-        }
 
-        const attendanceData = {
-          studentCode: studentCode,
-          studentName: studentData.name || "",
-          seatNumber: studentData.seatNumber || "",
-          shift: studentData.shift || "",
-          date: today,
-          status: "Present",
-          libraryId: libraryId,
+        case "already_checked_out":
+          return {
+            success: false,
+            alreadyCheckedOut: true,
+            message:
+              "Leave time is already saved for today.",
+          };
 
-          // Extra information for QR attendance
-          attendanceSource: "student_qr",
-          markedByUID: uid,
+        case "not_checked_in":
+          return {
+            success: false,
+            notCheckedIn: true,
+            message:
+              "Please check in first.",
+          };
 
-          updatedAt: FieldValue.serverTimestamp(),
-          markedAt: FieldValue.serverTimestamp(),
-        };
+        case "admin_marked":
+          return {
+            success: false,
+            adminMarked: true,
+            message:
+              "Today's attendance was already marked by admin.",
+          };
 
-        transaction.set(attendanceRef, attendanceData);
-
-        return {
-          success: true,
-          alreadyMarked: false,
-        };
-      });
-
-      // --------------------------------------------------------
-      // 10. Response
-      // --------------------------------------------------------
-      if (result.alreadyMarked) {
-        return {
-          success: true,
-          alreadyMarked: true,
-          date: today,
-          message: "Attendance already marked for today.",
-        };
+        default:
+          return {
+            success: false,
+            message:
+              "Attendance action could not be completed.",
+          };
       }
-
-      return {
-        success: true,
-        alreadyMarked: false,
-        date: today,
-        message: "Attendance marked successfully.",
-      };
 
     } catch (error) {
       console.error(
@@ -1264,7 +1457,7 @@ exports.markStudentSelfAttendance = onCall(
 
       throw new HttpsError(
         "internal",
-        "Unable to mark attendance."
+        "Unable to process attendance."
       );
     }
   }
