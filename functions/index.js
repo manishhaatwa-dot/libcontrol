@@ -1003,7 +1003,10 @@ exports.completeAdminPasswordChange =
    ========================================================================== */
 
 exports.markStudentSelfAttendance = onCall(
-    { cors: true },
+    {
+        cors: true,
+        invoker: "public"
+    },
     async (request) => {
 
         try {
