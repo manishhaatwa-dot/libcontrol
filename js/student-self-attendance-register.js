@@ -8,6 +8,7 @@
    - Student search
    - Actual student name from student record
    - Real-time attendance updates
+   - Pagination
    - Reads only student QR attendance
    - Does NOT modify existing manual attendance system
    ============================================================ */
@@ -26,6 +27,14 @@
 
     let attendanceRecords = [];
     let studentRecords = {};
+
+    /* ============================================================
+       PAGINATION
+       ------------------------------------------------------------ */
+
+    const RECORDS_PER_PAGE = 10;
+
+    let currentPage = 1;
 
     function getAdminSession() {
 
@@ -332,8 +341,6 @@
 
     /* ============================================================
        LOAD STUDENTS
-       ------------------------------------------------------------
-       Gets actual student names from the current library.
        ============================================================ */
 
     async function loadStudents() {
@@ -477,7 +484,339 @@
     }
 
     /* ============================================================
-       RENDER
+       GET FILTERED RECORDS
+       ------------------------------------------------------------ */
+
+    function getFilteredRecords() {
+
+        const searchText =
+            currentSearch
+                .trim()
+                .toLowerCase();
+
+        return attendanceRecords.filter(
+            function (record) {
+
+                const name =
+                    getActualStudentName(
+                        record
+                    );
+
+                const code =
+                    String(
+                        record.studentCode ||
+                        ""
+                    );
+
+                const shift =
+                    getActualShift(
+                        record
+                    );
+
+                /* Shift filter */
+
+                if (
+                    currentShift !==
+                        "all" &&
+                    String(
+                        shift || ""
+                    )
+                        .trim()
+                        .toLowerCase() !==
+                        currentShift.toLowerCase()
+                ) {
+                    return false;
+                }
+
+                /* Search filter */
+
+                if (searchText) {
+
+                    const searchableText =
+                        (
+                            name +
+                            " " +
+                            code +
+                            " " +
+                            shift
+                        )
+                            .toLowerCase();
+
+                    if (
+                        !searchableText.includes(
+                            searchText
+                        )
+                    ) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+        );
+    }
+
+    /* ============================================================
+       PAGINATION CONTROLS
+       ============================================================ */
+
+    function renderPagination(
+        totalRecords
+    ) {
+
+        let pagination =
+            getElement(
+                "self-attendance-pagination"
+            );
+
+        /*
+         * Create pagination container automatically
+         * so the HTML file does not need another change.
+         */
+
+        if (!pagination) {
+
+            pagination =
+                document.createElement(
+                    "div"
+                );
+
+            pagination.id =
+                "self-attendance-pagination";
+
+            pagination.style.display =
+                "flex";
+
+            pagination.style.alignItems =
+                "center";
+
+            pagination.style.justifyContent =
+                "center";
+
+            pagination.style.gap =
+                "6px";
+
+            pagination.style.flexWrap =
+                "wrap";
+
+            pagination.style.marginTop =
+                "20px";
+
+            const status =
+                getElement(
+                    "self-attendance-register-status"
+                );
+
+            if (status &&
+                status.parentNode
+            ) {
+
+                status.parentNode.insertBefore(
+                    pagination,
+                    status.nextSibling
+                );
+
+            }
+        }
+
+        pagination.innerHTML = "";
+
+        const totalPages =
+            Math.ceil(
+                totalRecords /
+                RECORDS_PER_PAGE
+            );
+
+        if (totalPages <= 1) {
+
+            pagination.style.display =
+                "none";
+
+            return;
+        }
+
+        pagination.style.display =
+            "flex";
+
+        /* --------------------------------------------------------
+           Previous
+           -------------------------------------------------------- */
+
+        const previousButton =
+            document.createElement(
+                "button"
+            );
+
+        previousButton.type =
+            "button";
+
+        previousButton.textContent =
+            "Previous";
+
+        previousButton.disabled =
+            currentPage <= 1;
+
+        stylePaginationButton(
+            previousButton,
+            false
+        );
+
+        previousButton.addEventListener(
+            "click",
+            function () {
+
+                if (
+                    currentPage <= 1
+                ) {
+                    return;
+                }
+
+                currentPage--;
+
+                renderRecords();
+            }
+        );
+
+        pagination.appendChild(
+            previousButton
+        );
+
+        /* --------------------------------------------------------
+           Page numbers
+           -------------------------------------------------------- */
+
+        for (
+            let page = 1;
+            page <= totalPages;
+            page++
+        ) {
+
+            const pageButton =
+                document.createElement(
+                    "button"
+                );
+
+            pageButton.type =
+                "button";
+
+            pageButton.textContent =
+                String(page);
+
+            stylePaginationButton(
+                pageButton,
+                page === currentPage
+            );
+
+            pageButton.addEventListener(
+                "click",
+                function () {
+
+                    currentPage =
+                        page;
+
+                    renderRecords();
+                }
+            );
+
+            pagination.appendChild(
+                pageButton
+            );
+        }
+
+        /* --------------------------------------------------------
+           Next
+           -------------------------------------------------------- */
+
+        const nextButton =
+            document.createElement(
+                "button"
+            );
+
+        nextButton.type =
+            "button";
+
+        nextButton.textContent =
+            "Next";
+
+        nextButton.disabled =
+            currentPage >= totalPages;
+
+        stylePaginationButton(
+            nextButton,
+            false
+        );
+
+        nextButton.addEventListener(
+            "click",
+            function () {
+
+                if (
+                    currentPage >=
+                    totalPages
+                ) {
+                    return;
+                }
+
+                currentPage++;
+
+                renderRecords();
+            }
+        );
+
+        pagination.appendChild(
+            nextButton
+        );
+    }
+
+    function stylePaginationButton(
+        button,
+        active
+    ) {
+
+        button.style.minWidth =
+            "38px";
+
+        button.style.height =
+            "36px";
+
+        button.style.padding =
+            "0 10px";
+
+        button.style.border =
+            "1px solid #d6d6d6";
+
+        button.style.borderRadius =
+            "7px";
+
+        button.style.background =
+            active
+                ? "#e85d04"
+                : "#ffffff";
+
+        button.style.color =
+            active
+                ? "#ffffff"
+                : "#000000";
+
+        button.style.fontSize =
+            "13px";
+
+        button.style.fontWeight =
+            "800";
+
+        button.style.cursor =
+            button.disabled
+                ? "default"
+                : "pointer";
+
+        button.style.opacity =
+            button.disabled
+                ? "0.5"
+                : "1";
+    }
+
+    /* ============================================================
+       RENDER RECORDS
        ============================================================ */
 
     function renderRecords() {
@@ -510,76 +849,43 @@
             return;
         }
 
-        const searchText =
-            currentSearch
-                .trim()
-                .toLowerCase();
-
         const filteredRecords =
-            attendanceRecords.filter(
-                function (record) {
+            getFilteredRecords();
 
-                    const name =
-                        getActualStudentName(
-                            record
-                        );
+        const totalRecords =
+            filteredRecords.length;
 
-                    const code =
-                        String(
-                            record.studentCode ||
-                            ""
-                        );
-
-                    const shift =
-                        getActualShift(
-                            record
-                        );
-
-                    /* Shift filter */
-                    if (
-                        currentShift !==
-                            "all" &&
-                        String(
-                            shift || ""
-                        )
-                            .trim()
-                            .toLowerCase() !==
-                            currentShift.toLowerCase()
-                    ) {
-                        return false;
-                    }
-
-                    /* Search filter */
-                    if (searchText) {
-
-                        const searchableText =
-                            (
-                                name +
-                                " " +
-                                code +
-                                " " +
-                                shift
-                            )
-                                .toLowerCase();
-
-                        if (
-                            !searchableText.includes(
-                                searchText
-                            )
-                        ) {
-                            return false;
-                        }
-                    }
-
-                    return true;
-                }
+        const totalPages =
+            Math.ceil(
+                totalRecords /
+                RECORDS_PER_PAGE
             );
+
+        /*
+         * Safety:
+         * If filtering or real-time updates reduce
+         * the number of pages, return to the last
+         * available page.
+         */
+
+        if (
+            totalPages > 0 &&
+            currentPage > totalPages
+        ) {
+            currentPage =
+                totalPages;
+        }
+
+        if (
+            totalPages === 0
+        ) {
+            currentPage = 1;
+        }
 
         tableBody.innerHTML = "";
 
         if (
-            filteredRecords.length ===
-            0
+            totalRecords === 0
         ) {
 
             tableWrap.style.display =
@@ -594,6 +900,10 @@
                     "0 self attendance records";
             }
 
+            renderPagination(
+                0
+            );
+
             return;
         }
 
@@ -603,7 +913,24 @@
         emptyBox.style.display =
             "none";
 
-        filteredRecords.forEach(
+        const startIndex =
+            (
+                currentPage -
+                1
+            ) *
+            RECORDS_PER_PAGE;
+
+        const endIndex =
+            startIndex +
+            RECORDS_PER_PAGE;
+
+        const pageRecords =
+            filteredRecords.slice(
+                startIndex,
+                endIndex
+            );
+
+        pageRecords.forEach(
             function (record) {
 
                 const row =
@@ -692,14 +1019,22 @@
 
         if (status) {
 
+            const firstRecord =
+                startIndex + 1;
+
+            const lastRecord =
+                Math.min(
+                    endIndex,
+                    totalRecords
+                );
+
             status.textContent =
-                `${filteredRecords.length} self attendance record${
-                    filteredRecords.length ===
-                    1
-                        ? ""
-                        : "s"
-                }`;
+                `${firstRecord}-${lastRecord} of ${totalRecords} self attendance records`;
         }
+
+        renderPagination(
+            totalRecords
+        );
     }
 
     /* ============================================================
@@ -711,6 +1046,8 @@
         hideError();
 
         setLoading(true);
+
+        currentPage = 1;
 
         /*
          * Refresh student data first so actual names,
@@ -868,6 +1205,8 @@
         currentDate =
             selectedDate;
 
+        currentPage = 1;
+
         loadAttendance();
     }
 
@@ -885,6 +1224,8 @@
                 "all"
             ).trim();
 
+        currentPage = 1;
+
         renderRecords();
     }
 
@@ -901,6 +1242,8 @@
                 event.target.value ||
                 ""
             );
+
+        currentPage = 1;
 
         renderRecords();
     }
