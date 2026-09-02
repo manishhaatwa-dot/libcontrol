@@ -64,13 +64,17 @@
     // Build student attendance URL
     // ----------------------------------------------------------
     function buildAttendanceURL(libraryId) {
-        const origin = window.location.origin;
-
-        return (
-            origin +
-            "/student-attendance.html?libraryId=" +
-            encodeURIComponent(libraryId)
+        const attendancePageURL = new URL(
+            "student-attendance.html",
+            window.location.href
         );
+
+        attendancePageURL.searchParams.set(
+            "libraryId",
+            libraryId
+        );
+
+        return attendancePageURL.toString();
     }
 
     // ----------------------------------------------------------
@@ -90,9 +94,7 @@
         container.innerHTML = "";
 
         // QR library must be loaded before this function runs.
-        if (
-            typeof QRCode === "undefined"
-        ) {
+        if (typeof QRCode === "undefined") {
             console.error(
                 "Student Self Attendance QR: QRCode library not loaded."
             );
