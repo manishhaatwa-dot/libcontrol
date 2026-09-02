@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#0f172a"
+    >
+
+    <title>Self Attendance Register</title>
+
+    <!-- Existing LibControl CSS -->
+    <link
+        rel="stylesheet"
+        href="../css/style.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../css/layout.css"
+    >
+
+    <style>
+        /* ============================================================
+           LibControl - Student Self Attendance Register
+           ------------------------------------------------------------
+           Standalone admin register page.
+           Does NOT modify existing attendance.html / attendance.js.
+           ============================================================ */
+
+        .self-attendance-register-page {
+            padding: 20px;
+        }
+
+        .self-attendance-register-card {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .self-attendance-register-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .self-attendance-register-title h2 {
+            margin: 0;
+        }
+
+        .self-attendance-register-title p {
+            margin: 6px 0 0;
+            opacity: 0.7;
+        }
+
+        .self-attendance-register-filters {
+            display: flex;
+            align-items: end;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .self-attendance-filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .self-attendance-filter-group label {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .self-attendance-filter-group input,
+        .self-attendance-filter-group select {
+            min-width: 160px;
+            height: 42px;
+            padding: 0 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fff;
+            font: inherit;
+        }
+
+        .self-attendance-table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: 10px;
+        }
+
+        .self-attendance-table {
+            width: 100%;
+            min-width: 850px;
+            border-collapse: collapse;
+        }
+
+        .self-attendance-table th,
+        .self-attendance-table td {
+            padding: 13px 14px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            white-space: nowrap;
+        }
+
+        .self-attendance-table th {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .self-attendance-table td {
+            font-size: 14px;
+        }
+
+        .self-attendance-empty {
+            text-align: center !important;
+            padding: 35px 20px !important;
+            opacity: 0.65;
+        }
+
+        .self-attendance-status-message {
+            margin: 15px 0 0;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .self-attendance-loading {
+            padding: 35px 20px;
+            text-align: center;
+            opacity: 0.7;
+        }
+
+        .self-attendance-error {
+            padding: 16px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            background: #fff1f1;
+            color: #b42318;
+            display: none;
+        }
+
+        .self-attendance-shift-badge {
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #f1f1f1;
+        }
+
+        .self-attendance-time {
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .self-attendance-register-page {
+                padding: 12px;
+            }
+
+            .self-attendance-register-filters {
+                width: 100%;
+            }
+
+            .self-attendance-filter-group {
+                flex: 1;
+                min-width: 140px;
+            }
+
+            .self-attendance-filter-group input,
+            .self-attendance-filter-group select {
+                width: 100%;
+                min-width: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Shared Navbar -->
+    <div id="navbar-container"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <div class="self-attendance-register-page">
+
+            <section class="dashboard-card self-attendance-register-card">
+
+                <div class="card-header">
+
+                    <div class="self-attendance-register-header">
+
+                        <div class="self-attendance-register-title">
+
+                            <h2>
+                                Student Self Attendance
+                            </h2>
+
+                            <p>
+                                QR attendance register
+                            </p>
+
+                        </div>
+
+                        <div class="self-attendance-register-filters">
+
+                            <div class="self-attendance-filter-group">
+
+                                <label for="self-attendance-date">
+                                    Date
+                                </label>
+
+                                <input
+                                    type="date"
+                                    id="self-attendance-date"
+                                >
+
+                            </div>
+
+                            <div class="self-attendance-filter-group">
+
+                                <label for="self-attendance-shift">
+                                    Shift
+                                </label>
+
+                                <select
+                                    id="self-attendance-shift"
+                                >
+                                    <option value="all">
+                                        All Shifts
+                                    </option>
+
+                                    <option value="Morning">
+                                        Morning
+                                    </option>
+
+                                    <option value="Afternoon">
+                                        Afternoon
+                                    </option>
+
+                                    <option value="Evening">
+                                        Evening
+                                    </option>
+
+                                    <option value="Night">
+                                        Night
+                                    </option>
+                                </select>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="card-body">
+
+                    <div
+                        id="self-attendance-register-error"
+                        class="self-attendance-error"
+                    ></div>
+
+                    <div
+                        id="self-attendance-register-loading"
+                        class="self-attendance-loading"
+                    >
+                        Loading attendance...
+                    </div>
+
+                    <div
+                        id="self-attendance-register-table-wrap"
+                        class="self-attendance-table-wrap"
+                        style="display: none;"
+                    >
+
+                        <table
+                            class="self-attendance-table"
+                        >
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>
+                                        Student ID
+                                    </th>
+
+                                    <th>
+                                        Student
+                                    </th>
+
+                                    <th>
+                                        Seat
+                                    </th>
+
+                                    <th>
+                                        Shift
+                                    </th>
+
+                                    <th>
+                                        Check-in
+                                    </th>
+
+                                    <th>
+                                        Leave
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody
+                                id="self-attendance-register-body"
+                            >
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                    <div
+                        id="self-attendance-register-empty"
+                        class="self-attendance-empty"
+                        style="display: none;"
+                    >
+                        No self attendance records found.
+                    </div>
+
+                    <div
+                        id="self-attendance-register-status"
+                        class="self-attendance-status-message"
+                    ></div>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </main>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <!-- Existing LibControl Dashboard / Session -->
+    <script src="../js/dashboard.js"></script>
+
+    <!-- Register JS will be added in the next step -->
+    <script>
+        /*
+         * Student Self Attendance Register
+         *
+         * Database logic will be connected in the next step.
+         *
+         * This page intentionally does not modify:
+         * - attendance.html
+         * - attendance.js
+         * - existing manual attendance records
+         */
+    </script>
+
+</body>
+
+</html>
