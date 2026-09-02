@@ -1,4 +1,4 @@
-const CACHE_NAME = "libcontrol-pwa-v1";
+const CACHE_NAME = "libcontrol-pwa-v2";
 
 const APP_SHELL = [
     "./",
@@ -71,6 +71,33 @@ self.addEventListener(
 self.addEventListener(
     "fetch",
     (event) => {
+
+        if (
+            event.request.destination === "script"
+        ) {
+
+            event.respondWith(
+
+                fetch(
+                    event.request,
+                    {
+                        cache: "no-store"
+                    }
+                ).catch(
+                    () => {
+
+                        return caches.match(
+                            event.request
+                        );
+
+                    }
+                )
+
+            );
+
+            return;
+        }
+
 
         event.respondWith(
 
