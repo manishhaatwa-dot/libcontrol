@@ -1,869 +1,667 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>Students - LibControl</title>
-
-    <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="../css/layout.css">
-
-    <style>
-        /* =========================================================
-           FEE RECEIPT MODAL
-           ========================================================= */
-
-        .fee-receipt-modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.55);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            z-index: 9999;
-        }
-
-        .fee-receipt-modal-overlay.show {
-            display: flex;
-        }
-
-        .fee-receipt-modal {
-            width: 100%;
-            max-width: 520px;
-            max-height: 90vh;
-            overflow-y: auto;
-            background: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.25);
-            padding: 22px;
-        }
-
-        .fee-receipt-modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .fee-receipt-modal-header h3 {
-            margin: 0;
-            color: #111111;
-        }
-
-        .fee-receipt-close-btn {
-            border: none;
-            background: transparent;
-            font-size: 24px;
-            cursor: pointer;
-            color: #555555;
-            line-height: 1;
-        }
-
-        .fee-receipt-student-info {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 13px;
-            margin-bottom: 18px;
-        }
-
-        .fee-receipt-student-info-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 15px;
-            padding: 4px 0;
-            font-size: 14px;
-        }
-
-        .fee-receipt-student-info-row strong {
-            color: #222222;
-        }
-
-        .fee-receipt-form-group {
-            margin-bottom: 15px;
-        }
-
-        .fee-receipt-form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            color: #222222;
-        }
-
-        .fee-receipt-form-group input,
-        .fee-receipt-form-group select,
-        .fee-receipt-form-group textarea {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 10px 11px;
-            border: 1px solid #d5d5d5;
-            border-radius: 7px;
-            font-size: 14px;
-            background: #ffffff;
-        }
-
-        .fee-receipt-form-group textarea {
-            min-height: 75px;
-            resize: vertical;
-        }
-
-        .fee-receipt-form-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .fee-receipt-cancel-btn,
-        .fee-receipt-save-btn {
-            border: none;
-            border-radius: 7px;
-            padding: 10px 16px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .fee-receipt-cancel-btn {
-            background: #eeeeee;
-            color: #222222;
-        }
-
-        .fee-receipt-save-btn {
-            background: #e85d04;
-            color: #ffffff;
-        }
-
-        .fee-receipt-save-btn:hover {
-            opacity: 0.92;
-        }
-
-        /* Pay Fee button inside student table */
-
-        .fee-receipt-pay-btn {
-            border: none;
-            background: #e85d04;
-            color: #ffffff;
-            border-radius: 6px;
-            padding: 6px 10px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-right: 5px;
-        }
-
-        .fee-receipt-history-btn {
-            border: none;
-            background: #495057;
-            color: #ffffff;
-            border-radius: 6px;
-            padding: 6px 10px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .fee-receipt-pay-btn:hover,
-        .fee-receipt-history-btn:hover {
-            opacity: 0.9;
-        }
-
-        @media (max-width: 600px) {
-            .fee-receipt-modal-overlay {
-                padding: 10px;
-            }
-
-            .fee-receipt-modal {
-                padding: 16px;
-            }
-
-            .fee-receipt-form-actions {
-                flex-direction: column;
-            }
-
-            .fee-receipt-cancel-btn,
-            .fee-receipt-save-btn {
-                width: 100%;
-            }
-        }
-    </style>
-</head>
-
-<body>
-
-    <!-- Shared Sidebar -->
-    <div id="sidebar-container"></div>
-
-    <div class="main-content">
-
-        <!-- Shared Navbar -->
-        <div id="navbar-container"></div>
-
-        <main class="page-content">
-
-            <!-- Page Header -->
-            <div class="page-header">
-                <div>
-                    <h1>Students</h1>
-                    <p>Manage your library students</p>
-                </div>
-
-                <button
-                    id="add-student-btn"
-                    class="btn-primary"
-                    type="button"
-                >
-                    + Add Student
-                </button>
-            </div>
-
-            <!-- Students Card -->
-            <div class="dashboard-card">
-
-                <div class="card-header">
-                    <h3>Student List</h3>
-
-                    <div
-                        style="
-                            display: flex;
-                            align-items: center;
-                            gap: 10px;
-                            flex-wrap: wrap;
-                        "
-                    >
-                        <input
-                            type="text"
-                            id="student-search"
-                            placeholder="Search students..."
-                            style="
-                                width: 210px;
-                                max-width: 100%;
-                                padding: 9px 11px;
-                                border: 1px solid #d5d5d5;
-                                border-radius: 7px;
-                                font-size: 13px;
-                            "
-                        >
-
-                        <select
-                            id="student-shift-filter"
-                            style="
-                                padding: 9px 11px;
-                                border: 1px solid #d5d5d5;
-                                border-radius: 7px;
-                                font-size: 13px;
-                            "
-                        >
-                            <option value="">All Shifts</option>
-                            <option value="Morning">Morning</option>
-                            <option value="Afternoon">Afternoon</option>
-                            <option value="Evening">Evening</option>
-                            <option value="Night">Night</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div
-                    id="students-status"
-                    style="
-                        margin-bottom: 12px;
-                        font-size: 13px;
-                        color: #666666;
-                    "
-                ></div>
-
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Unique Login Code</th>
-                                <th>Seat No</th>
-                                <th>Student Name</th>
-                                <th>Father's Name</th>
-                                <th>Class</th>
-                                <th>Joining Date</th>
-                                <th>Fee Due Date</th>
-                                <th>Fee Status</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-
-                        <tbody id="students-table-body">
-                            <tr>
-                                <td colspan="10">
-                                    Loading students...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div
-                    id="students-empty"
-                    style="
-                        display: none;
-                        text-align: center;
-                        padding: 25px 10px;
-                        color: #777777;
-                    "
-                >
-                    No students found.
-                </div>
-
-            </div>
-
-        </main>
-    </div>
-
-
-    <!-- =========================================================
-         ADD / EDIT STUDENT MODAL
-         ========================================================= -->
-
-    <div
-        id="student-modal"
-        class="modal-overlay"
-        style="display: none;"
-    >
-        <div class="modal-content">
-
-            <div class="modal-header">
-                <h3 id="student-modal-title">
-                    Add Student
-                </h3>
-
-                <button
-                    id="close-student-modal"
-                    class="modal-close"
-                    type="button"
-                >
-                    ×
-                </button>
-            </div>
-
-            <form id="student-form">
-
-                <input
-                    type="hidden"
-                    id="std-student-code"
-                >
-
-                <div class="form-group">
-                    <label for="std-name">
-                        Student Name
-                    </label>
-
-                    <input
-                        type="text"
-                        id="std-name"
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="std-father">
-                        Father's Name
-                    </label>
-
-                    <input
-                        type="text"
-                        id="std-father"
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="std-email">
-                        Student Email
-                    </label>
-
-                    <input
-                        type="email"
-                        id="std-email"
-                        required
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="std-password">
-                        Temporary Password
-                    </label>
-
-                    <input
-                        type="password"
-                        id="std-password"
-                        minlength="8"
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="std-class">
-                        Class
-                    </label>
-
-                    <input
-                        type="text"
-                        id="std-class"
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="std-seat">
-                        Seat Number
-                    </label>
-
-                    <input
-                        type="text"
-                        id="std-seat"
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="std-mobile">
-                        Mobile Number
-                    </label>
-
-                    <input
-                        type="tel"
-                        id="std-mobile"
-                        maxlength="10"
-                        inputmode="numeric"
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="std-shift">
-                        Shift
-                    </label>
-
-                    <select id="std-shift">
-                        <option value="">
-                            Select Shift
-                        </option>
-                        <option value="Morning">
-                            Morning
-                        </option>
-                        <option value="Afternoon">
-                            Afternoon
-                        </option>
-                        <option value="Evening">
-                            Evening
-                        </option>
-                        <option value="Night">
-                            Night
-                        </option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="std-status">
-                        Status
-                    </label>
-
-                    <select id="std-status">
-                        <option value="Active">
-                            Active
-                        </option>
-                        <option value="Inactive">
-                            Inactive
-                        </option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="std-joining">
-                        Joining Date
-                    </label>
-
-                    <input
-                        type="text"
-                        id="std-joining"
-                        placeholder="DD/MM/YYYY"
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="std-fee-due-date">
-                        Fee Due Date
-                    </label>
-
-                    <input
-                        type="text"
-                        id="std-fee-due-date"
-                        placeholder="DD/MM/YYYY"
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="std-fee-status">
-                        Fee Status
-                    </label>
-
-                    <select id="std-fee-status">
-                        <option value="Paid">
-                            Paid
-                        </option>
-                        <option value="Due">
-                            Due
-                        </option>
-                    </select>
-                </div>
-
-                <div class="modal-actions">
-
-                    <button
-                        type="button"
-                        id="cancel-student-btn"
-                        class="btn-secondary"
-                    >
-                        Cancel
-                    </button>
-
-                    <button
-                        type="submit"
-                        class="btn-primary"
-                    >
-                        Save Student
-                    </button>
-
-                </div>
-
-            </form>
-        </div>
-    </div>
-
-
-    <!-- =========================================================
-         VIEW STUDENT MODAL
-         ========================================================= -->
-
-    <div
-        id="view-student-modal"
-        class="modal-overlay"
-        style="display: none;"
-    >
-        <div class="modal-content">
-
-            <div class="modal-header">
-                <h3>Student Details</h3>
-
-                <button
-                    id="close-view-student-modal"
-                    class="modal-close"
-                    type="button"
-                >
-                    ×
-                </button>
-            </div>
-
-            <div id="view-student-content">
-                Loading...
-            </div>
-
-            <div class="modal-actions">
-
-                <button
-                    type="button"
-                    id="close-view-student-btn"
-                    class="btn-secondary"
-                >
-                    Close
-                </button>
+<!DOCTYPE html>  <html lang="en">  <head>  <meta charset="UTF-8">  
+
+<meta  
+    name="viewport"  
+    content="width=device-width, initial-scale=1.0"  
+>  
+
+<title>LibControl - Students</title>  
+
+
+<!-- Google Fonts -->  
+
+<link  
+    rel="preconnect"  
+    href="https://fonts.googleapis.com"  
+>  
+
+<link  
+    rel="preconnect"  
+    href="https://fonts.gstatic.com"  
+    crossorigin  
+>  
+
+<link  
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"  
+    rel="stylesheet"  
+>  
+
+
+<!-- Global CSS -->  
+
+<link  
+    rel="stylesheet"  
+    href="../css/style.css"  
+>  
+
+
+<!-- Students CSS -->  
+
+<link  
+    rel="stylesheet"  
+    href="../css/students.css"  
+>
+
+</head>  <body>  <div class="app-container">  <!-- =====================================================  
+     SIDEBAR  
+     ===================================================== -->  
+
+<div id="sidebar-container"></div>  
+
+
+<div class="main-content">  
+
+
+    <!-- =================================================  
+         NAVBAR  
+         ================================================= -->  
+
+    <div id="navbar-container"></div>  
+
+
+    <!-- =================================================  
+         MAIN CONTENT  
+         ================================================= -->  
+
+    <main class="content-body">  
+
+
+        <!-- =================================================  
+             PAGE HEADER  
+             ================================================= -->  
+
+        <div class="students-header">  
+
+
+            <div class="header-titles">  
+
+                <h1>  
+                    Student Directory  
+                </h1>  
+
+                <p>  
+                    Manage registered students for the current  
+                    library branch. Every student receives an  
+                    automatically generated unique login code.  
+                </p>  
+
+            </div>  
+
+
+            <!-- Add Student -->  
+
+            <button  
+                class="add-student-trigger"  
+                id="open-add-modal-btn"  
+                type="button"  
+            >  
+
+                + Add Student  
+
+            </button>  
+
+
+        </div>  
+
+
+        <!-- =================================================  
+             SEARCH  
+             ================================================= -->  
+
+        <div class="search-filter-panel glass">  
+
+
+            <div class="search-box">  
+
+                <input  
+                    type="text"  
+                    id="student-search-input"  
+                    placeholder="Search by Name, Unique Login Code, Seat or Class..."  
+                    autocomplete="off"  
+                >  
+
+            </div>  
+
+
+        </div>  
+
+
+        <!-- =================================================  
+             STUDENT TABLE  
+             ================================================= -->  
+
+        <div class="students-table-card glass">  
+
+
+            <div class="table-scroll-container">  
+
+
+                <table class="students-data-table">  
+
+
+                    <thead>  
+
+                        <tr>  
+
+                            <th>  
+                                Unique Login Code  
+                            </th>  
+
+                            <th>  
+                                Seat No  
+                            </th>  
+
+                            <th>  
+                                Student Name  
+                            </th>  
+
+                            <th>  
+                                Father's Name  
+                            </th>  
+
+                            <th>  
+                                Class  
+                            </th>  
+
+                            <th>  
+                                Joining Date  
+                            </th>  
+
+                          <th>  
+Expiry Date
+
+</th>  <th>  
+    Fee Due Date  
+</th>  <th>  
+    Fee Status  
+</th>  <th>  
+    Status  
+</th>  <th class="actions-header">  
+    Actions  
+</th>   </tr>  
+
+                    </thead>  
+
+
+                    <tbody id="students-table-rows">  
+
+
+                        <tr>  
+
+                            <td  
+                                colspan="11"  
+                                class="table-empty"  
+                                style="  
+                                    text-align:center;  
+                                    padding:2rem;  
+                                "  
+                            >  
+
+                                Loading student records...  
+
+                            </td>  
+
+                        </tr>  
+
+
+                    </tbody>  
+
+
+                </table>  
+
+
+            </div>  
+
+
+        </div>  
+
+
+    </main>  
+
+
+    <!-- =================================================  
+         FOOTER  
+         ================================================= -->  
+
+    <div id="footer-container"></div>  
+
+
+</div>
+
+</div>  <!-- =========================================================  
+     STUDENT ADD / EDIT MODAL  
+     ========================================================= -->  <div  
+    class="modal-overlay"  
+    id="student-modal"  
+    aria-hidden="true"  
+>  <div  
+    class="modal-window glass"  
+    role="dialog"  
+    aria-modal="true"  
+    aria-labelledby="modal-title-context"  
+>  
+
+
+    <!-- =================================================  
+         MODAL HEADER  
+         ================================================= -->  
+
+    <div class="modal-header">  
+
+
+        <div>  
+
+            <h2 id="modal-title-context">  
+                Register New Library Member  
+            </h2>  
+
+        </div>  
+
+
+        <button  
+            class="close-modal-btn"  
+            id="close-modal-btn"  
+            type="button"  
+            aria-label="Close"  
+        >  
+
+            ×  
+
+        </button>  
+
+
+    </div>  
+
+
+    <!-- =================================================  
+         GENERATED STUDENT CODE  
+         ================================================= -->  
+
+    <div  
+        id="modal-code-display-block"  
+        class="hide-element modal-code-box"  
+    >  
+
+        <span>  
+            Student Login Code  
+        </span>  
+
+
+        <strong  
+            id="modal-student-code-preview"  
+        ></strong>  
+
+
+    </div>  
+
+
+    <!-- =================================================  
+         STUDENT FORM  
+         ================================================= -->  
+
+    <form  
+        id="student-form"  
+        class="modal-form"  
+        autocomplete="off"  
+    >  
+
+
+        <!-- Internal edit information -->  
+
+        <input  
+            type="hidden"  
+            id="form-edit-index"  
+            value=""  
+        >  
+
+
+        <input  
+            type="hidden"  
+            id="form-student-code"  
+            value=""  
+        >  
+
+
+        <div class="form-grid">  
+
+
+            <!-- =================================================  
+                 STUDENT NAME  
+                 ================================================= -->  
+
+            <div class="form-group">  
+
+                <label for="std-name">  
+                    Student Name  
+                </label>  
+
+                <input  
+                    type="text"  
+                    id="std-name"  
+                    placeholder="Enter student name"  
+                    autocomplete="name"  
+                    required  
+                >  
+
+            </div>  
+
+
+            <!-- =================================================  
+                 FATHER NAME  
+                 ================================================= -->
+
+<div class="form-group">  <label for="std-father">  
+                    Father's Name  
+                </label>  
+
+                <input  
+                    type="text"  
+                    id="std-father"  
+                    placeholder="Enter father's name"  
+                    autocomplete="off"  
+                    required  
+                >  
+
+            </div>  
+           <!-- =================================================  
+ STUDENT EMAIL  
+ ================================================= -->
+
+<div class="form-group">  <label for="std-email">  
+    Student Email  
+</label>  
+
+<input  
+    type="email"  
+    id="std-email"  
+    placeholder="Enter student email"  
+    autocomplete="email"  
+>
+
+</div>  <!-- =================================================  
+     TEMPORARY PASSWORD  
+     ================================================= -->  <div class="form-group">  <label for="std-password">  
+    Temporary Password  
+</label>  
+
+<input  
+    type="password"  
+    id="std-password"  
+    placeholder="Enter temporary password"  
+    minlength="8"  
+    autocomplete="new-password"  
+>
+
+</div>  <!-- =================================================  
+                 CLASS  
+                 ================================================= -->  
+
+            <div class="form-group">  
+
+                <label for="std-class">  
+                    Class  
+                </label>  
+
+                <input  
+                    type="text"  
+                    id="std-class"  
+                    placeholder="Enter class"  
+                    required  
+                >  
+
+            </div>  
+
+
+            <!-- =================================================  
+                 SEAT  
+                 ================================================= -->  
+
+            <div class="form-group">  
+
+                <label for="std-seat">  
+                    Seat Number  
+                </label>  
+
+                <input  
+                    type="text"  
+                    id="std-seat"  
+                    placeholder="Enter seat number"  
+                    required  
+                >  
+
+            </div>  
+
+
+            <!-- =================================================  
+                 MOBILE  
+                 ================================================= -->  
+
+            <div class="form-group">  
+
+                <label for="std-mobile">  
+                    Mobile Number  
+                </label>  
+
+                <input  
+                    type="tel"  
+                    id="std-mobile"  
+                    placeholder="Enter mobile number"  
+                    inputmode="numeric"  
+                    maxlength="10"  
+                    autocomplete="tel"  
+                    required  
+                >  
+
+            </div>  
+
+
+            <!-- =================================================  
+                 SHIFT  
+                 ================================================= -->  
+
+            <div class="form-group">  
+
+                <label for="std-shift">  
+                    Shift  
+                </label>  
+
+                <select  
+                    id="std-shift"  
+                    required  
+                >  
+
+                    <option value="">  
+                        Select Shift  
+                    </option>  
+
+                    <option value="Morning">  
+                        Morning  
+                    </option>  
+
+                    <option value="Afternoon">  
+                        Afternoon  
+                    </option>  
+
+                    <option value="Evening">  
+                        Evening  
+                    </option>  
+
+                    <option value="Full Day">  
+                        Full Day  
+                    </option>  
+
+                </select>  
+
+            </div>  
+
+
+            <!-- =================================================  
+                 STATUS  
+                 ================================================= -->  
+
+            <div class="form-group">  
+
+                <label for="std-status">  
+                    Status  
+                </label>  
+
+                <select  
+                    id="std-status"  
+                    required  
+                >  
+
+                    <option value="">  
+                        Select Status  
+                    </option>  
+
+                    <option value="Active">  
+                        Active  
+                    </option>  
+
+                    <option value="Expired">  
+                        Expired  
+                    </option>  
+
+                </select>  
+
+            </div>  
+
+
+            <!-- =================================================  
+                 JOINING DATE  
+                 ================================================= -->  
+
+            <div class="form-group">  
+
+                <label for="std-joining">  
+                    Joining Date  
+                </label>  
+
+                <input  
+                    type="text"  
+                    id="std-joining"  
+                    placeholder="DD/MM/YYYY"  
+                    maxlength="10"  
+                    inputmode="numeric"  
+                    required  
+                >  
+
+            </div>  
+
+
+            <!-- =================================================  
+                 EXPIRY DATE  
+                 ================================================= -->  
+
+            <div class="form-group">  
+
+                <label for="std-expiry">  
+                    Expiry Date  
+                </label>  
+
+                <input  
+                    type="text"  
+                    id="std-expiry"  
+                    placeholder="DD/MM/YYYY"  
+                    maxlength="10"  
+                    inputmode="numeric"  
+                    required  
+                >  
 
             </div>
 
-        </div>
-    </div>
+<!-- =================================================  
+     FEE DUE DATE  
+     ================================================= -->  <div class="form-group">  <label for="std-fee-due-date">  
+    Fee Due Date  
+</label>  
 
+<input  
+    type="text"  
+    id="std-fee-due-date"  
+    placeholder="DD/MM/YYYY"  
+    maxlength="10"  
+    inputmode="numeric"  
+>
 
-    <!-- =========================================================
-         FEE RECEIPT PAYMENT MODAL
-         ========================================================= -->
+</div>  <!-- =================================================  
+     FEE STATUS  
+     ================================================= -->  <div class="form-group">  <label for="std-fee-status">  
+    Fee Status  
+</label>  
 
-    <div
-        id="fee-receipt-modal-overlay"
-        class="fee-receipt-modal-overlay"
-    >
-        <div class="fee-receipt-modal">
+<select  
+    id="std-fee-status"  
+>  
 
-            <div class="fee-receipt-modal-header">
+    <option value="Paid">  
+        Paid  
+    </option>  
 
-                <h3>
-                    Fee Payment
-                </h3>
+    <option value="Due">  
+        Due  
+    </option>  
 
-                <button
-                    type="button"
-                    id="fee-receipt-close-btn"
-                    class="fee-receipt-close-btn"
-                    aria-label="Close"
-                >
-                    ×
-                </button>
+</select>
 
-            </div>
+</div>     <div class="form-group">  <label for="std-fee-due-date">  
+    Fee Due Date  
+</label>  
 
+<input  
+    type="text"  
+    id="std-fee-due-date"  
+    placeholder="DD/MM/YYYY"  
+    maxlength="10"  
+    inputmode="numeric"  
+    autocomplete="off"  
+>
 
-            <!-- Student snapshot -->
-            <div class="fee-receipt-student-info">
+</div>   </div>  
 
-                <div class="fee-receipt-student-info-row">
-                    <span>Student</span>
-                    <strong id="fee-receipt-student-name">
-                        -
-                    </strong>
-                </div>
 
-                <div class="fee-receipt-student-info-row">
-                    <span>Student ID</span>
-                    <strong id="fee-receipt-student-code">
-                        -
-                    </strong>
-                </div>
+        <!-- =================================================  
+             FORM ACTIONS  
+             ================================================= -->  
 
-                <div class="fee-receipt-student-info-row">
-                    <span>Seat</span>
-                    <strong id="fee-receipt-student-seat">
-                        -
-                    </strong>
-                </div>
+        <div class="form-actions">  
 
-                <div class="fee-receipt-student-info-row">
-                    <span>Shift</span>
-                    <strong id="fee-receipt-student-shift">
-                        -
-                    </strong>
-                </div>
 
-            </div>
+            <button  
+                id="cancel-form-btn"  
+                type="button"  
+                class="secondary-btn"  
+            >  
 
+                Cancel  
 
-            <form id="fee-receipt-payment-form">
+            </button>  
 
-                <input
-                    type="hidden"
-                    id="fee-receipt-student-id"
-                >
 
-                <input
-                    type="hidden"
-                    id="fee-receipt-student-uid"
-                >
+            <button  
+                type="submit"  
+                class="primary-btn"  
+            >  
 
+                Save Student  
 
-                <div class="fee-receipt-form-group">
+            </button>  
 
-                    <label for="fee-receipt-amount">
-                        Amount
-                    </label>
 
-                    <input
-                        type="number"
-                        id="fee-receipt-amount"
-                        min="0"
-                        step="0.01"
-                        placeholder="Enter fee amount"
-                        required
-                    >
+        </div>  
 
-                </div>
 
+    </form>  
 
-                <div class="fee-receipt-form-group">
 
-                    <label for="fee-receipt-payment-date">
-                        Payment Date
-                    </label>
+</div>
 
-                    <input
-                        type="date"
-                        id="fee-receipt-payment-date"
-                        required
-                    >
+</div>  <!-- =========================================================  
+     FIREBASE SDK  
+     ========================================================= -->  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 
-                </div>
-
-
-                <div class="fee-receipt-form-group">
-
-                    <label for="fee-receipt-payment-method">
-                        Payment Method
-                    </label>
-
-                    <select
-                        id="fee-receipt-payment-method"
-                        required
-                    >
-                        <option value="">
-                            Select Payment Method
-                        </option>
-
-                        <option value="Cash">
-                            Cash
-                        </option>
-
-                        <option value="UPI">
-                            UPI
-                        </option>
-
-                        <option value="Card">
-                            Card
-                        </option>
-
-                        <option value="Bank Transfer">
-                            Bank Transfer
-                        </option>
-
-                        <option value="Other">
-                            Other
-                        </option>
-                    </select>
-
-                </div>
-
-
-                <div class="fee-receipt-form-group">
-
-                    <label for="fee-receipt-next-due-date">
-                        Next Due Date
-                    </label>
-
-                    <input
-                        type="text"
-                        id="fee-receipt-next-due-date"
-                        placeholder="DD/MM/YYYY"
-                    >
-
-                </div>
-
-
-                <div class="fee-receipt-form-group">
-
-                    <label for="fee-receipt-notes">
-                        Notes
-                    </label>
-
-                    <textarea
-                        id="fee-receipt-notes"
-                        placeholder="Optional"
-                    ></textarea>
-
-                </div>
-
-
-                <div
-                    id="fee-receipt-message"
-                    style="
-                        display: none;
-                        margin-top: 10px;
-                        padding: 9px 10px;
-                        border-radius: 6px;
-                        font-size: 13px;
-                    "
-                ></div>
-
-
-                <div class="fee-receipt-form-actions">
-
-                    <button
-                        type="button"
-                        id="fee-receipt-cancel-btn"
-                        class="fee-receipt-cancel-btn"
-                    >
-                        Cancel
-                    </button>
-
-                    <button
-                        type="submit"
-                        id="fee-receipt-save-btn"
-                        class="fee-receipt-save-btn"
-                    >
-                        Save Payment
-                    </button>
-
-                </div>
-
-            </form>
-
-        </div>
-    </div>
-
-
-    <!-- =========================================================
-         FEE HISTORY MODAL
-         ========================================================= -->
-
-    <div
-        id="fee-history-modal-overlay"
-        class="fee-receipt-modal-overlay"
-    >
-        <div
-            class="fee-receipt-modal"
-            style="max-width: 800px;"
-        >
-
-            <div class="fee-receipt-modal-header">
-
-                <h3>
-                    Fee History
-                </h3>
-
-                <button
-                    type="button"
-                    id="fee-history-close-btn"
-                    class="fee-receipt-close-btn"
-                    aria-label="Close"
-                >
-                    ×
-                </button>
-
-            </div>
-
-            <div
-                id="fee-history-student-name"
-                style="
-                    font-size: 15px;
-                    font-weight: 600;
-                    margin-bottom: 15px;
-                "
-            ></div>
-
-            <div
-                id="fee-history-content"
-                style="
-                    overflow-x: auto;
-                "
-            >
-                Loading fee history...
-            </div>
-
-        </div>
-    </div>
-
-
-    <!-- =========================================================
-         FIREBASE
-         ========================================================= -->
-
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
-
-
-    <!-- Existing working files -->
-    <script src="../js/dashboard.js"></script>
-    <script src="../js/student-history.js"></script>
-    <script src="../js/students.js"></script>
-
-
-    <!-- Fee Receipt logic will be connected here in next step -->
-    
-
-</body>
-</html>
+<!-- =========================================================  
+     SHARED CORE  
+     ========================================================= -->  <script src="../js/dashboard.js"></script>  <!-- =========================================================  
+     STUDENT DIRECTORY LOGIC  
+     ========================================================= -->  <script src="../js/student-history.js"></script>  <script src="../js/students.js"></script>  </body>  </html>
