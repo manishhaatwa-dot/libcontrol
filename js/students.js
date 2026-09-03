@@ -547,8 +547,8 @@ function initializeStudentsModule() {
 
 
 /* ==========================================================================
-   10. RENDER TABLE
-   ========================================================================== */
+10. RENDER TABLE
+========================================================================== */
 
 function renderStudentTable() {
 
@@ -607,9 +607,11 @@ function renderStudentTable() {
 
                     student.joiningDate,
 
-                    student.feeStatus,
+                    student.expiryDate,
 
-                    student.feeDueDate
+                    student.feeDueDate,
+
+                    student.feeStatus
 
                 ]
                 .join(" ")
@@ -631,9 +633,12 @@ function renderStudentTable() {
         tableBody.innerHTML = `
             <tr>
                 <td
-                    colspan="10"
+                    colspan="11"
                     class="table-empty"
-                    style="text-align:center;padding:2rem;"
+                    style="
+                        text-align:center;
+                        padding:2rem;
+                    "
                 >
                     ${
                         searchValue
@@ -686,52 +691,40 @@ function renderStudentTable() {
 
             /*
              * --------------------------------------------------------------
-             * FEE RECEIPT STATUS
+             * FEE RECEIPT
              *
-             * Receipt button will appear only after the
-             * fee-receipt module has saved a receipt reference.
-             *
-             * Existing students without a receipt remain unchanged.
+             * Receipt is intentionally kept INSIDE the Fee Status cell.
+             * It is NOT placed inside Actions.
              * --------------------------------------------------------------
              */
 
-            const hasFeeReceipt =
-                Boolean(
-                    student.lastFeeReceiptId ||
-                    student.lastFeeReceiptNumber
-                );
+            let feeReceiptHTML =
+                "";
 
 
-            let feeReceiptButtons =
-                `
-                    <button
-                        type="button"
-                        class="action-icon-btn"
-                        title="Pay Fee"
-                        data-fee-pay="${escapeStudentHtml(
-                            student.studentCode ||
-                            ""
-                        )}"
+            if (
+                student.lastFeeReceiptId ||
+                student.lastFeeReceiptNumber
+            ) {
+
+                feeReceiptHTML = `
+                    <div
+                        style="
+                            margin-top:6px;
+                        "
                     >
-                        Pay Fee
-                    </button>
-                `;
-
-
-            if (hasFeeReceipt) {
-
-                feeReceiptButtons += `
-                    <button
-                        type="button"
-                        class="action-icon-btn"
-                        title="Print Fee Receipt"
-                        data-fee-receipt="${escapeStudentHtml(
-                            student.studentCode ||
-                            ""
-                        )}"
-                    >
-                        Receipt
-                    </button>
+                        <button
+                            type="button"
+                            class="action-icon-btn"
+                            title="Print Fee Receipt"
+                            data-fee-receipt="${escapeStudentHtml(
+                                student.studentCode ||
+                                ""
+                            )}"
+                        >
+                            Receipt
+                        </button>
+                    </div>
                 `;
 
             }
@@ -740,21 +733,37 @@ function renderStudentTable() {
             html += `
                 <tr>
 
+                    <!-- =================================================
+                         UNIQUE LOGIN CODE
+                         ================================================= -->
+
                     <td class="cell-strong">
+
                         ${escapeStudentHtml(
                             student.studentCode ||
                             "-"
                         )}
+
                     </td>
 
 
+                    <!-- =================================================
+                         SEAT
+                         ================================================= -->
+
                     <td class="cell-strong">
+
                         ${escapeStudentHtml(
                             student.seatNumber ||
                             "-"
                         )}
+
                     </td>
 
+
+                    <!-- =================================================
+                         STUDENT NAME
+                         ================================================= -->
 
                     <td class="cell-name">
 
@@ -766,83 +775,141 @@ function renderStudentTable() {
                                 ""
                             )}"
                         >
+
                             ${escapeStudentHtml(
                                 student.studentName ||
                                 "-"
                             )}
+
                         </button>
 
                     </td>
 
 
+                    <!-- =================================================
+                         FATHER NAME
+                         ================================================= -->
+
                     <td>
+
                         ${escapeStudentHtml(
                             student.fatherName ||
                             "-"
                         )}
+
                     </td>
 
 
+                    <!-- =================================================
+                         CLASS
+                         ================================================= -->
+
                     <td>
+
                         ${escapeStudentHtml(
                             student.className ||
                             "-"
                         )}
+
                     </td>
 
 
+                    <!-- =================================================
+                         JOINING DATE
+                         ================================================= -->
+
                     <td>
+
                         ${escapeStudentHtml(
                             formatDateValue(
                                 student.joiningDate
                             ) ||
                             "-"
                         )}
+
                     </td>
 
 
+                    <!-- =================================================
+                         EXPIRY DATE
+                         ================================================= -->
+
                     <td>
+
+                        ${escapeStudentHtml(
+                            formatDateValue(
+                                student.expiryDate
+                            ) ||
+                            "-"
+                        )}
+
+                    </td>
+
+
+                    <!-- =================================================
+                         FEE DUE DATE
+                         ================================================= -->
+
+                    <td>
+
                         ${escapeStudentHtml(
                             formatDateValue(
                                 student.feeDueDate
                             ) ||
                             "-"
                         )}
+
                     </td>
 
+
+                    <!-- =================================================
+                         FEE STATUS + RECEIPT
+                         ================================================= -->
 
                     <td>
 
                         <span
                             class="status-tag ${feeStatusClass}"
                         >
+
                             ${escapeStudentHtml(
                                 feeStatus
                             )}
+
                         </span>
+
+
+                        ${feeReceiptHTML}
 
                     </td>
 
+
+                    <!-- =================================================
+                         STUDENT STATUS
+                         ================================================= -->
 
                     <td>
 
                         <span
                             class="status-tag ${statusClass}"
                         >
+
                             ${escapeStudentHtml(
                                 status
                             )}
+
                         </span>
 
                     </td>
 
 
+                    <!-- =================================================
+                         ACTIONS
+                         ================================================= -->
+
                     <td>
 
                         <div class="actions-cell-wrapper">
-
-                            ${feeReceiptButtons}
-
 
                             <button
                                 type="button"
@@ -884,7 +951,6 @@ function renderStudentTable() {
         html;
 
 }
-
 
 /* ==========================================================================
    11. RESET FORM
