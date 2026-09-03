@@ -225,11 +225,32 @@ async function archiveStudentToHistory(
 
     const historyData = {
 
-        /*
-         * Original student information.
-         */
+    /*
+     * Original student information.
+     */
 
-        ...studentData,
+    ...studentData,
+
+
+    /*
+     * Mobile number
+     *
+     * Keep a dedicated field in history so the
+     * student's mobile number remains available
+     * even after the active student is deleted.
+     */
+
+    mobileNumber:
+        studentData.mobileNumber ||
+        studentData.mobile ||
+        studentData.phone ||
+        "",
+
+
+    /*
+     * History identification.
+     */
+       
 
 
         /*
