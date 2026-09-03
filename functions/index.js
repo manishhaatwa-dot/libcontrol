@@ -1717,7 +1717,7 @@ exports.markStudentSelfAttendance = onCall(
 exports.deleteLibraryStudent = onCall(
     {
         cors: true,
-        invoker: "public"
+        
     },
     async (request) => {
 
