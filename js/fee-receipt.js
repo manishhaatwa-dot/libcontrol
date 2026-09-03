@@ -1735,7 +1735,6 @@ async function getFeeReceiptLibraryName(
 /* ==========================================================================
    9. ADD BUTTONS TO EXISTING STUDENT TABLE
    ========================================================================== */
-
 function enhanceStudentFeeCells() {
 
     const tableBody =
@@ -1765,22 +1764,30 @@ function enhanceStudentFeeCells() {
 
 
             /*
-             * Existing table has 11 columns:
+             * Current students.js table has 10 columns:
              *
              * 0 Login Code
              * 1 Seat
              * 2 Student
              * 3 Father
              * 4 Class
-             * 5 Joining
-             * 6 Expiry
-             * 7 Fee Due
+             * 5 Joining Date
+             * 6 Fee Due Date
+             * 7 Fee Status
+             * 8 Status
+             * 9 Actions
+             *
+             * Older 11-column table is also supported:
+             *
+             * 6 Expiry Date
+             * 7 Fee Due Date
              * 8 Fee Status
              * 9 Status
              * 10 Actions
              */
 
             if (
+                cells.length !== 10 &&
                 cells.length !== 11
             ) {
 
@@ -1813,12 +1820,36 @@ function enhanceStudentFeeCells() {
 
             /*
              * ----------------------------------------------------------
+             * COLUMN POSITIONS
+             * ----------------------------------------------------------
+             */
+
+            const feeStatusIndex =
+                cells.length === 10
+                    ? 7
+                    : 8;
+
+
+            const statusIndex =
+                cells.length === 10
+                    ? 8
+                    : 9;
+
+
+            const actionsIndex =
+                cells.length === 10
+                    ? 9
+                    : 10;
+
+
+            /*
+             * ----------------------------------------------------------
              * FEE STATUS CELL
              * ----------------------------------------------------------
              */
 
             const feeCell =
-                cells[8];
+                cells[feeStatusIndex];
 
 
             if (
@@ -1829,8 +1860,7 @@ function enhanceStudentFeeCells() {
             ) {
 
                 if (
-                    student.lastFeeReceiptId ||
-                    student.lastFeeReceiptNumber
+                    student.lastFeeReceiptId
                 ) {
 
                     const receiptButton =
@@ -1859,20 +1889,25 @@ function enhanceStudentFeeCells() {
 
                     receiptButton.style.cssText = `
                         display:block;
-                        margin-top:6px;
-                        padding:5px 9px;
+                        width:100%;
+                        max-width:90px;
+                        min-width:0;
+                        height:32px;
+                        margin:6px auto 0;
+                        padding:5px 8px;
+                        box-sizing:border-box;
                         border:1px solid #e85d04;
                         background:#ffffff;
                         color:#e85d04;
-                        border-radius:5px;
+                        border-radius:6px;
                         font-size:12px;
                         font-weight:600;
-                        cursor:pointer;
-                        box-sizing:border-box;
-                        max-width:100%;
+                        line-height:20px;
+                        text-align:center;
                         white-space:nowrap;
                         overflow:hidden;
                         text-overflow:ellipsis;
+                        cursor:pointer;
                     `;
 
 
@@ -1920,127 +1955,175 @@ function enhanceStudentFeeCells() {
              */
 
             const actionsCell =
-                cells[10];
+                cells[actionsIndex];
 
+
+            if (!actionsCell) {
+                return;
+            }
+
+
+            const wrapper =
+                actionsCell.querySelector(
+                    ".actions-cell-wrapper"
+                );
+
+
+            if (!wrapper) {
+                return;
+            }
+
+
+            /*
+             * Make the Actions area wide enough
+             * and prevent buttons from getting cut.
+             */
+
+            wrapper.style.display =
+                "flex";
+
+            wrapper.style.alignItems =
+                "center";
+
+            wrapper.style.flexWrap =
+                "wrap";
+
+            wrapper.style.gap =
+                "6px";
+
+            wrapper.style.width =
+                "100%";
+
+            wrapper.style.boxSizing =
+                "border-box";
+
+
+            /*
+             * Existing Edit/Delete buttons.
+             */
+
+            wrapper.querySelectorAll(
+                ".action-icon-btn"
+            ).forEach(
+                (button) => {
+
+                    button.style.display =
+                        "inline-flex";
+
+                    button.style.alignItems =
+                        "center";
+
+                    button.style.justifyContent =
+                        "center";
+
+                    button.style.boxSizing =
+                        "border-box";
+
+                    button.style.minWidth =
+                        "58px";
+
+                    button.style.height =
+                        "34px";
+
+                    button.style.padding =
+                        "5px 9px";
+
+                    button.style.whiteSpace =
+                        "nowrap";
+
+                    button.style.overflow =
+                        "hidden";
+
+                    button.style.textOverflow =
+                        "ellipsis";
+
+                    button.style.flex =
+                        "0 0 auto";
+
+                }
+            );
+
+
+            /*
+             * ----------------------------------------------------------
+             * PAY FEE BUTTON
+             * ----------------------------------------------------------
+             */
 
             if (
-                actionsCell &&
-                !actionsCell.querySelector(
+                !wrapper.querySelector(
                     "[data-fee-pay]"
                 )
             ) {
 
-                const wrapper =
-                    actionsCell.querySelector(
-                        ".actions-cell-wrapper"
+                const payButton =
+                    document.createElement(
+                        "button"
                     );
 
 
-                if (wrapper) {
-
-                    /*
-                     * Keep ALL existing action buttons
-                     * inside their boxes.
-                     */
-
-                    wrapper.querySelectorAll(
-                        ".action-icon-btn"
-                    ).forEach(
-                        (button) => {
-
-                            button.style.whiteSpace =
-                                "nowrap";
-
-                            button.style.overflow =
-                                "hidden";
-
-                            button.style.textOverflow =
-                                "ellipsis";
-
-                            button.style.boxSizing =
-                                "border-box";
-
-                            button.style.maxWidth =
-                                "100%";
-
-                        }
-                    );
+                payButton.type =
+                    "button";
 
 
-                    const payButton =
-                        document.createElement(
-                            "button"
+                payButton.textContent =
+                    "Pay Fee";
+
+
+                payButton.setAttribute(
+                    "data-fee-pay",
+                    student.studentCode
+                );
+
+
+                payButton.title =
+                    "Pay Student Fee";
+
+
+                payButton.className =
+                    "action-icon-btn";
+
+
+                payButton.style.cssText = `
+                    display:inline-flex;
+                    align-items:center;
+                    justify-content:center;
+                    width:auto;
+                    min-width:78px;
+                    height:34px;
+                    padding:5px 10px;
+                    box-sizing:border-box;
+                    white-space:nowrap;
+                    overflow:hidden;
+                    text-overflow:ellipsis;
+                    flex:0 0 auto;
+                    color:#2563eb;
+                    background:#ffffff;
+                    border:1px solid #d1d5db;
+                    border-radius:6px;
+                    font-size:13px;
+                    font-weight:600;
+                    line-height:20px;
+                    cursor:pointer;
+                `;
+
+
+                payButton.addEventListener(
+                    "click",
+                    () => {
+
+                        openFeePaymentModal(
+                            student.studentCode
                         );
 
-
-                    payButton.type =
-                        "button";
-
-
-                    payButton.textContent =
-                        "Pay Fee";
+                    }
+                );
 
 
-                    payButton.setAttribute(
-                        "data-fee-pay",
-                        student.studentCode
-                    );
-
-
-                    payButton.title =
-                        "Pay Student Fee";
-
-
-                    payButton.className =
-                        "action-icon-btn";
-
-
-                    /*
-                     * Pay Fee button styling.
-                     * Blue text + proper white button box.
-                     */
-
-                    payButton.style.cssText = `
-                        width:auto;
-                        min-width:78px;
-                        height:36px;
-                        padding:6px 10px;
-                        box-sizing:border-box;
-                        white-space:nowrap;
-                        overflow:hidden;
-                        text-overflow:ellipsis;
-                        display:inline-flex;
-                        align-items:center;
-                        justify-content:center;
-                        color:#2563eb;
-                        background:#ffffff;
-                        border:1px solid #d1d5db;
-                        border-radius:6px;
-                        font-size:13px;
-                        font-weight:600;
-                        line-height:1.2;
-                        cursor:pointer;
-                    `;
-
-
-                    payButton.addEventListener(
-                        "click",
-                        () => {
-
-                            openFeePaymentModal(
-                                student.studentCode
-                            );
-
-                        }
-                    );
-
-
-                    wrapper.insertBefore(
-                        payButton,
-                        wrapper.firstChild
-                    );
-
-                }
+                wrapper.insertBefore(
+                    payButton,
+                    wrapper.firstChild
+                );
 
             }
 
@@ -2048,7 +2131,6 @@ function enhanceStudentFeeCells() {
     );
 
 }
-
 
 /* ==========================================================================
    10. LOAD STUDENT RECORDS
