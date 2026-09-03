@@ -1888,14 +1888,14 @@ receiptButton.title =
 
 
 receiptButton.style.cssText = `
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    width:90px;
-    max-width:90px;
-    height:32px;
+        
+    display:block;
+    width:100%;
+    min-width:95px;
+    max-width:110px;
+    height:34px;
     margin:6px auto 0;
-    padding:4px 8px;
+    padding:6px 12px;
     box-sizing:border-box;
 
     border:1px solid #e85d04;
@@ -1904,9 +1904,9 @@ receiptButton.style.cssText = `
 
     border-radius:6px;
 
-    font-size:12px;
+    font-size:13px;
     font-weight:600;
-    line-height:18px;
+    line-height:20px;
 
     white-space:nowrap;
     overflow:hidden;
@@ -1914,7 +1914,6 @@ receiptButton.style.cssText = `
 
     cursor:pointer;
 `;
-                   
                     receiptButton.addEventListener(
                         "click",
                         () => {
