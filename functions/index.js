@@ -1675,6 +1675,26 @@ exports.markStudentSelfAttendance = onCall(
  * ==========================================================================
  */
 
+/**
+ * ==========================================================================
+ * DELETE LIBRARY STUDENT ACCOUNT
+ * ==========================================================================
+ *
+ * Purpose:
+ * - Verify the logged-in Admin belongs to the Library
+ * - Verify the Student belongs to the same Library
+ * - Delete the student's Firebase Authentication account
+ * - Delete the active Firestore student record
+ *
+ * Student history is created separately BEFORE this function is called.
+ *
+ * IMPORTANT:
+ * - History is never deleted.
+ * - Auth is deleted first.
+ * - Active Firestore student is deleted only after Auth deletion succeeds.
+ * ==========================================================================
+ */
+
 exports.deleteLibraryStudent = onCall(
     {
         cors: true,
@@ -1685,14 +1705,18 @@ exports.deleteLibraryStudent = onCall(
         try {
 
             /* ==============================================================
-               1. REQUIRE AUTHENTICATED ADMIN
+               STEP 1
+               Verify Firebase Authentication
                ============================================================== */
 
-            if (!request.auth) {
+            if (
+                !request.auth ||
+                !request.auth.uid
+            ) {
 
                 throw new HttpsError(
                     "unauthenticated",
-                    "Authentication is required."
+                    "Admin authentication is required."
                 );
 
             }
@@ -1703,7 +1727,8 @@ exports.deleteLibraryStudent = onCall(
 
 
             /* ==============================================================
-               2. READ INPUT
+               STEP 2
+               Read request data
                ============================================================== */
 
             const data =
@@ -1711,98 +1736,70 @@ exports.deleteLibraryStudent = onCall(
 
 
             const libraryId =
-                String(
-                    data.libraryId || ""
-                )
-                    .trim()
-                    .toUpperCase();
+                normalizeLibraryId(
+                    data.libraryId
+                );
 
 
             const studentCode =
                 String(
-                    data.studentCode || ""
+                    data.studentCode ||
+                    ""
                 )
                     .trim()
                     .toUpperCase();
 
 
+            /* ==============================================================
+               STEP 3
+               Validate input
+               ============================================================== */
+
             if (
-                !libraryId ||
-                !studentCode
+                !isValidLibraryId(
+                    libraryId
+                )
             ) {
 
                 throw new HttpsError(
                     "invalid-argument",
-                    "Library ID and Student Code are required."
+                    "Invalid Library ID."
+                );
+
+            }
+
+
+            if (
+                !/^STU\d{4,}$/.test(
+                    studentCode
+                )
+            ) {
+
+                throw new HttpsError(
+                    "invalid-argument",
+                    "Invalid Student Code."
                 );
 
             }
 
 
             /* ==============================================================
-               3. VERIFY ADMIN
+               STEP 4
+               Get Library
                ============================================================== */
 
-            const libraryRef =
-                admin
-                    .firestore()
+            const libraryReference =
+                adminDB
                     .collection(
-                        "libcontrol_libraries"
+                        COLLECTIONS.LIBRARIES
                     )
                     .doc(
                         libraryId
                     );
 
 
-            const adminRef =
-                libraryRef
-                    .collection(
-                        "admins"
-                    )
-                    .doc(
-                        adminUID
-                    );
-
-
-            const adminSnapshot =
-                await adminRef.get();
-
-
-            if (
-                !adminSnapshot.exists
-            ) {
-
-                throw new HttpsError(
-                    "permission-denied",
-                    "Admin access is required."
-                );
-
-            }
-
-
-            const adminData =
-                adminSnapshot.data() || {};
-
-
-            if (
-                adminData.role &&
-                adminData.role !== "admin"
-            ) {
-
-                throw new HttpsError(
-                    "permission-denied",
-                    "Admin access is required."
-                );
-
-            }
-
-
-            /* ==============================================================
-               4. VERIFY LIBRARY
-               ============================================================== */
-
             const librarySnapshot =
-                await libraryRef.get();
+                await libraryReference.get();
 
 
             if (
@@ -1822,23 +1819,116 @@ exports.deleteLibraryStudent = onCall(
 
 
             if (
-                libraryData.enabled === false
+                libraryData.enabled ===
+                false
             ) {
 
                 throw new HttpsError(
                     "failed-precondition",
-                    "Library is disabled."
+                    "This Library is disabled."
                 );
 
             }
 
 
             /* ==============================================================
-               5. GET ACTIVE STUDENT
+               STEP 5
+               Verify Admin Authorization
                ============================================================== */
 
-            const studentRef =
-                libraryRef
+            const adminReference =
+                libraryReference
+                    .collection(
+                        "admins"
+                    )
+                    .doc(
+                        adminUID
+                    );
+
+
+            const adminSnapshot =
+                await adminReference.get();
+
+
+            if (
+                !adminSnapshot.exists
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Admin authorization record not found."
+                );
+
+            }
+
+
+            const adminData =
+                adminSnapshot.data() || {};
+
+
+            if (
+                adminData.uid &&
+                adminData.uid !==
+                adminUID
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Admin UID verification failed."
+                );
+
+            }
+
+
+            if (
+                adminData.role !==
+                "admin"
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Invalid Admin role."
+                );
+
+            }
+
+
+            if (
+                adminData.libraryId &&
+                normalizeLibraryId(
+                    adminData.libraryId
+                ) !==
+                libraryId
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Admin is not authorized for this library."
+                );
+
+            }
+
+
+            if (
+                adminData.enabled ===
+                false
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Admin account is disabled."
+                );
+
+            }
+
+
+            /* ==============================================================
+               STEP 6
+               Get Active Student
+               ============================================================== */
+
+            const studentReference =
+                libraryReference
                     .collection(
                         "students"
                     )
@@ -1848,7 +1938,7 @@ exports.deleteLibraryStudent = onCall(
 
 
             const studentSnapshot =
-                await studentRef.get();
+                await studentReference.get();
 
 
             if (
@@ -1867,9 +1957,31 @@ exports.deleteLibraryStudent = onCall(
                 studentSnapshot.data() || {};
 
 
+            /* ==============================================================
+               STEP 7
+               Verify Student belongs to this Library
+               ============================================================== */
+
+            if (
+                studentData.libraryId &&
+                normalizeLibraryId(
+                    studentData.libraryId
+                ) !==
+                libraryId
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Student is not associated with this library."
+                );
+
+            }
+
+
             const studentUID =
                 String(
-                    studentData.uid || ""
+                    studentData.uid ||
+                    ""
                 ).trim();
 
 
@@ -1884,41 +1996,45 @@ exports.deleteLibraryStudent = onCall(
 
 
             /* ==============================================================
-               6. DELETE FIREBASE AUTH ACCOUNT
+               STEP 8
+               Delete Firebase Authentication Account
                ============================================================== */
 
             try {
 
-                await admin
-                    .auth()
+                await adminAuth
                     .deleteUser(
                         studentUID
                     );
 
-            } catch (authError) {
+            }
+            catch (authError) {
+
+                console.error(
+                    "[LibControl] Student Auth deletion error:",
+                    authError
+                );
+
 
                 /*
-                 * If the Auth account is already gone, continue.
-                 * This makes the operation safely retryable.
+                 * If Auth account is already deleted,
+                 * we can safely continue and clean the active
+                 * Firestore student record.
                  */
 
                 if (
                     authError &&
                     authError.code ===
-                        "auth/user-not-found"
+                    "auth/user-not-found"
                 ) {
 
                     console.warn(
-                        "[LibControl] Student Auth account was already deleted:",
+                        "[LibControl] Student Auth account already deleted:",
                         studentUID
                     );
 
-                } else {
-
-                    console.error(
-                        "[LibControl] Unable to delete student Auth account:",
-                        authError
-                    );
+                }
+                else {
 
                     throw new HttpsError(
                         "internal",
@@ -1931,26 +2047,57 @@ exports.deleteLibraryStudent = onCall(
 
 
             /* ==============================================================
-               7. DELETE ACTIVE FIRESTORE STUDENT
+               STEP 9
+               Delete Active Firestore Student
                ============================================================== */
 
-            await studentRef.delete();
+            await studentReference.delete();
 
 
             /* ==============================================================
-               8. SUCCESS
+               STEP 10
+               Success
                ============================================================== */
+
+            console.log(
+                "[LibControl] Student account deleted:",
+                {
+                    uid:
+                        studentUID,
+
+                    email:
+                        studentData.email ||
+                        "",
+
+                    libraryId:
+                        libraryId,
+
+                    studentCode:
+                        studentCode,
+
+                    deletedBy:
+                        adminUID
+                }
+            );
+
 
             return {
 
                 success:
                     true,
 
-                studentCode:
-                    studentCode,
-
                 uid:
                     studentUID,
+
+                email:
+                    studentData.email ||
+                    "",
+
+                libraryId:
+                    libraryId,
+
+                studentCode:
+                    studentCode,
 
                 message:
                     "Student account and active student record deleted successfully."
@@ -1958,7 +2105,8 @@ exports.deleteLibraryStudent = onCall(
             };
 
 
-        } catch (error) {
+        }
+        catch (error) {
 
             console.error(
                 "[LibControl] deleteLibraryStudent failed:",
@@ -1967,7 +2115,8 @@ exports.deleteLibraryStudent = onCall(
 
 
             if (
-                error instanceof HttpsError
+                error instanceof
+                HttpsError
             ) {
 
                 throw error;
