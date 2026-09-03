@@ -14,6 +14,7 @@
  * - Joining date
  * - Fee status
  * - Fee due date
+ * - Fee Receipt / Fee History
  *
  * IMPORTANT:
  * This module NEVER accesses the old "saas_libraries" structure.
@@ -785,7 +786,41 @@ function renderStudentTable() {
 
                     <td>
 
-                        <div class="actions-cell-wrapper">
+                        <div
+                            class="actions-cell-wrapper"
+                            style="
+                                display:flex;
+                                flex-wrap:wrap;
+                                gap:5px;
+                                align-items:center;
+                            "
+                        >
+
+                            <button
+                                type="button"
+                                class="fee-receipt-pay-btn"
+                                title="Pay Fee"
+                                data-fee-pay="${escapeStudentHtml(
+                                    student.studentCode ||
+                                    ""
+                                )}"
+                            >
+                                Pay Fee
+                            </button>
+
+
+                            <button
+                                type="button"
+                                class="fee-receipt-history-btn"
+                                title="Fee History"
+                                data-fee-history="${escapeStudentHtml(
+                                    student.studentCode ||
+                                    ""
+                                )}"
+                            >
+                                History
+                            </button>
+
 
                             <button
                                 type="button"
@@ -2295,6 +2330,152 @@ function bindStudentTableActions() {
         "click",
         (event) => {
 
+            /*
+             * ----------------------------------------------------------
+             * PAY FEE
+             * ----------------------------------------------------------
+             */
+
+            const payFeeButton =
+                event.target.closest(
+                    "[data-fee-pay]"
+                );
+
+
+            if (payFeeButton) {
+
+                const studentCode =
+                    payFeeButton.getAttribute(
+                        "data-fee-pay"
+                    );
+
+
+                const student =
+                    studentRecords.find(
+                        (item) =>
+                            String(
+                                item.studentCode
+                            ).toUpperCase() ===
+                            String(
+                                studentCode
+                            ).toUpperCase()
+                    );
+
+
+                if (!student) {
+
+                    alert(
+                        "Student record not found."
+                    );
+
+                    return;
+
+                }
+
+
+                if (
+                    !window.LibControlFeeReceipt ||
+                    typeof window.LibControlFeeReceipt
+                        .openPaymentModal !==
+                        "function"
+                ) {
+
+                    alert(
+                        "Fee Receipt module is not available."
+                    );
+
+                    return;
+
+                }
+
+
+                window.LibControlFeeReceipt
+                    .openPaymentModal(
+                        student
+                    );
+
+
+                return;
+
+            }
+
+
+            /*
+             * ----------------------------------------------------------
+             * FEE HISTORY
+             * ----------------------------------------------------------
+             */
+
+            const feeHistoryButton =
+                event.target.closest(
+                    "[data-fee-history]"
+                );
+
+
+            if (feeHistoryButton) {
+
+                const studentCode =
+                    feeHistoryButton.getAttribute(
+                        "data-fee-history"
+                    );
+
+
+                const student =
+                    studentRecords.find(
+                        (item) =>
+                            String(
+                                item.studentCode
+                            ).toUpperCase() ===
+                            String(
+                                studentCode
+                            ).toUpperCase()
+                    );
+
+
+                if (!student) {
+
+                    alert(
+                        "Student record not found."
+                    );
+
+                    return;
+
+                }
+
+
+                if (
+                    !window.LibControlFeeReceipt ||
+                    typeof window.LibControlFeeReceipt
+                        .openFeeHistory !==
+                        "function"
+                ) {
+
+                    alert(
+                        "Fee Receipt module is not available."
+                    );
+
+                    return;
+
+                }
+
+
+                window.LibControlFeeReceipt
+                    .openFeeHistory(
+                        student
+                    );
+
+
+                return;
+
+            }
+
+
+            /*
+             * ----------------------------------------------------------
+             * EDIT STUDENT
+             * ----------------------------------------------------------
+             */
+
             const editButton =
                 event.target.closest(
                     "[data-student-edit]"
@@ -2314,6 +2495,12 @@ function bindStudentTableActions() {
             }
 
 
+            /*
+             * ----------------------------------------------------------
+             * DELETE STUDENT
+             * ----------------------------------------------------------
+             */
+
             const deleteButton =
                 event.target.closest(
                     "[data-student-delete]"
@@ -2332,6 +2519,12 @@ function bindStudentTableActions() {
 
             }
 
+
+            /*
+             * ----------------------------------------------------------
+             * VIEW STUDENT
+             * ----------------------------------------------------------
+             */
 
             const viewButton =
                 event.target.closest(
