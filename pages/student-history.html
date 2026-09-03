@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Student History | LibControl</title>
+
+    <!-- Existing LibControl CSS -->
+    <link
+        rel="stylesheet"
+        href="../css/style.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../css/layout.css"
+    >
+
+    <style>
+        /* =========================================================
+           STUDENT HISTORY PAGE
+           ========================================================= */
+
+        .student-history-page {
+            padding: 20px;
+        }
+
+        .student-history-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        .student-history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 18px;
+        }
+
+        .student-history-header h2 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: #111111;
+        }
+
+        .student-history-back-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 9px 14px;
+            border-radius: 7px;
+            background: #2563eb;
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .student-history-back-btn:hover {
+            opacity: 0.92;
+        }
+
+        .student-history-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .student-history-search {
+            width: 260px;
+            max-width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 7px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .student-history-search:focus {
+            border-color: #2563eb;
+        }
+
+        .student-history-status {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333333;
+        }
+
+        .student-history-table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .student-history-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 850px;
+        }
+
+        .student-history-table th,
+        .student-history-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .student-history-table th {
+            background: #f8fafc;
+            color: #111111;
+            font-weight: 700;
+        }
+
+        .student-history-table td {
+            color: #222222;
+            font-weight: 500;
+        }
+
+        .student-history-empty {
+            text-align: center;
+            padding: 30px 15px;
+            color: #666666;
+            font-weight: 600;
+        }
+
+        .student-history-loading {
+            text-align: center;
+            padding: 30px 15px;
+            font-weight: 600;
+            color: #333333;
+        }
+
+        @media (max-width: 600px) {
+
+            .student-history-page {
+                padding: 12px;
+            }
+
+            .student-history-card {
+                padding: 14px;
+            }
+
+            .student-history-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .student-history-search {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Shared LibControl Sidebar -->
+    <div id="sidebar-container"></div>
+
+
+    <!-- Main Layout -->
+    <main class="main-content">
+
+        <!-- Shared Navbar -->
+        <div id="navbar-container"></div>
+
+
+        <section class="student-history-page">
+
+            <div class="student-history-card">
+
+                <div class="student-history-header">
+
+                    <h2>
+                        Student History
+                    </h2>
+
+                    <a
+                        href="admin-dashboard.html"
+                        class="student-history-back-btn"
+                    >
+                        ← Dashboard
+                    </a>
+
+                </div>
+
+
+                <div class="student-history-toolbar">
+
+                    <input
+                        type="search"
+                        id="student-history-search"
+                        class="student-history-search"
+                        placeholder="Search student..."
+                        autocomplete="off"
+                    >
+
+                    <span
+                        id="student-history-status"
+                        class="student-history-status"
+                    >
+                        Loading...
+                    </span>
+
+                </div>
+
+
+                <div
+                    id="student-history-loading"
+                    class="student-history-loading"
+                >
+                    Loading student history...
+                </div>
+
+
+                <div class="student-history-table-wrapper">
+
+                    <table
+                        id="student-history-table"
+                        class="student-history-table"
+                        style="display: none;"
+                    >
+
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Student</th>
+                                <th>Seat</th>
+                                <th>Shift</th>
+                                <th>Joining Date</th>
+                                <th>Leaving Date</th>
+                                <th>Fee Status</th>
+                            </tr>
+                        </thead>
+
+                        <tbody
+                            id="student-history-table-body"
+                        ></tbody>
+
+                    </table>
+
+                </div>
+
+
+                <div
+                    id="student-history-empty"
+                    class="student-history-empty"
+                    style="display: none;"
+                >
+                    No student history found.
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+
+    <!-- Existing LibControl Core -->
+    <script src="../js/dashboard.js"></script>
+
+
+    <!-- Student History Page Logic -->
+    <!-- This file will be added in the next step. -->
+
+</body>
+</html>
