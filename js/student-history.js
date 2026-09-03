@@ -311,24 +311,18 @@ async function archiveStudentToHistory(
      * If the batch fails, the active student remains untouched.
      * --------------------------------------------------------------
      */
-
-    const batch =
-        window.db.batch();
-
-
-    batch.set(
-        historyRef,
-        historyData
-    );
+   
+const batch =
+    window.db.batch();
 
 
-    batch.delete(
-        activeStudentRef
-    );
+batch.set(
+    historyRef,
+    historyData
+);
 
 
-    await batch.commit();
-
+await batch.commit();
 
     /*
      * --------------------------------------------------------------
