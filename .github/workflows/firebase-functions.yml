@@ -46,5 +46,5 @@ jobs:
       - name: Deploy LibControl Functions
         run: |
           firebase deploy \
-            --only functions:createLibraryAdmin,functions:completeAdminPasswordChange,functions:createLibraryStudent,functions:markStudentSelfAttendance \
+            --only functions:createLibraryAdmin,functions:completeAdminPasswordChange,functions:createLibraryStudent,functions:markStudentSelfAttendance,functions:deleteLibraryStudent \
             --project appointment-app-cb979
