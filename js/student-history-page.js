@@ -234,6 +234,10 @@ function getFilteredHistoryRecords() {
 
                 student.mobileNumber,
 
+                student.mobile,
+
+                student.phone,
+
                 student.shift,
 
                 student.email
@@ -382,6 +386,13 @@ function renderStudentHistoryTable() {
                 "-";
 
 
+            const mobileNumber =
+                student.mobileNumber ||
+                student.mobile ||
+                student.phone ||
+                "-";
+
+
             const seatNumber =
                 student.seatNumber ||
                 "-";
@@ -419,6 +430,12 @@ function renderStudentHistoryTable() {
                 <td>
                     ${escapeHistoryHTML(
                         studentName
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHistoryHTML(
+                        mobileNumber
                     )}
                 </td>
 
