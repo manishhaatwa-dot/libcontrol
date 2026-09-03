@@ -1694,6 +1694,25 @@ exports.markStudentSelfAttendance = onCall(
  * - Active Firestore student is deleted only after Auth deletion succeeds.
  * ==========================================================================
  */
+/**
+ * ==========================================================================
+ * DELETE LIBRARY STUDENT ACCOUNT
+ * ==========================================================================
+ *
+ * Purpose:
+ * - Verify the logged-in Admin belongs to the Library
+ * - Verify the Student belongs to the same Library
+ * - Delete the student's Firebase Authentication account
+ * - Delete the active Firestore student record
+ *
+ * Student history is created separately BEFORE this function is called.
+ *
+ * IMPORTANT:
+ * - History is never deleted.
+ * - Auth is deleted first.
+ * - Active Firestore student is deleted only after Auth deletion succeeds.
+ * ==========================================================================
+ */
 
 exports.deleteLibraryStudent = onCall(
     {
@@ -2133,7 +2152,6 @@ exports.deleteLibraryStudent = onCall(
 
     }
 );
-
 
 /* ==========================================================================
    11. CREATE STUDENT AUTHENTICATION ACCOUNT
