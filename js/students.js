@@ -11,8 +11,7 @@
  * - Delete student
  * - Automatic unique student login code
  * - Library-wise Firestore isolation
- * - Joining / expiry date
- * - Active / expired status
+ * - Joining date
  * - Fee status
  * - Fee due date
  *
@@ -388,50 +387,7 @@ function escapeStudentHtml(
 
 
 /* ==========================================================================
-   9. AUTO STATUS
-   ========================================================================== */
-
-function calculateStudentStatus(
-    expiryDate
-) {
-
-    const expiry =
-        parseIndianDate(
-            expiryDate
-        );
-
-
-    if (!expiry) {
-
-        return "Active";
-
-    }
-
-
-    expiry.setHours(
-        23,
-        59,
-        59,
-        999
-    );
-
-
-    const now =
-        new Date();
-
-
-    return (
-        expiry.getTime() >=
-        now.getTime()
-    )
-        ? "Active"
-        : "Expired";
-
-}
-
-
-/* ==========================================================================
-   10. LOAD STUDENTS
+   9. LOAD STUDENTS
    ========================================================================== */
 
 function initializeStudentsModule() {
@@ -458,7 +414,7 @@ function initializeStudentsModule() {
         tableBody.innerHTML = `
             <tr>
                 <td
-                    colspan="11"
+                    colspan="10"
                     class="table-empty"
                     style="text-align:center;padding:2rem;"
                 >
@@ -480,7 +436,7 @@ function initializeStudentsModule() {
         tableBody.innerHTML = `
             <tr>
                 <td
-                    colspan="11"
+                    colspan="10"
                     class="table-empty"
                     style="text-align:center;padding:2rem;"
                 >
@@ -573,7 +529,7 @@ function initializeStudentsModule() {
                 tableBody.innerHTML = `
                     <tr>
                         <td
-                            colspan="11"
+                            colspan="10"
                             class="table-empty"
                             style="text-align:center;padding:2rem;"
                         >
@@ -590,7 +546,7 @@ function initializeStudentsModule() {
 
 
 /* ==========================================================================
-   11. RENDER TABLE
+   10. RENDER TABLE
    ========================================================================== */
 
 function renderStudentTable() {
@@ -650,8 +606,6 @@ function renderStudentTable() {
 
                     student.joiningDate,
 
-                    student.expiryDate,
-
                     student.feeStatus,
 
                     student.feeDueDate
@@ -676,7 +630,7 @@ function renderStudentTable() {
         tableBody.innerHTML = `
             <tr>
                 <td
-                    colspan="11"
+                    colspan="10"
                     class="table-empty"
                     style="text-align:center;padding:2rem;"
                 >
@@ -703,9 +657,7 @@ function renderStudentTable() {
 
             const status =
                 student.status ||
-                calculateStudentStatus(
-                    student.expiryDate
-                );
+                "Active";
 
 
             const statusClass =
@@ -798,16 +750,6 @@ function renderStudentTable() {
                     <td>
                         ${escapeStudentHtml(
                             formatDateValue(
-                                student.expiryDate
-                            ) ||
-                            "-"
-                        )}
-                    </td>
-
-
-                    <td>
-                        ${escapeStudentHtml(
-                            formatDateValue(
                                 student.feeDueDate
                             ) ||
                             "-"
@@ -888,7 +830,7 @@ function renderStudentTable() {
 
 
 /* ==========================================================================
-   12. RESET FORM
+   11. RESET FORM
    ========================================================================== */
 
 function resetStudentForm() {
@@ -1009,7 +951,7 @@ function resetStudentForm() {
 
 
 /* ==========================================================================
-   13. OPEN ADD MODAL
+   12. OPEN ADD MODAL
    ========================================================================== */
 
 function openAddStudentModal() {
@@ -1194,7 +1136,7 @@ function openAddStudentModal() {
 
 
 /* ==========================================================================
-   14. OPEN EDIT MODAL
+   13. OPEN EDIT MODAL
    ========================================================================== */
 
 function openEditStudentModal(
@@ -1343,9 +1285,7 @@ function openEditStudentModal(
         "std-status"
     ).value =
         student.status ||
-        calculateStudentStatus(
-            student.expiryDate
-        );
+        "Active";
 
 
     studentElement(
@@ -1353,14 +1293,6 @@ function openEditStudentModal(
     ).value =
         formatDateValue(
             student.joiningDate
-        );
-
-
-    studentElement(
-        "std-expiry"
-    ).value =
-        formatDateValue(
-            student.expiryDate
         );
 
 
@@ -1444,7 +1376,7 @@ function openEditStudentModal(
 
 
 /* ==========================================================================
-   15. CLOSE MODAL
+   14. CLOSE MODAL
    ========================================================================== */
 
 function closeStudentModal() {
@@ -1470,7 +1402,7 @@ function closeStudentModal() {
 
 
 /* ==========================================================================
-   16. VALIDATE FORM
+   15. VALIDATE FORM
    ========================================================================== */
 
 function validateStudentForm() {
@@ -1520,24 +1452,18 @@ function validateStudentForm() {
     const shift =
         studentElement(
             "std-shift"
-        ).value;
+        ).value || "";
 
 
     const status =
         studentElement(
             "std-status"
-        ).value;
+        ).value || "";
 
 
     const joining =
         studentElement(
             "std-joining"
-        ).value.trim();
-
-
-    const expiry =
-        studentElement(
-            "std-expiry"
         ).value.trim();
 
 
@@ -1553,25 +1479,23 @@ function validateStudentForm() {
         )?.value || "Paid";
 
 
-    if (
-        !name ||
-        !email ||
-        !father ||
-        !className ||
-        !seat ||
-        !mobile ||
-        !shift ||
-        !status ||
-        !joining ||
-        !expiry
-    ) {
+    /*
+     * Only Email is mandatory here.
+     *
+     * Password is checked separately below for
+     * new student account creation.
+     *
+     * All other student fields are optional.
+     */
+
+    if (!email) {
 
         return {
 
             valid: false,
 
             message:
-                "Please fill all required fields."
+                "Please enter student email address."
 
         };
 
@@ -1618,7 +1542,15 @@ function validateStudentForm() {
     }
 
 
+    /*
+     * Mobile number is optional.
+     *
+     * If entered, it must contain exactly
+     * 10 digits.
+     */
+
     if (
+        mobile &&
         !/^\d{10}$/.test(
             mobile
         )
@@ -1636,7 +1568,14 @@ function validateStudentForm() {
     }
 
 
+    /*
+     * Joining Date is optional.
+     *
+     * If entered, it must use DD/MM/YYYY.
+     */
+
     if (
+        joining &&
         !isValidDateFormat(
             joining
         )
@@ -1654,45 +1593,14 @@ function validateStudentForm() {
     }
 
 
-    if (
-        !isValidDateFormat(
-            expiry
-        )
-    ) {
-
-        return {
-
-            valid: false,
-
-            message:
-                "Expiry Date must be in DD/MM/YYYY format."
-
-        };
-
-    }
-
-
     /*
-     * Fee Due Date is required because
-     * the notification system will use this date
-     * for the 2-day reminder.
+     * Fee Due Date is optional.
+     *
+     * If entered, it must use DD/MM/YYYY.
      */
 
-    if (!feeDueDate) {
-
-        return {
-
-            valid: false,
-
-            message:
-                "Please enter Fee Due Date."
-
-        };
-
-    }
-
-
     if (
+        feeDueDate &&
         !isValidDateFormat(
             feeDueDate
         )
@@ -1704,55 +1612,6 @@ function validateStudentForm() {
 
             message:
                 "Fee Due Date must be in DD/MM/YYYY format."
-
-        };
-
-    }
-
-
-    const joiningDate =
-        parseIndianDate(
-            joining
-        );
-
-
-    const expiryDate =
-        parseIndianDate(
-            expiry
-        );
-
-
-    const feeDueDateObject =
-        parseIndianDate(
-            feeDueDate
-        );
-
-
-    if (
-        expiryDate <
-        joiningDate
-    ) {
-
-        return {
-
-            valid: false,
-
-            message:
-                "Expiry Date cannot be before Joining Date."
-
-        };
-
-    }
-
-
-    if (!feeDueDateObject) {
-
-        return {
-
-            valid: false,
-
-            message:
-                "Invalid Fee Due Date."
 
         };
 
@@ -1787,13 +1646,10 @@ function validateStudentForm() {
                 shift,
 
             status:
-                status,
+                status || "Active",
 
             joiningDate:
                 joining,
-
-            expiryDate:
-                expiry,
 
             feeDueDate:
                 feeDueDate,
@@ -1812,7 +1668,7 @@ function validateStudentForm() {
 
 
 /* ==========================================================================
-   17. SAVE STUDENT
+   16. SAVE STUDENT
    ========================================================================== */
 
 async function saveStudent(
@@ -2223,7 +2079,7 @@ async function saveStudent(
 
 
 /* ==========================================================================
-   18. DELETE STUDENT
+   17. DELETE STUDENT
    ========================================================================== */
 
 async function deleteStudent(
@@ -2281,63 +2137,67 @@ async function deleteStudent(
 
     try {
 
-   const historyResult =
-    await window.LibControlStudentHistory.archive(
-        session.libraryId,
-        studentCode
-    );
-
-if (!historyResult || !historyResult.success) {
-
-    throw new Error(
-        "Student history archive failed."
-    );
-
-}
+        const historyResult =
+            await window.LibControlStudentHistory.archive(
+                session.libraryId,
+                studentCode
+            );
 
 
-/*
- * Delete Firebase Authentication account
- * and then remove the active Firestore student.
- */
+        if (
+            !historyResult ||
+            !historyResult.success
+        ) {
 
-const deleteStudentAccount =
-    firebase
-        .functions()
-        .httpsCallable(
-            "deleteLibraryStudent"
+            throw new Error(
+                "Student history archive failed."
+            );
+
+        }
+
+
+        /*
+         * Delete Firebase Authentication account
+         * and then remove the active Firestore student.
+         */
+
+        const deleteStudentAccount =
+            firebase
+                .functions()
+                .httpsCallable(
+                    "deleteLibraryStudent"
+                );
+
+
+        const deleteResult =
+            await deleteStudentAccount({
+
+                libraryId:
+                    session.libraryId,
+
+                studentCode:
+                    studentCode
+
+            });
+
+
+        if (
+            !deleteResult ||
+            !deleteResult.data ||
+            !deleteResult.data.success
+        ) {
+
+            throw new Error(
+                "Unable to delete student account."
+            );
+
+        }
+
+
+        alert(
+            "Student moved to history and login account deleted successfully."
         );
 
-
-const deleteResult =
-    await deleteStudentAccount({
-
-        libraryId:
-            session.libraryId,
-
-        studentCode:
-            studentCode
-
-    });
-
-
-if (
-    !deleteResult ||
-    !deleteResult.data ||
-    !deleteResult.data.success
-) {
-
-    throw new Error(
-        "Unable to delete student account."
-    );
-
-}
-
-
-alert(
-    "Student moved to history and login account deleted successfully."
-);
-       
     }
     catch (error) {
 
@@ -2357,7 +2217,7 @@ alert(
 
 
 /* ==========================================================================
-   19. STUDENT VIEW
+   18. STUDENT VIEW
    ========================================================================== */
 
 function viewStudent(
@@ -2415,7 +2275,7 @@ function viewStudent(
 
 
 /* ==========================================================================
-   20. EVENT DELEGATION
+   19. EVENT DELEGATION
    ========================================================================== */
 
 function bindStudentTableActions() {
@@ -2496,7 +2356,7 @@ function bindStudentTableActions() {
 
 
 /* ==========================================================================
-   21. MODAL EVENTS
+   20. MODAL EVENTS
    ========================================================================== */
 
 function bindStudentModalEvents() {
@@ -2615,7 +2475,7 @@ function bindStudentModalEvents() {
 
 
 /* ==========================================================================
-   22. SEARCH
+   21. SEARCH
    ========================================================================== */
 
 function bindStudentSearch() {
@@ -2644,7 +2504,7 @@ function bindStudentSearch() {
 
 
 /* ==========================================================================
-   23. INITIALIZE
+   22. INITIALIZE
    ========================================================================== */
 
 document.addEventListener(
@@ -2693,7 +2553,7 @@ document.addEventListener(
 
 
 /* ==========================================================================
-   24. GLOBAL MODULE API
+   23. GLOBAL MODULE API
    ========================================================================== */
 
 window.LibManageStudents = {
