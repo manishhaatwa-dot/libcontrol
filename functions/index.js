@@ -1658,6 +1658,334 @@ exports.markStudentSelfAttendance = onCall(
 );
 
 
+/**
+ * ==========================================================================
+ * DELETE LIBRARY STUDENT ACCOUNT
+ * ==========================================================================
+ *
+ * Purpose:
+ * - Delete student's Firebase Authentication account
+ * - Delete active student Firestore record
+ *
+ * Student history is already created separately by students.js before
+ * this function is called, so historical data remains preserved.
+ *
+ * This allows the student's email to be reused for a fresh account
+ * in another library.
+ * ==========================================================================
+ */
+
+exports.deleteLibraryStudent = onCall(
+    {
+        cors: true,
+        invoker: "public"
+    },
+    async (request) => {
+
+        try {
+
+            /* ==============================================================
+               1. REQUIRE AUTHENTICATED ADMIN
+               ============================================================== */
+
+            if (!request.auth) {
+
+                throw new HttpsError(
+                    "unauthenticated",
+                    "Authentication is required."
+                );
+
+            }
+
+
+            const adminUID =
+                request.auth.uid;
+
+
+            /* ==============================================================
+               2. READ INPUT
+               ============================================================== */
+
+            const data =
+                request.data || {};
+
+
+            const libraryId =
+                String(
+                    data.libraryId || ""
+                )
+                    .trim()
+                    .toUpperCase();
+
+
+            const studentCode =
+                String(
+                    data.studentCode || ""
+                )
+                    .trim()
+                    .toUpperCase();
+
+
+            if (
+                !libraryId ||
+                !studentCode
+            ) {
+
+                throw new HttpsError(
+                    "invalid-argument",
+                    "Library ID and Student Code are required."
+                );
+
+            }
+
+
+            /* ==============================================================
+               3. VERIFY ADMIN
+               ============================================================== */
+
+            const libraryRef =
+                admin
+                    .firestore()
+                    .collection(
+                        "libcontrol_libraries"
+                    )
+                    .doc(
+                        libraryId
+                    );
+
+
+            const adminRef =
+                libraryRef
+                    .collection(
+                        "admins"
+                    )
+                    .doc(
+                        adminUID
+                    );
+
+
+            const adminSnapshot =
+                await adminRef.get();
+
+
+            if (
+                !adminSnapshot.exists
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Admin access is required."
+                );
+
+            }
+
+
+            const adminData =
+                adminSnapshot.data() || {};
+
+
+            if (
+                adminData.role &&
+                adminData.role !== "admin"
+            ) {
+
+                throw new HttpsError(
+                    "permission-denied",
+                    "Admin access is required."
+                );
+
+            }
+
+
+            /* ==============================================================
+               4. VERIFY LIBRARY
+               ============================================================== */
+
+            const librarySnapshot =
+                await libraryRef.get();
+
+
+            if (
+                !librarySnapshot.exists
+            ) {
+
+                throw new HttpsError(
+                    "not-found",
+                    "Library not found."
+                );
+
+            }
+
+
+            const libraryData =
+                librarySnapshot.data() || {};
+
+
+            if (
+                libraryData.enabled === false
+            ) {
+
+                throw new HttpsError(
+                    "failed-precondition",
+                    "Library is disabled."
+                );
+
+            }
+
+
+            /* ==============================================================
+               5. GET ACTIVE STUDENT
+               ============================================================== */
+
+            const studentRef =
+                libraryRef
+                    .collection(
+                        "students"
+                    )
+                    .doc(
+                        studentCode
+                    );
+
+
+            const studentSnapshot =
+                await studentRef.get();
+
+
+            if (
+                !studentSnapshot.exists
+            ) {
+
+                throw new HttpsError(
+                    "not-found",
+                    "Student record not found."
+                );
+
+            }
+
+
+            const studentData =
+                studentSnapshot.data() || {};
+
+
+            const studentUID =
+                String(
+                    studentData.uid || ""
+                ).trim();
+
+
+            if (!studentUID) {
+
+                throw new HttpsError(
+                    "failed-precondition",
+                    "Student does not have a Firebase Authentication account."
+                );
+
+            }
+
+
+            /* ==============================================================
+               6. DELETE FIREBASE AUTH ACCOUNT
+               ============================================================== */
+
+            try {
+
+                await admin
+                    .auth()
+                    .deleteUser(
+                        studentUID
+                    );
+
+            } catch (authError) {
+
+                /*
+                 * If the Auth account is already gone, continue.
+                 * This makes the operation safely retryable.
+                 */
+
+                if (
+                    authError &&
+                    authError.code ===
+                        "auth/user-not-found"
+                ) {
+
+                    console.warn(
+                        "[LibControl] Student Auth account was already deleted:",
+                        studentUID
+                    );
+
+                } else {
+
+                    console.error(
+                        "[LibControl] Unable to delete student Auth account:",
+                        authError
+                    );
+
+                    throw new HttpsError(
+                        "internal",
+                        "Unable to delete student login account."
+                    );
+
+                }
+
+            }
+
+
+            /* ==============================================================
+               7. DELETE ACTIVE FIRESTORE STUDENT
+               ============================================================== */
+
+            await studentRef.delete();
+
+
+            /* ==============================================================
+               8. SUCCESS
+               ============================================================== */
+
+            return {
+
+                success:
+                    true,
+
+                studentCode:
+                    studentCode,
+
+                uid:
+                    studentUID,
+
+                message:
+                    "Student account and active student record deleted successfully."
+
+            };
+
+
+        } catch (error) {
+
+            console.error(
+                "[LibControl] deleteLibraryStudent failed:",
+                error
+            );
+
+
+            if (
+                error instanceof HttpsError
+            ) {
+
+                throw error;
+
+            }
+
+
+            throw new HttpsError(
+                "internal",
+                "Unable to delete student account."
+            );
+
+        }
+
+    }
+);
+
+
 /* ==========================================================================
    11. CREATE STUDENT AUTHENTICATION ACCOUNT
    ========================================================================== */
