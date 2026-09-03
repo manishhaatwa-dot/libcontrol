@@ -1863,54 +1863,58 @@ function enhanceStudentFeeCells() {
                     student.lastFeeReceiptId
                 ) {
 
-                    const receiptButton =
-                        document.createElement(
-                            "button"
-                        );
+                  const receiptButton =
+    document.createElement(
+        "button"
+    );
 
 
-                    receiptButton.type =
-                        "button";
+receiptButton.type =
+    "button";
 
 
-                    receiptButton.textContent =
-                        "Receipt";
+receiptButton.textContent =
+    "Receipt";
 
 
-                    receiptButton.setAttribute(
-                        "data-fee-receipt",
-                        student.studentCode
-                    );
+receiptButton.setAttribute(
+    "data-fee-receipt",
+    student.studentCode
+);
 
 
-                    receiptButton.title =
-                        "Print Fee Receipt";
+receiptButton.title =
+    "Print Fee Receipt";
 
 
-                    receiptButton.style.cssText = `
-                        display:block;
-                        width:100%;
-                        max-width:90px;
-                        min-width:0;
-                        height:32px;
-                        margin:6px auto 0;
-                        padding:5px 8px;
-                        box-sizing:border-box;
-                        border:1px solid #e85d04;
-                        background:#ffffff;
-                        color:#e85d04;
-                        border-radius:6px;
-                        font-size:12px;
-                        font-weight:600;
-                        line-height:20px;
-                        text-align:center;
-                        white-space:nowrap;
-                        overflow:hidden;
-                        text-overflow:ellipsis;
-                        cursor:pointer;
-                    `;
+receiptButton.style.cssText = `
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:90px;
+    max-width:90px;
+    height:32px;
+    margin:6px auto 0;
+    padding:4px 8px;
+    box-sizing:border-box;
 
+    border:1px solid #e85d04;
+    background:#ffffff;
+    color:#e85d04;
 
+    border-radius:6px;
+
+    font-size:12px;
+    font-weight:600;
+    line-height:18px;
+
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+
+    cursor:pointer;
+`;
+                   
                     receiptButton.addEventListener(
                         "click",
                         () => {
