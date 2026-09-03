@@ -561,6 +561,7 @@ function createFeePaymentModal() {
                             display:flex;
                             justify-content:flex-end;
                             gap:10px;
+                            flex-wrap:wrap;
                         "
                     >
 
@@ -1867,6 +1868,11 @@ function enhanceStudentFeeCells() {
                         font-size:12px;
                         font-weight:600;
                         cursor:pointer;
+                        box-sizing:border-box;
+                        max-width:100%;
+                        white-space:nowrap;
+                        overflow:hidden;
+                        text-overflow:ellipsis;
                     `;
 
 
@@ -1874,9 +1880,24 @@ function enhanceStudentFeeCells() {
                         "click",
                         () => {
 
+                            const session =
+                                feeReceiptGetSession();
+
+
+                            if (!session) {
+
+                                alert(
+                                    "Session expired. Please login again."
+                                );
+
+                                return;
+
+                            }
+
+
                             printFeeReceipt(
                                 student.lastFeeReceiptId,
-                                getFeeReceiptSession().libraryId
+                                session.libraryId
                             );
 
                         }
@@ -1917,33 +1938,39 @@ function enhanceStudentFeeCells() {
 
                 if (wrapper) {
 
-                 if (wrapper) {
+                    /*
+                     * Keep ALL existing action buttons
+                     * inside their boxes.
+                     */
 
-    wrapper.querySelectorAll(
-        ".action-icon-btn"
-    ).forEach(
-        (button) => {
+                    wrapper.querySelectorAll(
+                        ".action-icon-btn"
+                    ).forEach(
+                        (button) => {
 
-            button.style.whiteSpace =
-                "nowrap";
+                            button.style.whiteSpace =
+                                "nowrap";
 
-            button.style.overflow =
-                "hidden";
+                            button.style.overflow =
+                                "hidden";
 
-            button.style.textOverflow =
-                "ellipsis";
+                            button.style.textOverflow =
+                                "ellipsis";
 
-            button.style.boxSizing =
-                "border-box";
+                            button.style.boxSizing =
+                                "border-box";
 
-        }
-    );
+                            button.style.maxWidth =
+                                "100%";
+
+                        }
+                    );
 
 
-    const payButton =
-        document.createElement(
-            "button"
-        );
+                    const payButton =
+                        document.createElement(
+                            "button"
+                        );
 
 
                     payButton.type =
@@ -1966,27 +1993,34 @@ function enhanceStudentFeeCells() {
 
                     payButton.className =
                         "action-icon-btn";
-                   payButton.style.cssText = `
-    width:auto;
-    min-width:78px;
-    height:36px;
-    padding:6px 10px;
-    box-sizing:border-box;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    color:#2563eb;
-    background:#ffffff;
-    border:1px solid #d1d5db;
-    border-radius:6px;
-    font-size:13px;
-    font-weight:600;
-    line-height:1.2;
-    cursor:pointer;
-`;
+
+
+                    /*
+                     * Pay Fee button styling.
+                     * Blue text + proper white button box.
+                     */
+
+                    payButton.style.cssText = `
+                        width:auto;
+                        min-width:78px;
+                        height:36px;
+                        padding:6px 10px;
+                        box-sizing:border-box;
+                        white-space:nowrap;
+                        overflow:hidden;
+                        text-overflow:ellipsis;
+                        display:inline-flex;
+                        align-items:center;
+                        justify-content:center;
+                        color:#2563eb;
+                        background:#ffffff;
+                        border:1px solid #d1d5db;
+                        border-radius:6px;
+                        font-size:13px;
+                        font-weight:600;
+                        line-height:1.2;
+                        cursor:pointer;
+                    `;
 
 
                     payButton.addEventListener(
