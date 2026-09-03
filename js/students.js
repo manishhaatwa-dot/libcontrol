@@ -2281,16 +2281,21 @@ async function deleteStudent(
 
     try {
 
-        await window.LibManageDB.student(
-            session.libraryId,
-            studentCode
-        ).delete();
+     const historyResult =
+    await window.LibControlStudentHistory.archive(
+        session.libraryId,
+        studentCode
+    );
 
+if (!historyResult || !historyResult.success) {
+    throw new Error(
+        "Student history archive failed."
+    );
+}
 
-        alert(
-            "Student deleted successfully."
-        );
-
+alert(
+    "Student moved to history successfully."
+);
 
     }
     catch (error) {
