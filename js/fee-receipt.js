@@ -1,235 +1,1048 @@
-(function () {
-    "use strict";
+/**
+ * ==========================================================================
+ * LIBCONTROL - FEE RECEIPT MODULE
+ * ==========================================================================
+ *
+ * Handles:
+ * - Pay Fee button
+ * - Fee payment modal
+ * - Receipt number generation
+ * - Fee receipt Firestore storage
+ * - Student fee status update
+ * - Receipt button under Fee Status
+ * - Print / Save as PDF
+ *
+ * IMPORTANT:
+ * - Existing students.js logic is NOT modified by this file.
+ * - Receipt stores a snapshot of student information.
+ * - Old receipts remain محفوظ even after a student leaves.
+ * ==========================================================================
+ */
 
-    /*
-     * ============================================================
-     * LibControl - Fee Receipt Module
-     * ============================================================
-     *
-     * Firestore:
-     *
-     * libraries/{libraryId}/fee_receipts/{receiptId}
-     *
-     * Each receipt stores a snapshot of the student information.
-     * This keeps old student payment records independent from
-     * future students using the same seat.
-     * ============================================================
-     */
 
-    let currentFeeStudent = null;
-    let feeHistoryUnsubscribe = null;
+/* ==========================================================================
+   1. MODULE STATE
+   ========================================================================== */
+
+let feeReceiptStudentRecords = [];
+
+let feeReceiptObserver = null;
 
 
-    // ------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------
+/* ==========================================================================
+   2. HELPERS
+   ========================================================================== */
 
-    function getCurrentAdminSession() {
-        if (
-            typeof window.getCurrentSession === "function"
-        ) {
-            return window.getCurrentSession();
-        }
+function feeReceiptEscape(value) {
+
+    return String(
+        value ?? ""
+    )
+    .replace(
+        /&/g,
+        "&amp;"
+    )
+    .replace(
+        /</g,
+        "&lt;"
+    )
+    .replace(
+        />/g,
+        "&gt;"
+    )
+    .replace(
+        /"/g,
+        "&quot;"
+    )
+    .replace(
+        /'/g,
+        "&#39;"
+    );
+
+}
+
+
+function feeReceiptGetSession() {
+
+    if (
+        typeof getCurrentSession !==
+        "function"
+    ) {
 
         return null;
+
     }
 
 
-    function getLibraryId() {
-        const session = getCurrentAdminSession();
+    const session =
+        getCurrentSession();
 
-        if (
-            session &&
-            session.libraryId
-        ) {
-            return session.libraryId;
-        }
 
-        return "";
+    if (
+        !session ||
+        session.role !== "admin" ||
+        !session.libraryId
+    ) {
+
+        return null;
+
     }
 
 
-    function getLibraryCollection() {
-        const libraryId = getLibraryId();
+    return session;
 
-        if (!libraryId) {
-            throw new Error("Library session not found.");
+}
+
+
+function feeReceiptGetStudent(
+    studentCode
+) {
+
+    return feeReceiptStudentRecords.find(
+        (student) => {
+
+            return String(
+                student.studentCode ||
+                ""
+            ).toUpperCase() ===
+            String(
+                studentCode ||
+                ""
+            ).toUpperCase();
+
         }
+    );
 
-        if (
-            window.LibManageDB &&
-            typeof window.LibManageDB.library === "function"
-        ) {
-            return window.LibManageDB.library(libraryId);
-        }
+}
 
-        if (
-            typeof window.db !== "undefined" &&
-            window.db
-        ) {
-            return window.db
-                .collection("libcontrol_libraries")
-                .doc(libraryId);
-        }
 
-        throw new Error("Firestore is not initialized.");
+function feeReceiptFormatDate(
+    value
+) {
+
+    if (!value) {
+        return "-";
     }
 
 
-    function getFeeReceiptsCollection() {
-        return getLibraryCollection()
-            .collection("fee_receipts");
+    if (
+        typeof value.toDate ===
+        "function"
+    ) {
+
+        value =
+            value.toDate();
+
     }
 
 
-    function escapeHTML(value) {
-        return String(
-            value === undefined ||
-            value === null
-                ? ""
-                : value
+    if (
+        value instanceof Date &&
+        !Number.isNaN(
+            value.getTime()
         )
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+    ) {
+
+        return (
+            String(
+                value.getDate()
+            ).padStart(
+                2,
+                "0"
+            ) +
+            "/" +
+            String(
+                value.getMonth() + 1
+            ).padStart(
+                2,
+                "0"
+            ) +
+            "/" +
+            value.getFullYear()
+        );
+
     }
 
 
-    function formatMoney(amount) {
-        const number = Number(amount || 0);
+    return String(
+        value
+    );
 
-        return "₹" + number.toFixed(2);
-    }
-
-
-    function formatFirestoreDate(value) {
-        if (!value) {
-            return "-";
-        }
-
-        try {
-            if (
-                value.toDate &&
-                typeof value.toDate === "function"
-            ) {
-                return value
-                    .toDate()
-                    .toLocaleDateString("en-IN");
-            }
-
-            if (
-                value instanceof Date
-            ) {
-                return value.toLocaleDateString("en-IN");
-            }
-
-            return String(value);
-        } catch (error) {
-            return "-";
-        }
-    }
+}
 
 
-    function getTodayInputDate() {
-        const now = new Date();
+function feeReceiptToday() {
 
-        const year = now.getFullYear();
+    const now =
+        new Date();
 
-        const month = String(
-            now.getMonth() + 1
-        ).padStart(2, "0");
 
-        const day = String(
+    return (
+        String(
             now.getDate()
-        ).padStart(2, "0");
-
-        return `${year}-${month}-${day}`;
-    }
-
-
-    function formatDateForReceipt(dateValue) {
-        if (!dateValue) {
-            return "-";
-        }
-
-        const parts = String(dateValue).split("-");
-
-        if (parts.length === 3) {
-            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-        }
-
-        return dateValue;
-    }
-
-
-    function generateReceiptNumber() {
-        const now = new Date();
-
-        const year = now.getFullYear();
-
-        const month = String(
+        ).padStart(
+            2,
+            "0"
+        ) +
+        "/" +
+        String(
             now.getMonth() + 1
-        ).padStart(2, "0");
+        ).padStart(
+            2,
+            "0"
+        ) +
+        "/" +
+        now.getFullYear()
+    );
 
-        const day = String(
+}
+
+
+/* ==========================================================================
+   3. RECEIPT NUMBER
+   ========================================================================== */
+
+function generateFeeReceiptNumber() {
+
+    const now =
+        new Date();
+
+
+    const year =
+        now.getFullYear();
+
+
+    const month =
+        String(
+            now.getMonth() + 1
+        ).padStart(
+            2,
+            "0"
+        );
+
+
+    const day =
+        String(
             now.getDate()
-        ).padStart(2, "0");
+        ).padStart(
+            2,
+            "0"
+        );
 
-        const randomPart = Math.floor(
+
+    const random =
+        Math.floor(
             100000 +
             Math.random() * 900000
         );
 
-        return `RCP-${year}${month}${day}-${randomPart}`;
+
+    return (
+        "RCP-" +
+        year +
+        month +
+        day +
+        "-" +
+        random
+    );
+
+}
+
+
+/* ==========================================================================
+   4. DYNAMIC PAYMENT MODAL
+   ========================================================================== */
+
+function createFeePaymentModal() {
+
+    if (
+        document.getElementById(
+            "fee-payment-modal"
+        )
+    ) {
+
+        return;
+
     }
 
 
-    // ------------------------------------------------------------
-    // Student data
-    // ------------------------------------------------------------
+    const modal =
+        document.createElement(
+            "div"
+        );
 
-    function normalizeStudent(student) {
-        if (!student) {
-            return null;
+
+    modal.id =
+        "fee-payment-modal";
+
+
+    modal.innerHTML = `
+
+        <div
+            style="
+                position:fixed;
+                inset:0;
+                background:rgba(0,0,0,0.55);
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                padding:20px;
+                z-index:99999;
+            "
+            data-fee-modal-overlay
+        >
+
+            <div
+                style="
+                    width:100%;
+                    max-width:520px;
+                    max-height:90vh;
+                    overflow-y:auto;
+                    background:#ffffff;
+                    border-radius:14px;
+                    padding:24px;
+                    box-shadow:0 20px 60px rgba(0,0,0,0.25);
+                "
+            >
+
+                <div
+                    style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        gap:12px;
+                        margin-bottom:20px;
+                    "
+                >
+
+                    <h2
+                        style="
+                            margin:0;
+                            font-size:21px;
+                            color:#111827;
+                        "
+                    >
+                        Fee Payment
+                    </h2>
+
+
+                    <button
+                        type="button"
+                        id="fee-payment-close"
+                        style="
+                            border:0;
+                            background:transparent;
+                            font-size:28px;
+                            cursor:pointer;
+                            color:#555;
+                        "
+                    >
+                        ×
+                    </button>
+
+                </div>
+
+
+                <div
+                    id="fee-payment-student-info"
+                    style="
+                        background:#f5f7fa;
+                        border-radius:10px;
+                        padding:14px;
+                        margin-bottom:18px;
+                        line-height:1.7;
+                        color:#111827;
+                        font-size:14px;
+                    "
+                ></div>
+
+
+                <form
+                    id="fee-payment-form"
+                >
+
+                    <div
+                        style="
+                            margin-bottom:14px;
+                        "
+                    >
+
+                        <label
+                            for="fee-payment-amount"
+                            style="
+                                display:block;
+                                margin-bottom:6px;
+                                font-weight:600;
+                                color:#111827;
+                            "
+                        >
+                            Amount
+                        </label>
+
+                        <input
+                            type="number"
+                            id="fee-payment-amount"
+                            min="0.01"
+                            step="0.01"
+                            placeholder="Enter amount"
+                            required
+                            style="
+                                width:100%;
+                                box-sizing:border-box;
+                                padding:11px 12px;
+                                border:1px solid #d1d5db;
+                                border-radius:8px;
+                                font-size:15px;
+                            "
+                        >
+
+                    </div>
+
+
+                    <div
+                        style="
+                            margin-bottom:14px;
+                        "
+                    >
+
+                        <label
+                            for="fee-payment-date"
+                            style="
+                                display:block;
+                                margin-bottom:6px;
+                                font-weight:600;
+                                color:#111827;
+                            "
+                        >
+                            Payment Date
+                        </label>
+
+                        <input
+                            type="text"
+                            id="fee-payment-date"
+                            placeholder="DD/MM/YYYY"
+                            required
+                            style="
+                                width:100%;
+                                box-sizing:border-box;
+                                padding:11px 12px;
+                                border:1px solid #d1d5db;
+                                border-radius:8px;
+                                font-size:15px;
+                            "
+                        >
+
+                    </div>
+
+
+                    <div
+                        style="
+                            margin-bottom:14px;
+                        "
+                    >
+
+                        <label
+                            for="fee-payment-method"
+                            style="
+                                display:block;
+                                margin-bottom:6px;
+                                font-weight:600;
+                                color:#111827;
+                            "
+                        >
+                            Payment Method
+                        </label>
+
+                        <select
+                            id="fee-payment-method"
+                            style="
+                                width:100%;
+                                box-sizing:border-box;
+                                padding:11px 12px;
+                                border:1px solid #d1d5db;
+                                border-radius:8px;
+                                font-size:15px;
+                            "
+                        >
+
+                            <option value="Cash">
+                                Cash
+                            </option>
+
+                            <option value="UPI">
+                                UPI
+                            </option>
+
+                            <option value="Card">
+                                Card
+                            </option>
+
+                            <option value="Other">
+                                Other
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div
+                        style="
+                            margin-bottom:14px;
+                        "
+                    >
+
+                        <label
+                            for="fee-payment-next-due"
+                            style="
+                                display:block;
+                                margin-bottom:6px;
+                                font-weight:600;
+                                color:#111827;
+                            "
+                        >
+                            Next Fee Due Date
+                        </label>
+
+                        <input
+                            type="text"
+                            id="fee-payment-next-due"
+                            placeholder="DD/MM/YYYY"
+                            style="
+                                width:100%;
+                                box-sizing:border-box;
+                                padding:11px 12px;
+                                border:1px solid #d1d5db;
+                                border-radius:8px;
+                                font-size:15px;
+                            "
+                        >
+
+                    </div>
+
+
+                    <div
+                        style="
+                            margin-bottom:18px;
+                        "
+                    >
+
+                        <label
+                            for="fee-payment-note"
+                            style="
+                                display:block;
+                                margin-bottom:6px;
+                                font-weight:600;
+                                color:#111827;
+                            "
+                        >
+                            Note
+                        </label>
+
+                        <input
+                            type="text"
+                            id="fee-payment-note"
+                            placeholder="Optional"
+                            style="
+                                width:100%;
+                                box-sizing:border-box;
+                                padding:11px 12px;
+                                border:1px solid #d1d5db;
+                                border-radius:8px;
+                                font-size:15px;
+                            "
+                        >
+
+                    </div>
+
+
+                    <div
+                        style="
+                            display:flex;
+                            justify-content:flex-end;
+                            gap:10px;
+                        "
+                    >
+
+                        <button
+                            type="button"
+                            id="fee-payment-cancel"
+                            style="
+                                padding:11px 18px;
+                                border:1px solid #d1d5db;
+                                background:#ffffff;
+                                border-radius:8px;
+                                cursor:pointer;
+                                font-weight:600;
+                            "
+                        >
+                            Cancel
+                        </button>
+
+
+                        <button
+                            type="submit"
+                            id="fee-payment-save"
+                            style="
+                                padding:11px 18px;
+                                border:0;
+                                background:#e85d04;
+                                color:#ffffff;
+                                border-radius:8px;
+                                cursor:pointer;
+                                font-weight:600;
+                            "
+                        >
+                            Mark Paid & Create Receipt
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    `;
+
+
+    document.body.appendChild(
+        modal
+    );
+
+
+    const closeModal =
+        () => {
+
+            modal.remove();
+
+        };
+
+
+    document
+        .getElementById(
+            "fee-payment-close"
+        )
+        .addEventListener(
+            "click",
+            closeModal
+        );
+
+
+    document
+        .getElementById(
+            "fee-payment-cancel"
+        )
+        .addEventListener(
+            "click",
+            closeModal
+        );
+
+
+    const overlay =
+        modal.querySelector(
+            "[data-fee-modal-overlay]"
+        );
+
+
+    overlay.addEventListener(
+        "click",
+        (event) => {
+
+            if (
+                event.target ===
+                overlay
+            ) {
+
+                closeModal();
+
+            }
+
+        }
+    );
+
+}
+
+
+/* ==========================================================================
+   5. OPEN PAYMENT
+   ========================================================================== */
+
+function openFeePaymentModal(
+    studentCode
+) {
+
+    const session =
+        feeReceiptGetSession();
+
+
+    if (!session) {
+
+        alert(
+            "Session expired. Please login again."
+        );
+
+        return;
+
+    }
+
+
+    const student =
+        feeReceiptGetStudent(
+            studentCode
+        );
+
+
+    if (!student) {
+
+        alert(
+            "Student record not found."
+        );
+
+        return;
+
+    }
+
+
+    createFeePaymentModal();
+
+
+    const modal =
+        document.getElementById(
+            "fee-payment-modal"
+        );
+
+
+    const info =
+        document.getElementById(
+            "fee-payment-student-info"
+        );
+
+
+    info.innerHTML = `
+
+        <strong>
+            ${feeReceiptEscape(
+                student.studentName ||
+                "-"
+            )}
+        </strong>
+
+        <br>
+
+        Student ID:
+        ${feeReceiptEscape(
+            student.studentCode ||
+            "-"
+        )}
+
+        <br>
+
+        Seat:
+        ${feeReceiptEscape(
+            student.seatNumber ||
+            "-"
+        )}
+
+        <br>
+
+        Shift:
+        ${feeReceiptEscape(
+            student.shift ||
+            "-"
+        )}
+
+        <br>
+
+        Current Fee Status:
+        <strong>
+            ${feeReceiptEscape(
+                student.feeStatus ||
+                "Paid"
+            )}
+        </strong>
+
+    `;
+
+
+    document
+        .getElementById(
+            "fee-payment-date"
+        )
+        .value =
+        feeReceiptToday();
+
+
+    document
+        .getElementById(
+            "fee-payment-next-due"
+        )
+        .value =
+        feeReceiptFormatDate(
+            student.feeDueDate
+        ) === "-"
+            ? ""
+            : feeReceiptFormatDate(
+                student.feeDueDate
+            );
+
+
+    const form =
+        document.getElementById(
+            "fee-payment-form"
+        );
+
+
+    form.addEventListener(
+        "submit",
+        async (event) => {
+
+            event.preventDefault();
+
+
+            await saveFeePayment(
+                studentCode
+            );
+
+        }
+    );
+
+
+    modal.style.display =
+        "block";
+
+}
+
+
+/* ==========================================================================
+   6. SAVE PAYMENT + RECEIPT
+   ========================================================================== */
+
+async function saveFeePayment(
+    studentCode
+) {
+
+    const session =
+        feeReceiptGetSession();
+
+
+    if (!session) {
+
+        alert(
+            "Session expired. Please login again."
+        );
+
+        return;
+
+    }
+
+
+    const student =
+        feeReceiptGetStudent(
+            studentCode
+        );
+
+
+    if (!student) {
+
+        alert(
+            "Student record not found."
+        );
+
+        return;
+
+    }
+
+
+    const amountInput =
+        document.getElementById(
+            "fee-payment-amount"
+        );
+
+
+    const paymentDateInput =
+        document.getElementById(
+            "fee-payment-date"
+        );
+
+
+    const paymentMethodInput =
+        document.getElementById(
+            "fee-payment-method"
+        );
+
+
+    const nextDueInput =
+        document.getElementById(
+            "fee-payment-next-due"
+        );
+
+
+    const noteInput =
+        document.getElementById(
+            "fee-payment-note"
+        );
+
+
+    const amount =
+        parseFloat(
+            amountInput.value
+        );
+
+
+    const paymentDate =
+        paymentDateInput.value.trim();
+
+
+    const paymentMethod =
+        paymentMethodInput.value;
+
+
+    const nextDueDate =
+        nextDueInput.value.trim();
+
+
+    const note =
+        noteInput.value.trim();
+
+
+    if (
+        !Number.isFinite(amount) ||
+        amount <= 0
+    ) {
+
+        alert(
+            "Please enter a valid payment amount."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        !/^\d{2}\/\d{2}\/\d{4}$/.test(
+            paymentDate
+        )
+    ) {
+
+        alert(
+            "Payment Date must be in DD/MM/YYYY format."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        nextDueDate &&
+        !/^\d{2}\/\d{2}\/\d{4}$/.test(
+            nextDueDate
+        )
+    ) {
+
+        alert(
+            "Next Fee Due Date must be in DD/MM/YYYY format."
+        );
+
+        return;
+
+    }
+
+
+    const saveButton =
+        document.getElementById(
+            "fee-payment-save"
+        );
+
+
+    if (saveButton) {
+
+        saveButton.disabled =
+            true;
+
+        saveButton.textContent =
+            "Saving...";
+
+    }
+
+
+    try {
+
+        if (
+            !window.db ||
+            !window.LibManageDB
+        ) {
+
+            throw new Error(
+                "Database is not available."
+            );
+
         }
 
-        return {
-            firestoreId:
-                student.firestoreId ||
-                student.id ||
-                student.studentCode ||
-                "",
+
+        const receiptNumber =
+            generateFeeReceiptNumber();
+
+
+        const receiptCollection =
+            window.db
+                .collection(
+                    "libcontrol_libraries"
+                )
+                .doc(
+                    session.libraryId
+                )
+                .collection(
+                    "fee_receipts"
+                );
+
+
+        const studentReference =
+            window.LibManageDB.student(
+                session.libraryId,
+                studentCode
+            );
+
+
+        const receiptReference =
+            receiptCollection.doc();
+
+
+        /*
+         * Snapshot is intentionally stored.
+         *
+         * If this student leaves later and the same
+         * seat is assigned to another student, this
+         * receipt will still contain the old student's
+         * information.
+         */
+
+        const receiptData = {
+
+            receiptNumber:
+                receiptNumber,
 
             studentCode:
                 student.studentCode ||
-                student.uniqueLoginCode ||
-                student.loginCode ||
-                "",
+                studentCode,
 
             studentName:
                 student.studentName ||
-                student.name ||
                 "",
 
             fatherName:
                 student.fatherName ||
                 "",
 
-            email:
-                student.email ||
+            className:
+                student.className ||
                 "",
 
             mobileNumber:
                 student.mobileNumber ||
-                student.mobile ||
-                student.phone ||
-                "",
-
-            className:
-                student.className ||
-                student.class ||
                 "",
 
             seatNumber:
@@ -244,632 +1057,233 @@
                 student.joiningDate ||
                 "",
 
-            feeDueDate:
-                student.feeDueDate ||
-                "",
+            amount:
+                amount,
+
+            paymentDate:
+                paymentDate,
+
+            paymentMethod:
+                paymentMethod,
+
+            previousFeeStatus:
+                student.feeStatus ||
+                "Paid",
+
+            nextFeeDueDate:
+                nextDueDate,
+
+            note:
+                note,
 
             feeStatus:
-                student.feeStatus ||
-                "Due",
-
-            uid:
-                student.uid ||
-                "",
+                "Paid",
 
             libraryId:
-                student.libraryId ||
-                getLibraryId()
+                session.libraryId,
+
+            studentFirestoreId:
+                student.firestoreId ||
+                "",
+
+            createdByUID:
+                session.adminUID ||
+                "",
+
+            createdByEmail:
+                session.adminEmail ||
+                "",
+
+            createdAt:
+                firebase.firestore
+                    .FieldValue
+                    .serverTimestamp()
+
         };
-    }
 
 
-    // ------------------------------------------------------------
-    // Open payment modal
-    // ------------------------------------------------------------
+        /*
+         * Batch:
+         * 1. Save permanent receipt.
+         * 2. Mark current student Paid.
+         * 3. Save latest receipt reference.
+         */
 
-    function openPaymentModal(student) {
-        const normalizedStudent =
-            normalizeStudent(student);
-
-        if (!normalizedStudent) {
-            alert("Student information not found.");
-            return;
-        }
-
-        currentFeeStudent =
-            normalizedStudent;
-
-        const overlay =
-            document.getElementById(
-                "fee-receipt-modal-overlay"
-            );
-
-        if (!overlay) {
-            alert(
-                "Fee Receipt modal not found. Please check students.html."
-            );
-            return;
-        }
+        const batch =
+            window.db.batch();
 
 
-        const nameElement =
-            document.getElementById(
-                "fee-receipt-student-name"
-            );
-
-        const codeElement =
-            document.getElementById(
-                "fee-receipt-student-code"
-            );
-
-        const seatElement =
-            document.getElementById(
-                "fee-receipt-student-seat"
-            );
-
-        const shiftElement =
-            document.getElementById(
-                "fee-receipt-student-shift"
-            );
-
-        const hiddenStudentId =
-            document.getElementById(
-                "fee-receipt-student-id"
-            );
-
-        const hiddenStudentUid =
-            document.getElementById(
-                "fee-receipt-student-uid"
-            );
-
-        const paymentDate =
-            document.getElementById(
-                "fee-receipt-payment-date"
-            );
-
-        const nextDueDate =
-            document.getElementById(
-                "fee-receipt-next-due-date"
-            );
-
-        const message =
-            document.getElementById(
-                "fee-receipt-message"
-            );
+        batch.set(
+            receiptReference,
+            receiptData
+        );
 
 
-        if (nameElement) {
-            nameElement.textContent =
-                normalizedStudent.studentName ||
-                "-";
-        }
+        const studentUpdate = {
 
-        if (codeElement) {
-            codeElement.textContent =
-                normalizedStudent.studentCode ||
-                "-";
-        }
+            feeStatus:
+                "Paid",
 
-        if (seatElement) {
-            seatElement.textContent =
-                normalizedStudent.seatNumber ||
-                "-";
-        }
+            lastFeeReceiptId:
+                receiptReference.id,
 
-        if (shiftElement) {
-            shiftElement.textContent =
-                normalizedStudent.shift ||
-                "-";
-        }
+            lastFeeReceiptNumber:
+                receiptNumber,
 
-        if (hiddenStudentId) {
-            hiddenStudentId.value =
-                normalizedStudent.firestoreId;
-        }
+            lastFeePaymentDate:
+                paymentDate,
 
-        if (hiddenStudentUid) {
-            hiddenStudentUid.value =
-                normalizedStudent.uid;
-        }
+            lastFeePaymentAmount:
+                amount,
 
-        if (paymentDate) {
-            paymentDate.value =
-                getTodayInputDate();
-        }
+            lastFeePaymentMethod:
+                paymentMethod,
+
+            updatedAt:
+                firebase.firestore
+                    .FieldValue
+                    .serverTimestamp()
+
+        };
+
 
         if (nextDueDate) {
-            nextDueDate.value =
-                normalizedStudent.feeDueDate ||
-                "";
+
+            studentUpdate.feeDueDate =
+                nextDueDate;
+
         }
 
-        if (message) {
-            message.style.display = "none";
-            message.textContent = "";
-        }
 
-        const amount =
+        batch.update(
+            studentReference,
+            studentUpdate
+        );
+
+
+        await batch.commit();
+
+
+        /*
+         * Close payment modal.
+         */
+
+        const modal =
             document.getElementById(
-                "fee-receipt-amount"
+                "fee-payment-modal"
             );
 
-        if (amount) {
-            amount.value = "";
-            amount.focus();
+
+        if (modal) {
+
+            modal.remove();
+
         }
 
-        const paymentMethod =
-            document.getElementById(
-                "fee-receipt-payment-method"
-            );
 
-        if (paymentMethod) {
-            paymentMethod.value = "";
-        }
+        alert(
+            "Fee paid successfully.\n\n" +
+            "Receipt No: " +
+            receiptNumber
+        );
 
-        const notes =
-            document.getElementById(
-                "fee-receipt-notes"
-            );
 
-        if (notes) {
-            notes.value = "";
-        }
+        /*
+         * Existing students.js realtime listener
+         * will refresh the student row automatically.
+         */
 
-        overlay.classList.add("show");
+        setTimeout(
+            () => {
+
+                printFeeReceipt(
+                    receiptReference.id,
+                    session.libraryId
+                );
+
+            },
+            300
+        );
+
     }
+    catch (error) {
+
+        console.error(
+            "[Fee Receipt] Save error:",
+            error
+        );
 
 
-    function closePaymentModal() {
-        const overlay =
-            document.getElementById(
-                "fee-receipt-modal-overlay"
-            );
+        alert(
+            error?.message ||
+            "Unable to save fee payment."
+        );
 
-        if (overlay) {
-            overlay.classList.remove("show");
-        }
-
-        currentFeeStudent = null;
     }
-
-
-    // ------------------------------------------------------------
-    // Message
-    // ------------------------------------------------------------
-
-    function showFeeMessage(
-        message,
-        isError
-    ) {
-        const element =
-            document.getElementById(
-                "fee-receipt-message"
-            );
-
-        if (!element) {
-            return;
-        }
-
-        element.style.display = "block";
-
-        element.textContent = message;
-
-        if (isError) {
-            element.style.background =
-                "#ffe5e5";
-
-            element.style.color =
-                "#b00020";
-        } else {
-            element.style.background =
-                "#e7f7ed";
-
-            element.style.color =
-                "#176b35";
-        }
-    }
-
-
-    // ------------------------------------------------------------
-    // Save fee payment
-    // ------------------------------------------------------------
-
-    async function saveFeePayment(event) {
-        event.preventDefault();
-
-        if (!currentFeeStudent) {
-            showFeeMessage(
-                "Student information is missing.",
-                true
-            );
-
-            return;
-        }
-
-        const amountElement =
-            document.getElementById(
-                "fee-receipt-amount"
-            );
-
-        const paymentDateElement =
-            document.getElementById(
-                "fee-receipt-payment-date"
-            );
-
-        const paymentMethodElement =
-            document.getElementById(
-                "fee-receipt-payment-method"
-            );
-
-        const nextDueDateElement =
-            document.getElementById(
-                "fee-receipt-next-due-date"
-            );
-
-        const notesElement =
-            document.getElementById(
-                "fee-receipt-notes"
-            );
-
-        const saveButton =
-            document.getElementById(
-                "fee-receipt-save-btn"
-            );
-
-
-        const amount =
-            Number(
-                amountElement
-                    ? amountElement.value
-                    : 0
-            );
-
-        const paymentDate =
-            paymentDateElement
-                ? paymentDateElement.value
-                : "";
-
-        const paymentMethod =
-            paymentMethodElement
-                ? paymentMethodElement.value
-                : "";
-
-        const nextDueDate =
-            nextDueDateElement
-                ? nextDueDateElement.value.trim()
-                : "";
-
-        const notes =
-            notesElement
-                ? notesElement.value.trim()
-                : "";
-
-
-        if (
-            !amount ||
-            amount <= 0
-        ) {
-            showFeeMessage(
-                "Please enter a valid fee amount.",
-                true
-            );
-
-            return;
-        }
-
-        if (!paymentDate) {
-            showFeeMessage(
-                "Please select payment date.",
-                true
-            );
-
-            return;
-        }
-
-        if (!paymentMethod) {
-            showFeeMessage(
-                "Please select payment method.",
-                true
-            );
-
-            return;
-        }
-
+    finally {
 
         if (saveButton) {
-            saveButton.disabled = true;
+
+            saveButton.disabled =
+                false;
+
             saveButton.textContent =
-                "Saving...";
+                "Mark Paid & Create Receipt";
+
         }
 
-
-        try {
-            const session =
-                getCurrentAdminSession();
-
-            const libraryId =
-                getLibraryId();
-
-            if (!libraryId) {
-                throw new Error(
-                    "Library session not found."
-                );
-            }
-
-
-            const receiptNumber =
-                generateReceiptNumber();
-
-            const receiptRef =
-                getFeeReceiptsCollection()
-                    .doc();
-
-
-            /*
-             * IMPORTANT:
-             * Student information is copied into the receipt.
-             *
-             * Therefore even if the student later leaves
-             * and the same seat is assigned to another student,
-             * this receipt remains linked to the old student.
-             */
-
-            const receiptData = {
-                receiptNumber:
-                    receiptNumber,
-
-                studentCode:
-                    currentFeeStudent.studentCode,
-
-                studentUid:
-                    currentFeeStudent.uid || "",
-
-                studentFirestoreId:
-                    currentFeeStudent.firestoreId || "",
-
-                studentName:
-                    currentFeeStudent.studentName,
-
-                fatherName:
-                    currentFeeStudent.fatherName,
-
-                email:
-                    currentFeeStudent.email,
-
-                mobileNumber:
-                    currentFeeStudent.mobileNumber,
-
-                className:
-                    currentFeeStudent.className,
-
-                seatNumber:
-                    currentFeeStudent.seatNumber,
-
-                shift:
-                    currentFeeStudent.shift,
-
-                joiningDate:
-                    currentFeeStudent.joiningDate,
-
-                previousFeeDueDate:
-                    currentFeeStudent.feeDueDate,
-
-                amount:
-                    amount,
-
-                paymentDate:
-                    paymentDate,
-
-                paymentMethod:
-                    paymentMethod,
-
-                nextDueDate:
-                    nextDueDate,
-
-                notes:
-                    notes,
-
-                feeStatus:
-                    "Paid",
-
-                libraryId:
-                    libraryId,
-
-                createdByUID:
-                    session &&
-                    session.adminUID
-                        ? session.adminUID
-                        : "",
-
-                createdByEmail:
-                    session &&
-                    session.adminEmail
-                        ? session.adminEmail
-                        : "",
-
-                createdAt:
-                    firebase.firestore.FieldValue
-                        .serverTimestamp()
-            };
-
-
-            /*
-             * Save receipt and update student together.
-             *
-             * This keeps the payment record and student
-             * fee status synchronized.
-             */
-
-            const batch =
-                window.db.batch();
-
-
-            batch.set(
-                receiptRef,
-                receiptData
-            );
-
-
-            const studentCode =
-                currentFeeStudent.studentCode;
-
-            if (!studentCode) {
-                throw new Error(
-                    "Student ID not found."
-                );
-            }
-
-
-            let studentRef = null;
-
-
-            if (
-                window.LibManageDB &&
-                typeof window.LibManageDB.students ===
-                    "function"
-            ) {
-                studentRef =
-                    window.LibManageDB
-                        .students(libraryId)
-                        .doc(studentCode);
-            } else {
-                studentRef =
-                    window.db
-                        .collection(
-                            "libcontrol_libraries"
-                        )
-                        .doc(libraryId)
-                        .collection("students")
-                        .doc(studentCode);
-            }
-
-
-            const studentUpdate = {
-                feeStatus:
-                    "Paid",
-
-                updatedAt:
-                    firebase.firestore
-                        .FieldValue
-                        .serverTimestamp()
-            };
-
-
-            if (nextDueDate) {
-                studentUpdate.feeDueDate =
-                    nextDueDate;
-            }
-
-
-            batch.update(
-                studentRef,
-                studentUpdate
-            );
-
-
-            await batch.commit();
-
-
-            showFeeMessage(
-                "Payment saved successfully.",
-                false
-            );
-
-
-            /*
-             * Small delay so user can see success message.
-             * Then open printable receipt.
-             */
-
-            setTimeout(function () {
-                closePaymentModal();
-
-                openPrintableReceipt(
-                    receiptData
-                );
-            }, 500);
-
-
-        } catch (error) {
-
-            console.error(
-                "Fee payment error:",
-                error
-            );
-
-            showFeeMessage(
-                error &&
-                error.message
-                    ? error.message
-                    : "Unable to save payment.",
-                true
-            );
-
-        } finally {
-
-            if (saveButton) {
-                saveButton.disabled = false;
-
-                saveButton.textContent =
-                    "Save Payment";
-            }
-        }
     }
 
+}
 
-    // ------------------------------------------------------------
-    // Get library name
-    // ------------------------------------------------------------
 
-    async function getLibraryName() {
-        try {
-            const libraryRef =
-                getLibraryCollection();
+/* ==========================================================================
+   7. PRINT RECEIPT
+   ========================================================================== */
 
-            const snapshot =
-                await libraryRef.get();
+async function printFeeReceipt(
+    receiptId,
+    libraryId
+) {
 
-            if (
-                snapshot.exists
-            ) {
-                const data =
-                    snapshot.data() || {};
+    try {
 
-                return (
-                    data.libraryName ||
-                    data.name ||
-                    "LibControl Library"
+        const receiptReference =
+            window.db
+                .collection(
+                    "libcontrol_libraries"
+                )
+                .doc(
+                    libraryId
+                )
+                .collection(
+                    "fee_receipts"
+                )
+                .doc(
+                    receiptId
                 );
-            }
 
-        } catch (error) {
-            console.warn(
-                "Could not load library name:",
-                error
+
+        const snapshot =
+            await receiptReference.get();
+
+
+        if (!snapshot.exists) {
+
+            alert(
+                "Fee receipt not found."
             );
-        }
 
-        return "LibControl Library";
-    }
-
-
-    // ------------------------------------------------------------
-    // Printable receipt
-    // ------------------------------------------------------------
-
-    async function openPrintableReceipt(
-        receipt
-    ) {
-        if (!receipt) {
             return;
+
         }
 
-        const libraryName =
-            await getLibraryName();
+
+        const receipt =
+            snapshot.data();
 
 
-        const receiptWindow =
+        const printWindow =
             window.open(
                 "",
                 "_blank",
@@ -877,1042 +1291,889 @@
             );
 
 
-        if (!receiptWindow) {
+        if (!printWindow) {
+
             alert(
                 "Please allow pop-ups to print the receipt."
             );
 
             return;
+
         }
 
 
-        const receiptHTML = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
+        const libraryName =
+            await getFeeReceiptLibraryName(
+                libraryId
+            );
 
-<meta charset="UTF-8">
 
-<title>
-Fee Receipt - ${escapeHTML(
-            receipt.receiptNumber
-        )}
-</title>
+        printWindow.document.open();
 
-<style>
 
-    * {
-        box-sizing: border-box;
+        printWindow.document.write(`
+
+            <!DOCTYPE html>
+
+            <html>
+
+            <head>
+
+                <meta charset="UTF-8">
+
+                <title>
+                    Fee Receipt -
+                    ${feeReceiptEscape(
+                        receipt.receiptNumber
+                    )}
+                </title>
+
+                <style>
+
+                    * {
+                        box-sizing: border-box;
+                    }
+
+                    body {
+                        margin: 0;
+                        padding: 30px;
+                        font-family: Arial, sans-serif;
+                        color: #111827;
+                        background: #ffffff;
+                    }
+
+                    .receipt {
+                        max-width: 700px;
+                        margin: 0 auto;
+                        border: 1px solid #d1d5db;
+                        padding: 28px;
+                    }
+
+                    .receipt-header {
+                        text-align: center;
+                        border-bottom: 2px solid #111827;
+                        padding-bottom: 18px;
+                        margin-bottom: 22px;
+                    }
+
+                    .receipt-header h1 {
+                        margin: 0 0 8px;
+                        font-size: 26px;
+                    }
+
+                    .receipt-header p {
+                        margin: 3px 0;
+                        font-size: 14px;
+                    }
+
+                    .receipt-title {
+                        text-align: center;
+                        font-size: 20px;
+                        font-weight: 700;
+                        margin: 18px 0;
+                    }
+
+                    .info-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 20px;
+                    }
+
+                    .info-table td {
+                        border: 1px solid #d1d5db;
+                        padding: 10px;
+                        font-size: 14px;
+                    }
+
+                    .info-table td:first-child {
+                        width: 35%;
+                        font-weight: 700;
+                        background: #f3f4f6;
+                    }
+
+                    .amount-box {
+                        border: 2px solid #111827;
+                        padding: 14px;
+                        text-align: right;
+                        font-size: 21px;
+                        font-weight: 700;
+                        margin-top: 20px;
+                    }
+
+                    .footer {
+                        margin-top: 35px;
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 13px;
+                    }
+
+                    .print-button {
+                        display: block;
+                        margin: 25px auto 0;
+                        padding: 10px 20px;
+                        border: 0;
+                        background: #111827;
+                        color: #ffffff;
+                        border-radius: 6px;
+                        cursor: pointer;
+                    }
+
+                    @media print {
+
+                        body {
+                            padding: 0;
+                        }
+
+                        .receipt {
+                            border: 0;
+                        }
+
+                        .print-button {
+                            display: none;
+                        }
+
+                    }
+
+                </style>
+
+            </head>
+
+            <body>
+
+                <div class="receipt">
+
+                    <div class="receipt-header">
+
+                        <h1>
+                            ${feeReceiptEscape(
+                                libraryName
+                            )}
+                        </h1>
+
+                        <p>
+                            Fee Payment Receipt
+                        </p>
+
+                        <p>
+                            Receipt No:
+                            <strong>
+                                ${feeReceiptEscape(
+                                    receipt.receiptNumber
+                                )}
+                            </strong>
+                        </p>
+
+                    </div>
+
+
+                    <div class="receipt-title">
+                        Student Details
+                    </div>
+
+
+                    <table class="info-table">
+
+                        <tr>
+                            <td>Student ID</td>
+                            <td>
+                                ${feeReceiptEscape(
+                                    receipt.studentCode ||
+                                    "-"
+                                )}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Student Name</td>
+                            <td>
+                                ${feeReceiptEscape(
+                                    receipt.studentName ||
+                                    "-"
+                                )}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Father's Name</td>
+                            <td>
+                                ${feeReceiptEscape(
+                                    receipt.fatherName ||
+                                    "-"
+                                )}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Class</td>
+                            <td>
+                                ${feeReceiptEscape(
+                                    receipt.className ||
+                                    "-"
+                                )}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Mobile Number</td>
+                            <td>
+                                ${feeReceiptEscape(
+                                    receipt.mobileNumber ||
+                                    "-"
+                                )}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Seat Number</td>
+                            <td>
+                                ${feeReceiptEscape(
+                                    receipt.seatNumber ||
+                                    "-"
+                                )}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Shift</td>
+                            <td>
+                                ${feeReceiptEscape(
+                                    receipt.shift ||
+                                    "-"
+                                )}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Payment Date</td>
+                            <td>
+                                ${feeReceiptEscape(
+                                    receipt.paymentDate ||
+                                    "-"
+                                )}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Payment Method</td>
+                            <td>
+                                ${feeReceiptEscape(
+                                    receipt.paymentMethod ||
+                                    "-"
+                                )}
+                            </td>
+                        </tr>
+
+                    </table>
+
+
+                    <div class="amount-box">
+
+                        Paid Amount:
+                        ₹${Number(
+                            receipt.amount ||
+                            0
+                        ).toFixed(2)}
+
+                    </div>
+
+
+                    ${
+                        receipt.nextFeeDueDate
+                            ? `
+                                <p
+                                    style="
+                                        margin-top:18px;
+                                        font-size:14px;
+                                    "
+                                >
+                                    Next Fee Due Date:
+                                    <strong>
+                                        ${feeReceiptEscape(
+                                            receipt.nextFeeDueDate
+                                        )}
+                                    </strong>
+                                </p>
+                            `
+                            : ""
+                    }
+
+
+                    ${
+                        receipt.note
+                            ? `
+                                <p
+                                    style="
+                                        margin-top:12px;
+                                        font-size:14px;
+                                    "
+                                >
+                                    Note:
+                                    ${feeReceiptEscape(
+                                        receipt.note
+                                    )}
+                                </p>
+                            `
+                            : ""
+                    }
+
+
+                    <div class="footer">
+
+                        <div>
+                            Status:
+                            <strong>
+                                PAID
+                            </strong>
+                        </div>
+
+                        <div>
+                            Authorized by Admin
+                        </div>
+
+                    </div>
+
+
+                    <button
+                        class="print-button"
+                        onclick="window.print()"
+                    >
+                        Print / Save as PDF
+                    </button>
+
+                </div>
+
+            </body>
+
+            </html>
+
+        `);
+
+
+        printWindow.document.close();
+
+
+        printWindow.focus();
+
+
     }
-
-    body {
-        margin: 0;
-        padding: 30px;
-        background: #f2f2f2;
-        font-family:
-            Arial,
-            Helvetica,
-            sans-serif;
-        color: #111111;
-    }
-
-    .receipt {
-        width: 100%;
-        max-width: 700px;
-        margin: 0 auto;
-        background: #ffffff;
-        padding: 35px;
-        border: 1px solid #dddddd;
-    }
-
-    .receipt-header {
-        text-align: center;
-        border-bottom: 2px solid #222222;
-        padding-bottom: 18px;
-        margin-bottom: 20px;
-    }
-
-    .receipt-header h1 {
-        margin: 0 0 7px;
-        font-size: 25px;
-    }
-
-    .receipt-header h2 {
-        margin: 0;
-        font-size: 19px;
-    }
-
-    .receipt-number {
-        margin-top: 10px;
-        font-size: 13px;
-    }
-
-    .receipt-section {
-        margin-top: 20px;
-    }
-
-    .receipt-section-title {
-        font-size: 15px;
-        font-weight: 700;
-        border-bottom: 1px solid #cccccc;
-        padding-bottom: 7px;
-        margin-bottom: 10px;
-    }
-
-    .row {
-        display: flex;
-        justify-content: space-between;
-        gap: 20px;
-        padding: 6px 0;
-        font-size: 14px;
-    }
-
-    .row span:first-child {
-        color: #555555;
-    }
-
-    .row strong {
-        text-align: right;
-    }
-
-    .amount-box {
-        margin-top: 22px;
-        border: 2px solid #222222;
-        padding: 15px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 20px;
-    }
-
-    .amount-box span {
-        font-size: 15px;
-        font-weight: 600;
-    }
-
-    .amount-box strong {
-        font-size: 22px;
-    }
-
-    .paid-stamp {
-        margin: 22px auto 10px;
-        width: max-content;
-        border: 2px solid #198754;
-        color: #198754;
-        padding: 7px 18px;
-        font-weight: 800;
-        font-size: 16px;
-        letter-spacing: 1px;
-        transform: rotate(-3deg);
-    }
-
-    .footer {
-        margin-top: 35px;
-        padding-top: 15px;
-        border-top: 1px solid #cccccc;
-        text-align: center;
-        font-size: 12px;
-        color: #666666;
-    }
-
-    .print-button {
-        display: block;
-        margin: 20px auto;
-        border: none;
-        padding: 11px 20px;
-        background: #e85d04;
-        color: #ffffff;
-        font-size: 14px;
-        font-weight: 700;
-        border-radius: 6px;
-        cursor: pointer;
-    }
-
-    @media print {
-
-        body {
-            padding: 0;
-            background: #ffffff;
-        }
-
-        .receipt {
-            max-width: none;
-            border: none;
-            padding: 20px;
-        }
-
-        .print-button {
-            display: none;
-        }
-
-        @page {
-            size: A4;
-            margin: 12mm;
-        }
-    }
-
-</style>
-
-</head>
-
-<body>
-
-<button
-    class="print-button"
-    onclick="window.print()"
->
-    Print / Save as PDF
-</button>
-
-<div class="receipt">
-
-    <div class="receipt-header">
-
-        <h1>
-            ${escapeHTML(
-                libraryName
-            )}
-        </h1>
-
-        <h2>
-            FEE PAYMENT RECEIPT
-        </h2>
-
-        <div class="receipt-number">
-            Receipt No:
-            <strong>
-                ${escapeHTML(
-                    receipt.receiptNumber
-                )}
-            </strong>
-        </div>
-
-    </div>
-
-
-    <div class="receipt-section">
-
-        <div class="receipt-section-title">
-            Student Details
-        </div>
-
-        <div class="row">
-            <span>Student Name</span>
-            <strong>
-                ${escapeHTML(
-                    receipt.studentName ||
-                    "-"
-                )}
-            </strong>
-        </div>
-
-        <div class="row">
-            <span>Student ID</span>
-            <strong>
-                ${escapeHTML(
-                    receipt.studentCode ||
-                    "-"
-                )}
-            </strong>
-        </div>
-
-        <div class="row">
-            <span>Father's Name</span>
-            <strong>
-                ${escapeHTML(
-                    receipt.fatherName ||
-                    "-"
-                )}
-            </strong>
-        </div>
-
-        <div class="row">
-            <span>Mobile Number</span>
-            <strong>
-                ${escapeHTML(
-                    receipt.mobileNumber ||
-                    "-"
-                )}
-            </strong>
-        </div>
-
-        <div class="row">
-            <span>Class</span>
-            <strong>
-                ${escapeHTML(
-                    receipt.className ||
-                    "-"
-                )}
-            </strong>
-        </div>
-
-        <div class="row">
-            <span>Seat Number</span>
-            <strong>
-                ${escapeHTML(
-                    receipt.seatNumber ||
-                    "-"
-                )}
-            </strong>
-        </div>
-
-        <div class="row">
-            <span>Shift</span>
-            <strong>
-                ${escapeHTML(
-                    receipt.shift ||
-                    "-"
-                )}
-            </strong>
-        </div>
-
-    </div>
-
-
-    <div class="receipt-section">
-
-        <div class="receipt-section-title">
-            Payment Details
-        </div>
-
-        <div class="row">
-            <span>Payment Date</span>
-            <strong>
-                ${escapeHTML(
-                    formatDateForReceipt(
-                        receipt.paymentDate
-                    )
-                )}
-            </strong>
-        </div>
-
-        <div class="row">
-            <span>Payment Method</span>
-            <strong>
-                ${escapeHTML(
-                    receipt.paymentMethod ||
-                    "-"
-                )}
-            </strong>
-        </div>
-
-        <div class="row">
-            <span>Next Due Date</span>
-            <strong>
-                ${escapeHTML(
-                    receipt.nextDueDate ||
-                    "-"
-                )}
-            </strong>
-        </div>
-
-    </div>
-
-
-    <div class="amount-box">
-
-        <span>
-            Amount Paid
-        </span>
-
-        <strong>
-            ${escapeHTML(
-                formatMoney(
-                    receipt.amount
-                )
-            )}
-        </strong>
-
-    </div>
-
-
-    <div class="paid-stamp">
-        PAID
-    </div>
-
-
-    ${
-        receipt.notes
-            ? `
-        <div class="receipt-section">
-
-            <div class="receipt-section-title">
-                Notes
-            </div>
-
-            <div
-                style="
-                    font-size: 14px;
-                    line-height: 1.5;
-                "
-            >
-                ${escapeHTML(
-                    receipt.notes
-                )}
-            </div>
-
-        </div>
-        `
-            : ""
-    }
-
-
-    <div class="footer">
-
-        <div>
-            This is a computer-generated fee receipt.
-        </div>
-
-        <div style="margin-top: 5px;">
-            Powered by LibControl
-        </div>
-
-    </div>
-
-</div>
-
-<script>
-    window.onload = function () {
-        setTimeout(function () {
-            window.print();
-        }, 300);
-    };
-</script>
-
-</body>
-</html>
-        `;
-
-
-        receiptWindow.document.open();
-
-        receiptWindow.document.write(
-            receiptHTML
+    catch (error) {
+
+        console.error(
+            "[Fee Receipt] Print error:",
+            error
         );
 
-        receiptWindow.document.close();
+
+        alert(
+            "Unable to open fee receipt."
+        );
+
     }
 
-
-    // ------------------------------------------------------------
-    // Fee History
-    // ------------------------------------------------------------
-
-    function openFeeHistory(student) {
-        const normalizedStudent =
-            normalizeStudent(student);
-
-        if (!normalizedStudent) {
-            alert("Student information not found.");
-            return;
-        }
+}
 
 
-        const overlay =
-            document.getElementById(
-                "fee-history-modal-overlay"
-            );
+/* ==========================================================================
+   8. LIBRARY NAME
+   ========================================================================== */
 
-        const nameElement =
-            document.getElementById(
-                "fee-history-student-name"
-            );
+async function getFeeReceiptLibraryName(
+    libraryId
+) {
 
-        const contentElement =
-            document.getElementById(
-                "fee-history-content"
-            );
-
-
-        if (!overlay || !contentElement) {
-            alert(
-                "Fee History modal not found."
-            );
-
-            return;
-        }
-
-
-        if (nameElement) {
-            nameElement.textContent =
-                `${normalizedStudent.studentName || "-"} (${normalizedStudent.studentCode || "-"})`;
-        }
-
-
-        overlay.classList.add("show");
-
-
-        if (feeHistoryUnsubscribe) {
-            feeHistoryUnsubscribe();
-
-            feeHistoryUnsubscribe = null;
-        }
-
-
-        contentElement.innerHTML =
-            "Loading fee history...";
-
-
-        let query =
-            getFeeReceiptsCollection();
-
+    try {
 
         if (
-            normalizedStudent.studentCode
+            window.LibManageDB &&
+            typeof window.LibManageDB.library ===
+            "function"
         ) {
-            query = query.where(
-                "studentCode",
-                "==",
-                normalizedStudent.studentCode
-            );
-        } else {
-            contentElement.innerHTML =
-                "<p>No student ID found.</p>";
 
-            return;
-        }
-
-
-        feeHistoryUnsubscribe =
-            query.onSnapshot(
-                function (snapshot) {
-
-                    const receipts =
-                        [];
-
-                    snapshot.forEach(
-                        function (doc) {
-                            receipts.push({
-                                id: doc.id,
-                                ...doc.data()
-                            });
-                        }
-                    );
-
-
-                    receipts.sort(
-                        function (a, b) {
-
-                            const dateA =
-                                a.createdAt &&
-                                a.createdAt.toDate
-                                    ? a.createdAt.toDate()
-                                    : new Date(0);
-
-                            const dateB =
-                                b.createdAt &&
-                                b.createdAt.toDate
-                                    ? b.createdAt.toDate()
-                                    : new Date(0);
-
-                            return (
-                                dateB - dateA
-                            );
-                        }
-                    );
-
-
-                    renderFeeHistory(
-                        receipts
-                    );
-
-                },
-                function (error) {
-
-                    console.error(
-                        "Fee history error:",
-                        error
-                    );
-
-                    contentElement.innerHTML =
-                        `
-                        <div
-                            style="
-                                padding: 15px;
-                                color: #b00020;
-                                background: #ffe5e5;
-                                border-radius: 7px;
-                            "
-                        >
-                            Unable to load fee history.
-                        </div>
-                        `;
-                }
-            );
-    }
-
-
-    function renderFeeHistory(
-        receipts
-    ) {
-        const contentElement =
-            document.getElementById(
-                "fee-history-content"
-            );
-
-        if (!contentElement) {
-            return;
-        }
-
-
-        if (!receipts.length) {
-
-            contentElement.innerHTML =
-                `
-                <div
-                    style="
-                        padding: 25px;
-                        text-align: center;
-                        color: #777777;
-                    "
-                >
-                    No fee payment history found.
-                </div>
-                `;
-
-            return;
-        }
-
-
-        let totalAmount = 0;
-
-
-        let rows = "";
-
-
-        receipts.forEach(
-            function (receipt) {
-
-                totalAmount +=
-                    Number(
-                        receipt.amount || 0
-                    );
-
-
-                rows += `
-                    <tr>
-
-                        <td>
-                            ${escapeHTML(
-                                receipt.receiptNumber ||
-                                "-"
-                            )}
-                        </td>
-
-                        <td>
-                            ${escapeHTML(
-                                formatDateForReceipt(
-                                    receipt.paymentDate
-                                )
-                            )}
-                        </td>
-
-                        <td>
-                            ${escapeHTML(
-                                formatMoney(
-                                    receipt.amount
-                                )
-                            )}
-                        </td>
-
-                        <td>
-                            ${escapeHTML(
-                                receipt.paymentMethod ||
-                                "-"
-                            )}
-                        </td>
-
-                        <td>
-                            ${escapeHTML(
-                                receipt.nextDueDate ||
-                                "-"
-                            )}
-                        </td>
-
-                        <td>
-
-                            <button
-                                type="button"
-                                class="fee-history-print-btn"
-                                data-receipt-id="${escapeHTML(
-                                    receipt.id
-                                )}"
-                                style="
-                                    border: none;
-                                    background: #e85d04;
-                                    color: #ffffff;
-                                    border-radius: 5px;
-                                    padding: 6px 9px;
-                                    cursor: pointer;
-                                    font-size: 12px;
-                                    font-weight: 600;
-                                "
-                            >
-                                Print
-                            </button>
-
-                        </td>
-
-                    </tr>
-                `;
-            }
-        );
-
-
-        contentElement.innerHTML =
-            `
-            <table
-                style="
-                    width: 100%;
-                    border-collapse: collapse;
-                    font-size: 13px;
-                "
-            >
-
-                <thead>
-
-                    <tr>
-
-                        <th
-                            style="
-                                text-align: left;
-                                padding: 9px;
-                                border-bottom: 1px solid #dddddd;
-                            "
-                        >
-                            Receipt No
-                        </th>
-
-                        <th
-                            style="
-                                text-align: left;
-                                padding: 9px;
-                                border-bottom: 1px solid #dddddd;
-                            "
-                        >
-                            Date
-                        </th>
-
-                        <th
-                            style="
-                                text-align: left;
-                                padding: 9px;
-                                border-bottom: 1px solid #dddddd;
-                            "
-                        >
-                            Amount
-                        </th>
-
-                        <th
-                            style="
-                                text-align: left;
-                                padding: 9px;
-                                border-bottom: 1px solid #dddddd;
-                            "
-                        >
-                            Method
-                        </th>
-
-                        <th
-                            style="
-                                text-align: left;
-                                padding: 9px;
-                                border-bottom: 1px solid #dddddd;
-                            "
-                        >
-                            Next Due
-                        </th>
-
-                        <th
-                            style="
-                                text-align: left;
-                                padding: 9px;
-                                border-bottom: 1px solid #dddddd;
-                            "
-                        >
-                            Action
-                        </th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-                    ${rows}
-                </tbody>
-
-                <tfoot>
-
-                    <tr>
-
-                        <td
-                            colspan="2"
-                            style="
-                                padding: 10px;
-                                font-weight: 700;
-                                border-top: 2px solid #222222;
-                            "
-                        >
-                            Total Paid
-                        </td>
-
-                        <td
-                            style="
-                                padding: 10px;
-                                font-weight: 700;
-                                border-top: 2px solid #222222;
-                            "
-                        >
-                            ${escapeHTML(
-                                formatMoney(
-                                    totalAmount
-                                )
-                            )}
-                        </td>
-
-                        <td
-                            colspan="3"
-                            style="
-                                border-top: 2px solid #222222;
-                            "
-                        ></td>
-
-                    </tr>
-
-                </tfoot>
-
-            </table>
-            `;
-
-
-        const printButtons =
-            contentElement.querySelectorAll(
-                ".fee-history-print-btn"
-            );
-
-
-        printButtons.forEach(
-            function (button) {
-
-                button.addEventListener(
-                    "click",
-                    function () {
-
-                        const receiptId =
-                            button.getAttribute(
-                                "data-receipt-id"
-                            );
-
-                        printReceiptById(
-                            receiptId
-                        );
-                    }
+            const reference =
+                window.LibManageDB.library(
+                    libraryId
                 );
-            }
-        );
-    }
 
-
-    // ------------------------------------------------------------
-    // Print existing receipt
-    // ------------------------------------------------------------
-
-    async function printReceiptById(
-        receiptId
-    ) {
-        if (!receiptId) {
-            return;
-        }
-
-
-        try {
 
             const snapshot =
-                await getFeeReceiptsCollection()
-                    .doc(receiptId)
-                    .get();
+                await reference.get();
 
 
-            if (!snapshot.exists) {
-                alert(
-                    "Receipt not found."
+            if (snapshot.exists) {
+
+                const data =
+                    snapshot.data();
+
+
+                return (
+                    data.libraryName ||
+                    data.name ||
+                    "LibControl Library"
                 );
 
+            }
+
+        }
+
+    }
+    catch (error) {
+
+        console.warn(
+            "[Fee Receipt] Library name unavailable:",
+            error
+        );
+
+    }
+
+
+    return "LibControl Library";
+
+}
+
+
+/* ==========================================================================
+   9. ADD BUTTONS TO EXISTING STUDENT TABLE
+   ========================================================================== */
+
+function enhanceStudentFeeCells() {
+
+    const tableBody =
+        document.getElementById(
+            "students-table-rows"
+        );
+
+
+    if (!tableBody) {
+        return;
+    }
+
+
+    const rows =
+        tableBody.querySelectorAll(
+            "tr"
+        );
+
+
+    rows.forEach(
+        (row) => {
+
+            const cells =
+                row.querySelectorAll(
+                    "td"
+                );
+
+
+            /*
+             * Existing table has 11 columns:
+             *
+             * 0 Login Code
+             * 1 Seat
+             * 2 Student
+             * 3 Father
+             * 4 Class
+             * 5 Joining
+             * 6 Expiry
+             * 7 Fee Due
+             * 8 Fee Status
+             * 9 Status
+             * 10 Actions
+             */
+
+            if (
+                cells.length !== 11
+            ) {
+
+                return;
+
+            }
+
+
+            const studentCode =
+                cells[0]
+                    .textContent
+                    .trim();
+
+
+            if (!studentCode) {
                 return;
             }
 
 
-            const receipt =
-                snapshot.data();
-
-
-            openPrintableReceipt(
-                receipt
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Receipt loading error:",
-                error
-            );
-
-            alert(
-                "Unable to open receipt."
-            );
-        }
-    }
-
-
-    function closeFeeHistory() {
-
-        if (feeHistoryUnsubscribe) {
-            feeHistoryUnsubscribe();
-
-            feeHistoryUnsubscribe = null;
-        }
-
-
-        const overlay =
-            document.getElementById(
-                "fee-history-modal-overlay"
-            );
-
-        if (overlay) {
-            overlay.classList.remove(
-                "show"
-            );
-        }
-    }
-
-
-    // ------------------------------------------------------------
-    // Public API
-    // ------------------------------------------------------------
-
-    window.LibControlFeeReceipt = {
-
-        openPaymentModal:
-            openPaymentModal,
-
-        closePaymentModal:
-            closePaymentModal,
-
-        openFeeHistory:
-            openFeeHistory,
-
-        closeFeeHistory:
-            closeFeeHistory,
-
-        printReceiptById:
-            printReceiptById
-    };
-
-
-    // ------------------------------------------------------------
-    // Event listeners
-    // ------------------------------------------------------------
-
-    document.addEventListener(
-        "DOMContentLoaded",
-        function () {
-
-            const paymentForm =
-                document.getElementById(
-                    "fee-receipt-payment-form"
+            const student =
+                feeReceiptGetStudent(
+                    studentCode
                 );
 
-            if (paymentForm) {
-                paymentForm.addEventListener(
-                    "submit",
-                    saveFeePayment
-                );
+
+            if (!student) {
+                return;
             }
 
 
-            const closePayment =
-                document.getElementById(
-                    "fee-receipt-close-btn"
-                );
+            /*
+             * ----------------------------------------------------------
+             * FEE STATUS CELL
+             * ----------------------------------------------------------
+             */
 
-            if (closePayment) {
-                closePayment.addEventListener(
-                    "click",
-                    closePaymentModal
-                );
-            }
+            const feeCell =
+                cells[8];
 
 
-            const cancelPayment =
-                document.getElementById(
-                    "fee-receipt-cancel-btn"
-                );
+            if (
+                feeCell &&
+                !feeCell.querySelector(
+                    "[data-fee-receipt]"
+                )
+            ) {
 
-            if (cancelPayment) {
-                cancelPayment.addEventListener(
-                    "click",
-                    closePaymentModal
-                );
-            }
+                if (
+                    student.lastFeeReceiptId ||
+                    student.lastFeeReceiptNumber
+                ) {
 
-
-            const closeHistory =
-                document.getElementById(
-                    "fee-history-close-btn"
-                );
-
-            if (closeHistory) {
-                closeHistory.addEventListener(
-                    "click",
-                    closeFeeHistory
-                );
-            }
+                    const receiptButton =
+                        document.createElement(
+                            "button"
+                        );
 
 
-            const paymentOverlay =
-                document.getElementById(
-                    "fee-receipt-modal-overlay"
-                );
+                    receiptButton.type =
+                        "button";
 
-            if (paymentOverlay) {
 
-                paymentOverlay.addEventListener(
-                    "click",
-                    function (event) {
+                    receiptButton.textContent =
+                        "Receipt";
 
-                        if (
-                            event.target ===
-                            paymentOverlay
-                        ) {
-                            closePaymentModal();
+
+                    receiptButton.setAttribute(
+                        "data-fee-receipt",
+                        student.studentCode
+                    );
+
+
+                    receiptButton.title =
+                        "Print Fee Receipt";
+
+
+                    receiptButton.style.cssText = `
+                        display:block;
+                        margin-top:6px;
+                        padding:5px 9px;
+                        border:1px solid #e85d04;
+                        background:#ffffff;
+                        color:#e85d04;
+                        border-radius:5px;
+                        font-size:12px;
+                        font-weight:600;
+                        cursor:pointer;
+                    `;
+
+
+                    receiptButton.addEventListener(
+                        "click",
+                        () => {
+
+                            printFeeReceipt(
+                                student.lastFeeReceiptId,
+                                getFeeReceiptSession().libraryId
+                            );
+
                         }
-                    }
-                );
+                    );
+
+
+                    feeCell.appendChild(
+                        receiptButton
+                    );
+
+                }
+
             }
 
 
-            const historyOverlay =
-                document.getElementById(
-                    "fee-history-modal-overlay"
-                );
+            /*
+             * ----------------------------------------------------------
+             * ACTIONS CELL
+             * ----------------------------------------------------------
+             */
 
-            if (historyOverlay) {
+            const actionsCell =
+                cells[10];
 
-                historyOverlay.addEventListener(
-                    "click",
-                    function (event) {
 
-                        if (
-                            event.target ===
-                            historyOverlay
-                        ) {
-                            closeFeeHistory();
+            if (
+                actionsCell &&
+                !actionsCell.querySelector(
+                    "[data-fee-pay]"
+                )
+            ) {
+
+                const wrapper =
+                    actionsCell.querySelector(
+                        ".actions-cell-wrapper"
+                    );
+
+
+                if (wrapper) {
+
+                    const payButton =
+                        document.createElement(
+                            "button"
+                        );
+
+
+                    payButton.type =
+                        "button";
+
+
+                    payButton.textContent =
+                        "Pay Fee";
+
+
+                    payButton.setAttribute(
+                        "data-fee-pay",
+                        student.studentCode
+                    );
+
+
+                    payButton.title =
+                        "Pay Student Fee";
+
+
+                    payButton.className =
+                        "action-icon-btn";
+
+
+                    payButton.addEventListener(
+                        "click",
+                        () => {
+
+                            openFeePaymentModal(
+                                student.studentCode
+                            );
+
                         }
-                    }
-                );
+                    );
+
+
+                    wrapper.insertBefore(
+                        payButton,
+                        wrapper.firstChild
+                    );
+
+                }
+
             }
 
         }
     );
 
-})();
+}
+
+
+/* ==========================================================================
+   10. LOAD STUDENT RECORDS
+   ========================================================================== */
+
+function loadFeeReceiptStudents() {
+
+    const session =
+        feeReceiptGetSession();
+
+
+    if (!session) {
+        return;
+    }
+
+
+    if (
+        !window.LibManageDB
+    ) {
+        return;
+    }
+
+
+    const studentsCollection =
+        window.LibManageDB.students(
+            session.libraryId
+        );
+
+
+    studentsCollection.onSnapshot(
+        (snapshot) => {
+
+            feeReceiptStudentRecords =
+                snapshot.docs.map(
+                    (doc) => {
+
+                        return {
+
+                            firestoreId:
+                                doc.id,
+
+                            ...doc.data()
+
+                        };
+
+                    }
+                );
+
+
+            enhanceStudentFeeCells();
+
+        },
+        (error) => {
+
+            console.error(
+                "[Fee Receipt] Student listener error:",
+                error
+            );
+
+        }
+    );
+
+}
+
+
+/* ==========================================================================
+   11. TABLE OBSERVER
+   ========================================================================== */
+
+function startFeeReceiptObserver() {
+
+    const tableBody =
+        document.getElementById(
+            "students-table-rows"
+        );
+
+
+    if (!tableBody) {
+        return;
+    }
+
+
+    if (feeReceiptObserver) {
+
+        feeReceiptObserver.disconnect();
+
+    }
+
+
+    feeReceiptObserver =
+        new MutationObserver(
+            () => {
+
+                enhanceStudentFeeCells();
+
+            }
+        );
+
+
+    feeReceiptObserver.observe(
+        tableBody,
+        {
+            childList: true,
+            subtree: true
+        }
+    );
+
+
+    enhanceStudentFeeCells();
+
+}
+
+
+/* ==========================================================================
+   12. INITIALIZE
+   ========================================================================== */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        if (
+            !document.getElementById(
+                "students-table-rows"
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        createFeePaymentModal =
+            createFeePaymentModal;
+
+
+        loadFeeReceiptStudents();
+
+        startFeeReceiptObserver();
+
+    }
+);
+
+
+/* ==========================================================================
+   13. GLOBAL API
+   ========================================================================== */
+
+window.LibControlFeeReceipt = {
+
+    openPayment:
+        openFeePaymentModal,
+
+    printLatestReceipt:
+        async function (
+            studentCode
+        ) {
+
+            const session =
+                feeReceiptGetSession();
+
+
+            if (!session) {
+
+                alert(
+                    "Session expired. Please login again."
+                );
+
+                return;
+
+            }
+
+
+            const student =
+                feeReceiptGetStudent(
+                    studentCode
+                );
+
+
+            if (
+                !student ||
+                !student.lastFeeReceiptId
+            ) {
+
+                alert(
+                    "No fee receipt found for this student."
+                );
+
+                return;
+
+            }
+
+
+            await printFeeReceipt(
+                student.lastFeeReceiptId,
+                session.libraryId
+            );
+
+        }
+
+};
+
+
+console.log(
+    "[LibControl] Fee Receipt module loaded successfully."
+);
