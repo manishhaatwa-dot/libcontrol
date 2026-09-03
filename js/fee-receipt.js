@@ -1917,10 +1917,33 @@ function enhanceStudentFeeCells() {
 
                 if (wrapper) {
 
-                    const payButton =
-                        document.createElement(
-                            "button"
-                        );
+                 if (wrapper) {
+
+    wrapper.querySelectorAll(
+        ".action-icon-btn"
+    ).forEach(
+        (button) => {
+
+            button.style.whiteSpace =
+                "nowrap";
+
+            button.style.overflow =
+                "hidden";
+
+            button.style.textOverflow =
+                "ellipsis";
+
+            button.style.boxSizing =
+                "border-box";
+
+        }
+    );
+
+
+    const payButton =
+        document.createElement(
+            "button"
+        );
 
 
                     payButton.type =
@@ -1943,6 +1966,27 @@ function enhanceStudentFeeCells() {
 
                     payButton.className =
                         "action-icon-btn";
+                   payButton.style.cssText = `
+    width:auto;
+    min-width:78px;
+    height:36px;
+    padding:6px 10px;
+    box-sizing:border-box;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    color:#2563eb;
+    background:#ffffff;
+    border:1px solid #d1d5db;
+    border-radius:6px;
+    font-size:13px;
+    font-weight:600;
+    line-height:1.2;
+    cursor:pointer;
+`;
 
 
                     payButton.addEventListener(
