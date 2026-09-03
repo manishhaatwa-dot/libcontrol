@@ -2281,22 +2281,63 @@ async function deleteStudent(
 
     try {
 
-     const historyResult =
+   const historyResult =
     await window.LibControlStudentHistory.archive(
         session.libraryId,
         studentCode
     );
 
 if (!historyResult || !historyResult.success) {
+
     throw new Error(
         "Student history archive failed."
     );
+
 }
 
-alert(
-    "Student moved to history successfully."
-);
 
+/*
+ * Delete Firebase Authentication account
+ * and then remove the active Firestore student.
+ */
+
+const deleteStudentAccount =
+    firebase
+        .functions()
+        .httpsCallable(
+            "deleteLibraryStudent"
+        );
+
+
+const deleteResult =
+    await deleteStudentAccount({
+
+        libraryId:
+            session.libraryId,
+
+        studentCode:
+            studentCode
+
+    });
+
+
+if (
+    !deleteResult ||
+    !deleteResult.data ||
+    !deleteResult.data.success
+) {
+
+    throw new Error(
+        "Unable to delete student account."
+    );
+
+}
+
+
+alert(
+    "Student moved to history and login account deleted successfully."
+);
+       
     }
     catch (error) {
 
